@@ -20,6 +20,7 @@ const App: React.FC = () => {
           <Route path="/capability" element={<CapabilityPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/config" element={<ConfigPage />} />
+          <Route path="/data" element={<DataPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Routes>
       </AppLayout>
