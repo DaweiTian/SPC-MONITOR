@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液奶成品检验数据分析平台 — 专有名词可视化手册</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --info: #0891b2;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-light: #64748b;
+    --code-bg: #f1f5f9;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.05);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    color: white; padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .top-bar .logo { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+  .top-bar .logo span { opacity: 0.7; font-weight: 400; font-size: 13px; margin-left: 8px; }
+
+  /* ===== 侧边导航 ===== */
+  .sidebar {
+    position: fixed; top: 56px; left: 0; width: 260px; bottom: 0;
+    background: white; border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 16px 0; z-index: 900;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  .nav-group-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-light); padding: 16px 20px 6px; 
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 20px; font-size: 13px; color: var(--text);
+    text-decoration: none; transition: all 0.15s; border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--primary-light); color: var(--primary); }
+  .nav-item.active { background: var(--primary-light); color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+  .nav-item .num {
+    width: 20px; height: 20px; border-radius: 4px; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--text-light); flex-shrink: 0;
+  }
+  .nav-item.active .num { background: var(--primary); color: white; }
+
+  /* ===== 主内容 ===== */
+  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: 1100px; }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg); border-radius: 12px; padding: 28px;
+    box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
+  }
+
+  /* ===== 标题 ===== */
+  .section-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    padding-bottom: 16px; border-bottom: 2px solid var(--border);
+  }
+  .section-header .icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .section-header .subtitle { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+
+  /* ===== 概念块 ===== */
+  .concept {
+    margin-bottom: 32px; scroll-margin-top: 72px;
+  }
+  .concept:last-child { margin-bottom: 0; }
+  .concept-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 18px; font-weight: 700; margin-bottom: 12px;
+    padding: 10px 16px; border-radius: 8px; background: var(--code-bg);
+  }
+  .concept-title .tag {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tag-spc { background: #dbeafe; color: #1d4ed8; }
+  .tag-capability { background: #dcfce7; color: #15803d; }
+  .tag-anomaly { background: #fee2e2; color: #b91c1c; }
+  .tag-trend { background: #fef3c7; color: #b45309; }
+  .tag-stats { background: #e0e7ff; color: #4338ca; }
+  .tag-quality { background: #fce7f3; color: #be185d; }
+
+  .concept-body { padding: 0 8px; }
+  .concept-body p { margin-bottom: 10px; font-size: 14px; color: #334155; }
+  .concept-body strong { color: var(--text); }
+
+  /* ===== 公式块 ===== */
+  .formula-box {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: 8px; padding: 16px 20px; margin: 12px 0;
+    font-family: 'Cambria Math', 'Latin Modern Math', 'STIX', serif;
+    font-size: 16px; line-height: 2.2; overflow-x: auto;
+  }
+  .formula-box .label {
+    font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 600;
+    color: var(--text-light); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .formula-box .eq { display: block; text-align: center; padding: 4px 0; }
+  .formula-box .where { font-size: 13px; color: var(--text-light); margin-top: 8px; }
+  .formula-box .where li { margin-left: 20px; list-style: disc; }
+
+  /* ===== 图表容器 ===== */
+  .chart-container {
+    width: 100%; border-radius: 8px; border: 1px solid var(--border);
+    background: white; padding: 12px; margin: 12px 0;
+  }
+  .chart-container .chart-title {
+    font-size: 13px; font-weight: 600; color: var(--text-light);
+    text-align: center; margin-bottom: 8px;
+  }
+
+  /* ===== 表格 ===== */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #334155; }
+  tr:hover td { background: #f8fafc; }
+  table .num-col { text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* ===== 提示框 ===== */
+  .tip-box {
+    border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-size: 13px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .tip-box .tip-icon { font-size: 16px; flex-shrink: 0; }
+  .tip-info { background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; }
+  .tip-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .tip-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .tip-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+
+  /* ===== 徽章 ===== */
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .badge-warning { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+  .badge-info { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; }
+  .badge-good { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b; color: #e2e8f0; border-radius: 8px;
+    padding: 16px 20px; margin: 12px 0; font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px; line-height: 1.6; overflow-x: auto;
+  }
+  .code-block .comment { color: #64748b; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #86efac; }
+  .code-block .number { color: #fbbf24; }
+
+  /* ===== 图例 ===== */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-light); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  /* ===== 封面 ===== */
+  .cover {
+    text-align: center; padding: 60px 40px; 
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #0891b2 100%);
+    color: white; border-radius: 16px; margin-bottom: 32px;
+  }
+  .cover h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+  .cover .subtitle { font-size: 16px; opacity: 0.85; margin-bottom: 24px; }
+  .cover .meta { display: flex; justify-content: center; gap: 32px; font-size: 13px; opacity: 0.7; }
+  .cover .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .cover .meta-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ===== 目录卡片网格 ===== */
+  .toc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+  .toc-card {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; text-decoration: none; color: var(--text); transition: all 0.2s;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toc-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .toc-card .toc-icon { font-size: 28px; }
+  .toc-card .toc-title { font-size: 15px; font-weight: 700; }
+  .toc-card .toc-desc { font-size: 12px; color: var(--text-light); line-height: 1.5; }
+  .toc-card .toc-count { font-size: 11px; color: var(--primary); font-weight: 600; }
+
+  /* ===== 分隔线 ===== */
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 20px; }
+    .toc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部栏 ===== -->
+<div class="top-bar">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <a href="/" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">← 返回主页</a>
+    <div class="logo">🥛 数据分析名词可视化手册 <span>液奶成品检验数据分析平台</span></div>
+  </div>
+  <div style="font-size:12px;opacity:0.7;">v1.0 · 2026-08-18</div>
+</div>
+
+<!-- ===== 侧边导航 ===== -->
+<div class="sidebar" id="sidebar">
+  <div class="nav-group-title">统计基础</div>
+  <a class="nav-item" href="#sec-stats"><span class="num">1</span> 统计学基础概念</a>
+  <a class="nav-item" href="#sec-distribution"><span class="num">2</span> 正态分布与3σ</a>
+
+  <div class="nav-group-title">SPC 控制图</div>
+  <a class="nav-item" href="#sec-spc"><span class="num">3</span> SPC 统计过程控制</a>
+  <a class="nav-item" href="#sec-imr"><span class="num">4</span> I-MR 控制图</a>
+  <a class="nav-item" href="#sec-nelson"><span class="num">5</span> Nelson 8条规则</a>
+
+  <div class="nav-group-title">过程能力</div>
+  <a class="nav-item" href="#sec-cpk"><span class="num">6</span> Cpk / Cp 过程能力</a>
+  <a class="nav-item" href="#sec-ppm"><span class="num">7</span> PPM 缺陷率</a>
+
+  <div class="nav-group-title">异常检测</div>
+  <a class="nav-item" href="#sec-zscore"><span class="num">8</span> Z-Score 检验</a>
+  <a class="nav-item" href="#sec-iqr"><span class="num">9</span> IQR 四分位距法</a>
+  <a class="nav-item" href="#sec-ewma"><span class="num">10</span> EWMA 指数加权</a>
+
+  <div class="nav-group-title">趋势预测</div>
+  <a class="nav-item" href="#sec-arima"><span class="num">11</span> ARIMA 模型</a>
+  <a class="nav-item" href="#sec-mk"><span class="num">12</span> Mann-Kendall 检验</a>
+
+  <div class="nav-group-title">合规与质量</div>
+  <a class="nav-item" href="#sec-compliance"><span class="num">13</span> 3σ合规判定</a>
+  <a class="nav-item" href="#sec-indicators"><span class="num">14</span> 液奶指标体系</a>
+</div>
+
+<!-- ===== 主内容 ===== -->
+<div class="main">
+
+<!-- 封面 -->
+<div class="cover">
+  <h1>📊 数据分析专有名词可视化手册</h1>
+  <div class="subtitle">液奶成品检验数据分析平台 · 从公式到图示 · 一站式理解</div>
+  <div class="meta">
+    <div class="meta-item"><span class="label">覆盖模块</span><span>SPC · 过程能力 · 异常检测 · 趋势预测 · 合规判定</span></div>
+    <div class="meta-item"><span class="label">名词数量</span><span>30+ 核心概念</span></div>
+    <div class="meta-item"><span class="label">版本</span><span>v1.0 · 2026-08-18</span></div>
+  </div>
+</div>
+
+<!-- 目录卡片 -->
+<div class="toc-grid">
+  <a class="toc-card" href="#sec-stats"><div class="toc-icon">📐</div><div class="toc-title">统计学基础</div><div class="toc-desc">均值、标准差、中位数、四分位数等基础统计量</div><div class="toc-count">6个概念</div></a>
+  <a class="toc-card" href="#sec-distribution"><div class="toc-icon">🔔</div><div class="toc-title">正态分布与3σ</div><div class="toc-desc">正态分布特性、3σ原则、概率密度函数</div><div class="toc-count">3个概念</div></a>
+  <a class="toc-card" href="#sec-spc"><div class="toc-icon">📈</div><div class="toc-title">SPC 统计过程控制</div><div class="toc-desc">SPC核心理念、控制限计算、过程状态判断</div><div class="toc-count">3个概念</div></a>
+  <a class="toc-card" href="#sec-imr"><div class="toc-icon">📊</div><div class="toc-title">I-MR 控制图</div><div class="toc-desc">单值图、移动极差图、控制限公式与计算逻辑</div><div class="toc-count">4个概念</div></a>
+  <a class="toc-card" href="#sec-nelson"><div class="toc-icon">🔍</div><div class="toc-title">Nelson 8条规则</div><div class="toc-desc">8种异常模式识别规则、分区原理、严重程度分级</div><div class="toc-count">8条规则</div></a>
+  <a class="toc-card" href="#sec-cpk"><div class="toc-icon">🎯</div><div class="toc-title">Cpk / Cp 过程能力</div><div class="toc-desc">过程能力指数、Cp/Cpk/Cpl/Cpu计算、评级标准</div><div class="toc-count">5个概念</div></a>
+  <a class="toc-card" href="#sec-ppm"><div class="toc-icon">⚠️</div><div class="toc-title">PPM 缺陷率</div><div class="toc-desc">百万分之缺陷率计算、正态分布关联</div><div class="toc-count">1个概念</div></a>
+  <a class="toc-card" href="#sec-zscore"><div class="toc-icon">📏</div><div class="toc-title">Z-Score 检验</div><div class="toc-desc">标准分数计算、异常判定阈值</div><div class="toc-count">1个概念</div></a>
+  <a class="toc-card" href="#sec-iqr"><div class="toc-icon">📦</div><div class="toc-title">IQR 四分位距法</div><div class="toc-desc">箱线图原理、异常边界计算</div><div class="toc-count">1个概念</div></a>
+  <a class="toc-card" href="#sec-ewma"><div class="toc-icon">📉</div><div class="toc-title">EWMA 指数加权</div><div class="toc-desc">指数加权移动平均、平滑系数、异常监控</div><div class="toc-count">1个概念</div></a>
+  <a class="toc-card" href="#sec-arima"><div class="toc-icon">🔮</div><div class="toc-title">ARIMA 模型</div><div class="toc-desc">自回归积分滑动平均模型、参数含义、预测逻辑</div><div class="toc-count">3个概念</div></a>
+  <a class="toc-card" href="#sec-mk"><div class="toc-icon">📊</div><div class="toc-title">Mann-Kendall 检验</div><div class="toc-desc">非参数趋势检验、S统计量、显著性判断</div><div class="toc-count">2个概念</div></a>
+  <a class="toc-card" href="#sec-compliance"><div class="toc-icon">✅</div><div class="toc-title">3σ合规判定</div><div class="toc-desc">规格限、合规区间、判定逻辑</div><div class="toc-count">2个概念</div></a>
+  <a class="toc-card" href="#sec-indicators"><div class="toc-icon">🥛</div><div class="toc-title">液奶指标体系</div><div class="toc-desc">脂肪、蛋白质、酸度等8项关键指标</div><div class="toc-count">8项指标</div></a>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第1章：统计学基础 -->
+<!-- ================================================================ -->
+<div class="card" id="sec-stats">
+  <div class="section-header">
+    <div class="icon" style="background:#e0e7ff;">📐</div>
+    <div><h2>统计学基础概念</h2><div class="subtitle">所有数据分析方法的底层基石</div></div>
+  </div>
+
+  <div class="concept" id="mean">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 均值（Mean / μ）</div>
+    <div class="concept-body">
+      <p>全部数据的算术平均值，反映数据的<strong>集中趋势</strong>。在SPC中作为控制图的中心线（CL）。</p>
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">x̄ = (x₁ + x₂ + … + xₙ) / n = Σxᵢ / n</div>
+        <ul class="where">
+          <li><strong>x̄</strong>：样本均值</li>
+          <li><strong>xᵢ</strong>：第 i 个数据点</li>
+          <li><strong>n</strong>：数据点总数</li>
+        </ul>
+      </div>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>项目实例</strong>：31108条灭菌乳数据中，蛋白质均值 = 3.32%，脂肪均值 = 3.87%。这两个值分别作为蛋白质和脂肪控制图的中心线。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="std">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 标准差（Standard Deviation / σ）</div>
+    <div class="concept-body">
+      <p>衡量数据偏离均值的<strong>离散程度</strong>。标准差越大，数据波动越剧烈。SPC控制限的宽度由标准差决定。</p>
+      <div class="formula-box">
+        <div class="label">样本标准差（ddof=1）</div>
+        <div class="eq">s = √[ Σ(xᵢ - x̄)² / (n - 1) ]</div>
+        <div class="label" style="margin-top:8px;">总体标准差（ddof=0）</div>
+        <div class="eq">σ = √[ Σ(xᵢ - μ)² / n ]</div>
+        <ul class="where">
+          <li><strong>s</strong>：样本标准差（平台使用，更保守）</li>
+          <li><strong>σ</strong>：总体标准差</li>
+          <li><strong>n - 1</strong>：贝塞尔校正，消除样本估计偏差</li>
+        </ul>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">不同标准差下的数据分布对比</div>
+        <div id="chart-std" style="height:220px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="median">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 中位数（Median）</div>
+    <div class="concept-body">
+      <p>将数据从小到大排列后处于<strong>正中间</strong>的值。不受极端值影响，常与均值对比判断数据偏态。</p>
+      <div class="formula-box">
+        <div class="label">计算方法</div>
+        <div class="eq">n 为奇数：Median = x<sub>(n+1)/2</sub></div>
+        <div class="eq">n 为偶数：Median = (x<sub>n/2</sub> + x<sub>n/2+1</sub>) / 2</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="quartile">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 四分位数（Q1 / Q2 / Q3）</div>
+    <div class="concept-body">
+      <p>将数据分为四个等份的三个分割点。Q2 即中位数。四分位数是箱线图和IQR异常检测的基础。</p>
+      <div class="chart-container">
+        <div class="chart-title">四分位数与箱线图结构</div>
+        <div id="chart-quartile" style="height:200px;"></div>
+      </div>
+      <div class="formula-box">
+        <div class="label">四分位距（IQR）</div>
+        <div class="eq">IQR = Q3 - Q1</div>
+        <div class="label" style="margin-top:8px;">异常边界</div>
+        <div class="eq">下界 = Q1 - 1.5 × IQR</div>
+        <div class="eq">上界 = Q3 + 1.5 × IQR</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="moving-range">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 移动极差（Moving Range / MR）</div>
+    <div class="concept-body">
+      <p><strong>相邻两个数据点之差的绝对值</strong>。在I-MR控制图中用于估计短期过程波动，是计算控制限宽度的核心统计量。</p>
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">MRᵢ = |xᵢ - xᵢ₋₁|</div>
+        <div class="label" style="margin-top:8px;">平均移动极差</div>
+        <div class="eq">MR̄ = ΣMRᵢ / (n - 1)</div>
+      </div>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>为什么用MR而不是标准差？</strong> 当每次只有1个检测值时（单值控制图），无法计算组内标准差。MR利用相邻数据的差异来估计短期波动，是一种被广泛接受的无偏估计方法。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="window">
+    <div class="concept-title"><span class="tag tag-stats">基础</span> 滑动窗口（Sliding Window）</div>
+    <div class="concept-body">
+      <p>只取<strong>最近 N 个数据点</strong>进行计算，而非全部历史数据。确保分析结果反映<strong>当前过程状态</strong>，而非被早期数据稀释。</p>
+      <table>
+        <tr><th>检测频率</th><th>建议窗口</th><th>覆盖时间</th><th>用途</th></tr>
+        <tr><td>高频（每小时多个）</td><td class="num-col">30</td><td class="num-col">~1-2天</td><td>短期过程稳定性</td></tr>
+        <tr><td>中频（每天数个）</td><td class="num-col">50</td><td class="num-col">~1-2周</td><td>中期趋势</td></tr>
+        <tr><td>低频（每天1-2个）</td><td class="num-col">100</td><td class="num-col">~1-2月</td><td>长期趋势</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第2章：正态分布与3σ -->
+<!-- ================================================================ -->
+<div class="card" id="sec-distribution">
+  <div class="section-header">
+    <div class="icon" style="background:#fef3c7;">🔔</div>
+    <div><h2>正态分布与3σ原则</h2><div class="subtitle">SPC与过程能力的理论根基</div></div>
+  </div>
+
+  <div class="concept" id="normal-dist">
+    <div class="concept-title"><span class="tag tag-stats">核心</span> 正态分布（Normal Distribution）</div>
+    <div class="concept-body">
+      <p>自然界和生产过程中最常见的连续概率分布，呈"钟形曲线"。液奶检测指标（脂肪、蛋白质等）近似服从正态分布，这是SPC方法适用的前提。</p>
+      <div class="formula-box">
+        <div class="label">概率密度函数（PDF）</div>
+        <div class="eq">f(x) = (1 / (σ√2π)) × e^[-(x-μ)² / (2σ²)]</div>
+        <ul class="where">
+          <li><strong>μ</strong>：均值（决定曲线中心位置）</li>
+          <li><strong>σ</strong>：标准差（决定曲线宽窄）</li>
+          <li><strong>e</strong>：自然底数 ≈ 2.71828</li>
+        </ul>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">正态分布钟形曲线与概率区间</div>
+        <div id="chart-normal" style="height:280px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="three-sigma">
+    <div class="concept-title"><span class="tag tag-spc">核心</span> 3σ原则（68-95-99.7法则）</div>
+    <div class="concept-body">
+      <p>正态分布中，数据落在均值±kσ范围内的概率：</p>
+      <table>
+        <tr><th>范围</th><th>概率</th><th>含义</th><th>SPC应用</th></tr>
+        <tr><td>μ ± 1σ</td><td class="num-col">68.27%</td><td>约2/3的数据</td><td>Nelson规则的C区边界</td></tr>
+        <tr><td>μ ± 2σ</td><td class="num-col">95.45%</td><td>约95%的数据</td><td>Nelson规则的B区边界</td></tr>
+        <tr><td>μ ± 3σ</td><td class="num-col">99.73%</td><td>几乎所有数据</td><td>控制限 UCL / LCL</td></tr>
+      </table>
+      <div class="tip-box tip-success"><span class="tip-icon">✅</span><div><strong>核心逻辑</strong>：如果过程稳定且服从正态分布，99.73%的数据应落在 μ±3σ 范围内。超出此范围的概率仅0.27%（约千分之三），因此一旦出现超限点，极大概率是过程发生了异常——这就是SPC控制图的理论基础。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="zone-division">
+    <div class="concept-title"><span class="tag tag-spc">核心</span> 控制图区域划分（A/B/C区）</div>
+    <div class="concept-body">
+      <p>以中心线为基准，将控制图划分为6个等宽区域，用于Nelson规则的判定：</p>
+      <div class="chart-container">
+        <div class="chart-title">控制图分区示意（以脂肪指标为例）</div>
+        <div id="chart-zones" style="height:280px;"></div>
+      </div>
+      <table>
+        <tr><th>区域</th><th>范围</th><th>距中心线</th><th>含义</th></tr>
+        <tr><td>C区（中心区）</td><td>μ ± 1σ</td><td class="num-col">1σ</td><td>正常波动区域</td></tr>
+        <tr><td>B区（警戒区）</td><td>μ ± 1σ ~ μ ± 2σ</td><td class="num-col">1~2σ</td><td>需关注但可接受</td></tr>
+        <tr><td>A区（行动区）</td><td>μ ± 2σ ~ μ ± 3σ</td><td class="num-col">2~3σ</td><td>接近失控，需警惕</td></tr>
+        <tr><td>超限区</td><td>超出 μ ± 3σ</td><td class="num-col">>3σ</td><td>失控，立即干预</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第3章：SPC -->
+<!-- ================================================================ -->
+<div class="card" id="sec-spc">
+  <div class="section-header">
+    <div class="icon" style="background:#dbeafe;">📈</div>
+    <div><h2>SPC 统计过程控制</h2><div class="subtitle">Statistical Process Control — 用数据判断过程是否稳定</div></div>
+  </div>
+
+  <div class="concept" id="spc-concept">
+    <div class="concept-title"><span class="tag tag-spc">核心</span> SPC（统计过程控制）</div>
+    <div class="concept-body">
+      <p>利用统计方法对生产过程进行<strong>实时监控</strong>，区分"正常波动"（Common Cause，随机因素导致）和"异常波动"（Special Cause，可追溯因素导致），从而在缺陷发生前预警。</p>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>SPC vs 事后检验</strong>：传统检验是"检测次品"→发现问题时已经产生损失；SPC是"监控过程"→在趋势偏离初期就预警，避免产生次品。这正是本项目核心价值——"异常发现太晚"的解决方案。</div></div>
+      <table>
+        <tr><th>波动类型</th><th>原因</th><th>特征</th><th>应对策略</th></tr>
+        <tr><td>正常波动</td><td>随机因素（温度微变、仪器精度等）</td><td>在控制限内随机分布</td><td>无需干预</td></tr>
+        <tr><td>异常波动</td><td>可追溯因素（原料批次、设备故障等）</td><td>违反Nelson规则、超出控制限</td><td>立即排查并纠正</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="concept" id="control-limits">
+    <div class="concept-title"><span class="tag tag-spc">核心</span> 控制限（UCL / CL / LCL）</div>
+    <div class="concept-body">
+      <p>控制图的三条关键水平线，基于<strong>过程自身数据</strong>计算（不是规格限），反映过程的自然波动范围。</p>
+      <div class="formula-box">
+        <div class="label">I图（单值图）控制限 — 基于移动极差</div>
+        <div class="eq">CL  = x̄ （均值）</div>
+        <div class="eq">UCL = x̄ + 2.66 × MR̄</div>
+        <div class="eq">LCL = x̄ − 2.66 × MR̄</div>
+        <ul class="where">
+          <li><strong>2.66</strong> = 3 / d₂，其中 d₂=1.128（n=2时的控制图常数），等价于 3σ</li>
+          <li><strong>MR̄</strong>：平均移动极差</li>
+        </ul>
+      </div>
+      <div class="formula-box">
+        <div class="label">MR图（移动极差图）控制限</div>
+        <div class="eq">CL  = MR̄</div>
+        <div class="eq">UCL = 3.267 × MR̄</div>
+        <div class="eq">LCL = 0</div>
+        <ul class="where">
+          <li><strong>3.267</strong> = D₄（n=2时的控制图常数）</li>
+          <li><strong>LCL = 0</strong>：极差不可能为负</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="spec-vs-control">
+    <div class="concept-title"><span class="tag tag-spc">易混</span> 规格限 vs 控制限</div>
+    <div class="concept-body">
+      <p>这是最容易混淆的一组概念，但二者有本质区别：</p>
+      <table>
+        <tr><th></th><th>规格限（Spec Limits）</th><th>控制限（Control Limits）</th></tr>
+        <tr><td><strong>来源</strong></td><td>外部标准（国标/企标）</td><td>过程自身数据计算</td></tr>
+        <tr><td><strong>用途</strong></td><td>判断产品是否合格</td><td>判断过程是否稳定</td></tr>
+        <tr><td><strong>符号</strong></td><td>USL / LSL / Target</td><td>UCL / LCL</td></tr>
+        <tr><td><strong>示例</strong></td><td>脂肪 ≥ 3.0%（国标要求）</td><td>UCL=3.99, LCL=3.89（过程实际波动）</td></tr>
+        <tr><td><strong>关系</strong></td><td colspan="2">控制限应在规格限之内，过程才算"有能力"</td></tr>
+      </table>
+      <div class="chart-container">
+        <div class="chart-title">规格限与控制限的关系（脂肪指标示例）</div>
+        <div id="chart-spec-vs-control" style="height:260px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第4章：I-MR 控制图 -->
+<!-- ================================================================ -->
+<div class="card" id="sec-imr">
+  <div class="section-header">
+    <div class="icon" style="background:#dbeafe;">📊</div>
+    <div><h2>I-MR 控制图</h2><div class="subtitle">Individuals & Moving Range Chart — 单值+移动极差双图</div></div>
+  </div>
+
+  <div class="concept" id="imr-overview">
+    <div class="concept-title"><span class="tag tag-spc">核心</span> I-MR 控制图</div>
+    <div class="concept-body">
+      <p>由<strong>两张图上下排列</strong>组成的控制图，适用于每次检测只有1个数据值的场景（液奶单批次单指标检测正是如此）。</p>
+      <table>
+        <tr><th></th><th>I图（单值图）</th><th>MR图（移动极差图）</th></tr>
+        <tr><td><strong>纵轴</strong></td><td>检测值 xᵢ</td><td>移动极差 MRᵢ = |xᵢ - xᵢ₋₁|</td></tr>
+        <tr><td><strong>监控目标</strong></td><td>过程均值是否偏移</td><td>过程波动是否增大</td></tr>
+        <tr><td><strong>中心线</strong></td><td>x̄</td><td>MR̄</td></tr>
+        <tr><td><strong>控制限</strong></td><td>x̄ ± 2.66×MR̄</td><td>[0, 3.267×MR̄]</td></tr>
+      </table>
+      <div class="chart-container">
+        <div class="chart-title">I-MR 控制图完整示例（砖纯牛奶·脂肪·最近30个检测点）</div>
+        <div id="chart-imr" style="height:420px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="control-chart-constants">
+    <div class="concept-title"><span class="tag tag-spc">参考</span> 控制图常数表</div>
+    <div class="concept-body">
+      <p>I-MR控制图使用 n=2（移动极差的样本量=2）对应的常数：</p>
+      <table>
+        <tr><th>常数</th><th>n=2时的值</th><th>用途</th><th>公式</th></tr>
+        <tr><td>d₂</td><td class="num-col">1.128</td><td>估计标准差</td><td>σ̂ = MR̄ / d₂</td></tr>
+        <tr><td>D₃</td><td class="num-col">0</td><td>MR图下控制限系数</td><td>LCL = D₃ × MR̄</td></tr>
+        <tr><td>D₄</td><td class="num-col">3.267</td><td>MR图上控制限系数</td><td>UCL = D₄ × MR̄</td></tr>
+        <tr><td>E₂ (或 3/d₂)</td><td class="num-col">2.660</td><td>I图控制限系数</td><td>UCL/LCL = x̄ ± E₂ × MR̄</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="concept" id="calc-example">
+    <div class="concept-title"><span class="tag tag-spc">实例</span> 完整计算示例</div>
+    <div class="concept-body">
+      <p>以"砖纯牛奶·脂肪"最近5个检测值为例：3.95, 3.92, 3.98, 3.88, 3.93</p>
+      <div class="code-block">
+<span class="comment"># 步骤1：计算均值</span>
+x̄ = (3.95 + 3.92 + 3.98 + 3.88 + 3.93) / 5 = <span class="number">3.932</span>
+
+<span class="comment"># 步骤2：计算移动极差</span>
+MR₁ = |3.95 - 3.92| = <span class="number">0.03</span>
+MR₂ = |3.92 - 3.98| = <span class="number">0.06</span>
+MR₃ = |3.98 - 3.88| = <span class="number">0.10</span>
+MR₄ = |3.88 - 3.93| = <span class="number">0.05</span>
+MR̄ = (0.03 + 0.06 + 0.10 + 0.05) / 4 = <span class="number">0.06</span>
+
+<span class="comment"># 步骤3：计算I图控制限</span>
+UCL = 3.932 + 2.66 × 0.06 = 3.932 + 0.1596 = <span class="number">4.092</span>
+LCL = 3.932 - 2.66 × 0.06 = 3.932 - 0.1596 = <span class="number">3.772</span>
+
+<span class="comment"># 步骤4：计算MR图控制限</span>
+UCL_MR = 3.267 × 0.06 = <span class="number">0.196</span>
+LCL_MR = <span class="number">0</span>
+
+<span class="comment"># 步骤5：判断</span>
+<span class="comment"># 所有检测值在 [3.772, 4.092] 内 → 过程受控</span>
+<span class="comment"># 所有MR值在 [0, 0.196] 内 → 波动正常</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第5章：Nelson 规则 -->
+<!-- ================================================================ -->
+<div class="card" id="sec-nelson">
+  <div class="section-header">
+    <div class="icon" style="background:#fee2e2;">🔍</div>
+    <div><h2>Nelson 8条规则</h2><div class="subtitle">识别控制图上的8种异常模式 — SPC的核心判异规则</div></div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-body">
+      <p>Nelson规则由国际质量专家Lloyd S. Nelson提出，基于控制图的A/B/C区划分，识别8种典型的过程异常模式。每条规则对应一种特定的异常原因类型。</p>
+      <div class="tip-box tip-warn"><span class="tip-icon">⚠️</span><div><strong>规则适用前提</strong>：数据需近似正态分布，且过程已建立稳定基线（至少20-25个数据点）。窗口大小不足时部分规则无法触发。</div></div>
+    </div>
+  </div>
+
+  <!-- 规则1 -->
+  <div class="concept" id="nelson-r1">
+    <div class="concept-title"><span class="badge badge-critical">CRITICAL</span> 规则1：1个点超出3σ控制限</div>
+    <div class="concept-body">
+      <p>任何一个数据点落在UCL之上或LCL之下。这是最经典的失控信号，概率仅0.27%。</p>
+      <div class="formula-box">
+        <div class="eq">条件：xᵢ > UCL <strong>或</strong> xᵢ < LCL</div>
+        <div class="where">即 xᵢ > μ + 3σ <strong>或</strong> xᵢ < μ - 3σ</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则1：超出控制限的红点</div>
+        <div id="chart-nelson-r1" style="height:180px;"></div>
+      </div>
+      <p><strong>可能原因</strong>：原料突变、设备故障、操作失误、仪器校准偏移。</p>
+    </div>
+  </div>
+
+  <!-- 规则2 -->
+  <div class="concept" id="nelson-r2">
+    <div class="concept-title"><span class="badge badge-critical">CRITICAL</span> 规则2：连续9个点在中心线同一侧</div>
+    <div class="concept-body">
+      <p>连续9个点全部高于或低于中心线，表明过程均值发生了<strong>系统性偏移</strong>。</p>
+      <div class="formula-box">
+        <div class="eq">条件：连续9个 xᵢ 全部 > CL <strong>或</strong> 全部 < CL</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则2：连续9点偏低（均值下移）</div>
+        <div id="chart-nelson-r2" style="height:180px;"></div>
+      </div>
+      <p><strong>可能原因</strong>：原料供应商更换、配方调整、季节性变化、设备磨损导致的系统性偏移。</p>
+    </div>
+  </div>
+
+  <!-- 规则3 -->
+  <div class="concept" id="nelson-r3">
+    <div class="concept-title"><span class="badge badge-warning">WARNING</span> 规则3：连续6个点持续递增或递减</div>
+    <div class="concept-body">
+      <p>连续6个点形成单调上升或单调下降趋势，表明过程存在<strong>渐进性漂移</strong>。</p>
+      <div class="formula-box">
+        <div class="eq">条件：xᵢ < xᵢ₊₁ < xᵢ₊₂ < … < xᵢ₊₅（连续6点递增）</div>
+        <div class="eq">或：xᵢ > xᵢ₊₁ > xᵢ₊₂ > … > xᵢ₊₅（连续6点递减）</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则3：连续6点递增趋势</div>
+        <div id="chart-nelson-r3" style="height:180px;"></div>
+      </div>
+      <p><strong>可能原因</strong>：设备逐渐老化、温度缓慢漂移、试剂效期衰减、滤芯逐步堵塞。</p>
+    </div>
+  </div>
+
+  <!-- 规则4 -->
+  <div class="concept" id="nelson-r4">
+    <div class="concept-title"><span class="badge badge-warning">WARNING</span> 规则4：连续14个点交替上下</div>
+    <div class="concept-body">
+      <p>连续14个点呈锯齿状交替上升下降，表示存在<strong>两个交替变化的因素</strong>（如两台设备轮流生产、两个操作员交替操作）。</p>
+      <div class="formula-box">
+        <div class="eq">条件：(xᵢ - xᵢ₋₁) × (xᵢ₊₁ - xᵢ) < 0，持续14个点</div>
+        <div class="where">即每相邻两个差值符号相反</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则4：交替振荡模式</div>
+        <div id="chart-nelson-r4" style="height:180px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则5 -->
+  <div class="concept" id="nelson-r5">
+    <div class="concept-title"><span class="badge badge-warning">WARNING</span> 规则5：连续3点中有2点在A区或以外（同侧）</div>
+    <div class="concept-body">
+      <p>连续3个点中，有2个点落在同一侧的A区（2σ~3σ之间）或超出控制限。表示过程均值可能正在偏移。</p>
+      <div class="formula-box">
+        <div class="eq">条件：连续3点中 ≥2 点 > μ + 2σ <strong>或</strong> < μ - 2σ</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则5：3点中2点在上侧A区</div>
+        <div id="chart-nelson-r5" style="height:180px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则6 -->
+  <div class="concept" id="nelson-r6">
+    <div class="concept-title"><span class="badge badge-warning">WARNING</span> 规则6：连续5点中有4点在B区或以外（同侧）</div>
+    <div class="concept-body">
+      <p>连续5个点中，有4个点落在同一侧的B区（1σ以外）或更远。比规则5更温和的均值偏移信号。</p>
+      <div class="formula-box">
+        <div class="eq">条件：连续5点中 ≥4 点 > μ + 1σ <strong>或</strong> < μ - 1σ</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则6：5点中4点在上侧B区外</div>
+        <div id="chart-nelson-r6" style="height:180px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则7 -->
+  <div class="concept" id="nelson-r7">
+    <div class="concept-title"><span class="badge badge-info">INFO</span> 规则7：连续15个点在C区（中心线附近）</div>
+    <div class="concept-body">
+      <p>连续15个点全部落在C区（μ±1σ）内。看似"好"实则异常——波动过小不符合统计预期，可能数据造假、测量系统分辨率不足或分层不足。</p>
+      <div class="formula-box">
+        <div class="eq">条件：连续15点全部在 [μ - 1σ, μ + 1σ] 范围内</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则7：15点全部集中在C区（异常地"好"）</div>
+        <div id="chart-nelson-r7" style="height:180px;"></div>
+      </div>
+      <div class="tip-box tip-warn"><span class="tip-icon">⚠️</span><div><strong>为什么波动太小也是问题？</strong> 正态分布中15个点全落在C区的概率极低（约0.32%）。如果出现，通常意味着：①测量仪器分辨率不够，数据被"四舍五入"到了少数几个值；②人为筛选了数据；③过程分层不当（混合了不同批次的数据平均化了波动）。</div></div>
+    </div>
+  </div>
+
+  <!-- 规则8 -->
+  <div class="concept" id="nelson-r8">
+    <div class="concept-title"><span class="badge badge-info">INFO</span> 规则8：连续8点在C区以外（两侧都有）</div>
+    <div class="concept-body">
+      <p>连续8个点全部不在C区内，且两侧都有。表示过程波动增大，数据过于分散。</p>
+      <div class="formula-box">
+        <div class="eq">条件：连续8点全部在 C区外（即 |xᵢ - μ| > 1σ），且上侧和下侧各至少1点</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">规则8：8点全部在C区外，波动增大</div>
+        <div id="chart-nelson-r8" style="height:180px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+  <table>
+    <tr><th>规则</th><th>描述</th><th>严重程度</th><th>关注重点</th></tr>
+    <tr><td>R1</td><td>1点超出3σ</td><td><span class="badge badge-critical">CRITICAL</span></td><td>突发异常</td></tr>
+    <tr><td>R2</td><td>连续9点同侧</td><td><span class="badge badge-critical">CRITICAL</span></td><td>均值偏移</td></tr>
+    <tr><td>R3</td><td>连续6点递增/递减</td><td><span class="badge badge-warning">WARNING</span></td><td>渐进漂移</td></tr>
+    <tr><td>R4</td><td>连续14点交替</td><td><span class="badge badge-warning">WARNING</span></td><td>双因素交替</td></tr>
+    <tr><td>R5</td><td>3点中2点在A区外</td><td><span class="badge badge-warning">WARNING</span></td><td>早期偏移</td></tr>
+    <tr><td>R6</td><td>5点中4点在B区外</td><td><span class="badge badge-warning">WARNING</span></td><td>温和偏移</td></tr>
+    <tr><td>R7</td><td>15点全在C区</td><td><span class="badge badge-info">INFO</span></td><td>波动过小</td></tr>
+    <tr><td>R8</td><td>8点全在C区外</td><td><span class="badge badge-info">INFO</span></td><td>波动增大</td></tr>
+  </table>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第6章：Cpk -->
+<!-- ================================================================ -->
+<div class="card" id="sec-cpk">
+  <div class="section-header">
+    <div class="icon" style="background:#dcfce7;">🎯</div>
+    <div><h2>Cpk / Cp 过程能力指数</h2><div class="subtitle">Process Capability Index — 过程能否稳定产出合格品？</div></div>
+  </div>
+
+  <div class="concept" id="cp">
+    <div class="concept-title"><span class="tag tag-capability">核心</span> Cp（过程能力指数）</div>
+    <div class="concept-body">
+      <p>衡量过程<strong>潜在能力</strong>——如果过程均值恰好对准规格中心，过程能达到多好的能力。Cp<strong>不考虑均值偏移</strong>。</p>
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">Cp = (USL - LSL) / (6σ)</div>
+        <ul class="where">
+          <li><strong>USL</strong>：规格上限（Upper Spec Limit）</li>
+          <li><strong>LSL</strong>：规格下限（Lower Spec Limit）</li>
+          <li><strong>6σ</strong>：过程自然波动范围（±3σ）</li>
+        </ul>
+      </div>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>直观理解</strong>：Cp = 规格宽度 / 过程宽度。Cp=1 表示规格限恰好等于±3σ，过程刚好"卡线"；Cp=2 表示规格宽度是过程宽度的2倍，非常充裕。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="cpk">
+    <div class="concept-title"><span class="tag tag-capability">核心</span> Cpk（过程能力指数，考虑偏移）</div>
+    <div class="concept-body">
+      <p>衡量过程<strong>实际能力</strong>——考虑了均值偏离规格中心的影响。Cpk ≤ Cp，当均值恰好对准规格中心时 Cpk = Cp。</p>
+      <div class="formula-box">
+        <div class="label">双边规格</div>
+        <div class="eq">Cpk = min(Cpl, Cpu)</div>
+        <div class="eq">Cpl = (μ - LSL) / (3σ)　← 下限侧能力</div>
+        <div class="eq">Cpu = (USL - μ) / (3σ)　← 上限侧能力</div>
+        <div class="label" style="margin-top:8px;">单边规格（只有上限）</div>
+        <div class="eq">Cpk = Cpu = (USL - μ) / (3σ)</div>
+        <div class="label" style="margin-top:8px;">单边规格（只有下限）</div>
+        <div class="eq">Cpk = Cpl = (μ - LSL) / (3σ)</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Cpk 评级仪表盘与分布示意</div>
+        <div id="chart-cpk-gauge" style="height:260px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="cpk-grade">
+    <div class="concept-title"><span class="tag tag-capability">核心</span> Cpk 评级标准</div>
+    <div class="concept-body">
+      <table>
+        <tr><th>Cpk</th><th>等级</th><th>颜色</th><th>含义</th><th>建议</th></tr>
+        <tr><td>≥ 1.67</td><td><span class="badge badge-good">优秀</span></td><td>🟢 绿</td><td>过程能力充足</td><td>可降低检测频率</td></tr>
+        <tr><td>1.33 ~ 1.67</td><td><span class="badge badge-good">良好</span></td><td>🟢 绿</td><td>过程能力可接受</td><td>维持现状</td></tr>
+        <tr><td>1.00 ~ 1.33</td><td><span class="badge badge-warning">尚可</span></td><td>🟡 黄</td><td>过程能力勉强</td><td>需加强监控</td></tr>
+        <tr><td>0.67 ~ 1.00</td><td><span class="badge badge-warning">不足</span></td><td>🔴 红</td><td>过程能力不足</td><td>需改进过程</td></tr>
+        <tr><td>< 0.67</td><td><span class="badge badge-critical">严重不足</span></td><td>🔴 红</td><td>过程能力严重不足</td><td>立即停产排查</td></tr>
+      </table>
+      <div class="tip-box tip-warn"><span class="tip-icon">⚠️</span><div><strong>项目预警阈值</strong>：平台设置 Cpk < 1.33 时触发 WARNING 预警。1.33 是行业广泛接受的最低可接受标准，意味着过程至少有4σ的能力（约63 PPM缺陷率）。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="cp-cpk-relationship">
+    <div class="concept-title"><span class="tag tag-capability">易混</span> Cp 与 Cpk 的关系</div>
+    <div class="concept-body">
+      <div class="formula-box">
+        <div class="eq">Cpk = Cp × (1 - k)</div>
+        <div class="where">其中 k = 2|μ - Target| / (USL - LSL)，表示均值偏离规格中心的程度</div>
+      </div>
+      <table>
+        <tr><th>场景</th><th>Cp</th><th>Cpk</th><th>说明</th></tr>
+        <tr><td>均值对准中心</td><td class="num-col">1.50</td><td class="num-col">1.50</td><td>Cpk = Cp，最佳状态</td></tr>
+        <tr><td>均值轻微偏移</td><td class="num-col">1.50</td><td class="num-col">1.25</td><td>Cpk < Cp，有改进空间</td></tr>
+        <tr><td>均值严重偏移</td><td class="num-col">1.50</td><td class="num-col">0.80</td><td>Cpk远小于Cp，需校准</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="concept" id="cpk-example">
+    <div class="concept-title"><span class="tag tag-capability">实例</span> Cpk 计算示例</div>
+    <div class="concept-body">
+      <p>以"砖纯牛奶·蛋白质"为例：均值 μ=3.32%，标准差 σ=0.05，规格限 LSL=3.0%，USL=3.6%</p>
+      <div class="code-block">
+<span class="comment"># Cp 计算</span>
+Cp = (3.6 - 3.0) / (6 × 0.05) = 0.60 / 0.30 = <span class="number">2.00</span>
+
+<span class="comment"># Cpk 计算</span>
+Cpl = (3.32 - 3.0) / (3 × 0.05) = 0.32 / 0.15 = <span class="number">2.13</span>
+Cpu = (3.6 - 3.32) / (3 × 0.05) = 0.28 / 0.15 = <span class="number">1.87</span>
+Cpk = min(2.13, 1.87) = <span class="number">1.87</span> → <span class="string">优秀</span>
+
+<span class="comment"># PPM 计算（正态分布）</span>
+P(低于LSL) = Φ((3.0 - 3.32) / 0.05) = Φ(-6.4) ≈ <span class="number">0.0000001</span>
+P(高于USL) = 1 - Φ((3.6 - 3.32) / 0.05) = 1 - Φ(5.6) ≈ <span class="number">0.00000001</span>
+PPM = (P_below + P_above) × 10⁶ ≈ <span class="number">0.11</span> PPM
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第7章：PPM -->
+<!-- ================================================================ -->
+<div class="card" id="sec-ppm">
+  <div class="section-header">
+    <div class="icon" style="background:#dcfce7;">⚠️</div>
+    <div><h2>PPM 缺陷率</h2><div class="subtitle">Parts Per Million — 百万分之一缺陷率</div></div>
+  </div>
+
+  <div class="concept" id="ppm">
+    <div class="concept-title"><span class="tag tag-capability">核心</span> PPM（百万分之缺陷率）</div>
+    <div class="concept-body">
+      <p>基于正态分布，预测过程产出<strong>不合格品</strong>的概率，以"每百万个产品中的缺陷数"表示。</p>
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">P_below = Φ((LSL - μ) / σ)　← 低于下限的概率</div>
+        <div class="eq">P_above = 1 - Φ((USL - μ) / σ)　← 高于上限的概率</div>
+        <div class="eq">PPM = (P_below + P_above) × 1,000,000</div>
+        <ul class="where">
+          <li><strong>Φ</strong>：标准正态分布的累积分布函数（CDF）</li>
+          <li><strong>μ</strong>：过程均值</li>
+          <li><strong>σ</strong>：过程标准差</li>
+        </ul>
+      </div>
+      <table>
+        <tr><th>Cpk</th><th>σ水平</th><th>PPM（缺陷率）</th><th>合格率</th></tr>
+        <tr><td>0.33</td><td class="num-col">1σ</td><td class="num-col">317,400</td><td class="num-col">68.27%</td></tr>
+        <tr><td>0.67</td><td class="num-col">2σ</td><td class="num-col">45,500</td><td class="num-col">95.45%</td></tr>
+        <tr><td>1.00</td><td class="num-col">3σ</td><td class="num-col">2,700</td><td class="num-col">99.73%</td></tr>
+        <tr><td>1.33</td><td class="num-col">4σ</td><td class="num-col">63</td><td class="num-col">99.994%</td></tr>
+        <tr><td>1.67</td><td class="num-col">5σ</td><td class="num-col">0.57</td><td class="num-col">99.99994%</td></tr>
+        <tr><td>2.00</td><td class="num-col">6σ</td><td class="num-col">0.002</td><td class="num-col">99.9999998%</td></tr>
+      </table>
+      <div class="tip-box tip-success"><span class="tip-icon">✅</span><div><strong>关键结论</strong>：Cpk=1.33 对应 4σ 水平，PPM=63，即每百万个产品中只有63个不合格。这是行业最低可接受标准的原因——风险足够低。</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第8章：Z-Score -->
+<!-- ================================================================ -->
+<div class="card" id="sec-zscore">
+  <div class="section-header">
+    <div class="icon" style="background:#fee2e2;">📏</div>
+    <div><h2>Z-Score 标准分数检验</h2><div class="subtitle">Z-Score — 用标准差倍数衡量异常程度</div></div>
+  </div>
+
+  <div class="concept" id="zscore">
+    <div class="concept-title"><span class="tag tag-anomaly">核心</span> Z-Score（标准分数）</div>
+    <div class="concept-body">
+      <p>将每个数据点转换为"偏离均值多少个标准差"的标准化值。|Z|越大，数据点越异常。</p>
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">Z = (x - μ) / σ</div>
+        <ul class="where">
+          <li><strong>Z = 0</strong>：数据点恰好等于均值</li>
+          <li><strong>|Z| > 2</strong>：偏离2个标准差，约95%置信度异常</li>
+          <li><strong>|Z| > 3</strong>：偏离3个标准差，约99.7%置信度异常</li>
+        </ul>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Z-Score 异常检测示意（阈值 |Z|>2 标黄，|Z|>3 标红）</div>
+        <div id="chart-zscore" style="height:240px;"></div>
+      </div>
+      <table>
+        <tr><th>|Z| 阈值</th><th>置信度</th><th>判定</th><th>平台标记</th></tr>
+        <tr><td>≤ 2</td><td class="num-col">—</td><td>正常</td><td>🔵 蓝点</td></tr>
+        <tr><td>2 ~ 3</td><td class="num-col">95%</td><td>轻度异常</td><td>🟡 黄点</td></tr>
+        <tr><td>> 3</td><td class="num-col">99.7%</td><td>严重异常</td><td>🔴 红点</td></tr>
+      </table>
+      <div class="tip-box tip-warn"><span class="tip-icon">⚠️</span><div><strong>局限性</strong>：Z-Score对极端值敏感——异常值本身会拉偏均值和标准差，导致部分异常被"隐藏"。改进方案是使用<strong>修正Z-Score</strong>（用中位数和MAD代替均值和标准差）。</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第9章：IQR -->
+<!-- ================================================================ -->
+<div class="card" id="sec-iqr">
+  <div class="section-header">
+    <div class="icon" style="background:#fee2e2;">📦</div>
+    <div><h2>IQR 四分位距法</h2><div class="subtitle">Interquartile Range — 箱线图异常检测原理</div></div>
+  </div>
+
+  <div class="concept" id="iqr">
+    <div class="concept-title"><span class="tag tag-anomaly">核心</span> IQR（四分位距）</div>
+    <div class="concept-body">
+      <p>一种<strong>非参数</strong>异常检测方法，不依赖正态分布假设，对极端值不敏感。通过箱线图的四分位数定义异常边界。</p>
+      <div class="formula-box">
+        <div class="label">计算步骤</div>
+        <div class="eq">IQR = Q3 - Q1</div>
+        <div class="eq">下界 = Q1 - 1.5 × IQR</div>
+        <div class="eq">上界 = Q3 + 1.5 × IQR</div>
+        <ul class="where">
+          <li><strong>Q1</strong>：第25百分位数（下四分位数）</li>
+          <li><strong>Q3</strong>：第75百分位数（上四分位数）</li>
+          <li><strong>1.5</strong>：标准倍数，可调（3.0为"极端异常"）</li>
+        </ul>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">IQR 箱线图异常检测示意</div>
+        <div id="chart-iqr" style="height:240px;"></div>
+      </div>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>Z-Score vs IQR</strong>：Z-Score假设数据正态分布，对极端值敏感；IQR不依赖分布假设，更鲁棒。平台同时提供两种方法，用户可对比使用。</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第10章：EWMA -->
+<!-- ================================================================ -->
+<div class="card" id="sec-ewma">
+  <div class="section-header">
+    <div class="icon" style="background:#fee2e2;">📉</div>
+    <div><h2>EWMA 指数加权移动平均</h2><div class="subtitle">Exponentially Weighted Moving Average — 对小偏移敏感的异常监控</div></div>
+  </div>
+
+  <div class="concept" id="ewma">
+    <div class="concept-title"><span class="tag tag-anomaly">核心</span> EWMA（指数加权移动平均）</div>
+    <div class="concept-body">
+      <p>对历史数据赋予<strong>指数递减的权重</strong>——越近的数据权重越大。EWMA对均值的<strong>小幅缓慢偏移</strong>特别敏感，能发现Nelson规则难以捕捉的微小趋势变化。</p>
+      <div class="formula-box">
+        <div class="label">递推公式</div>
+        <div class="eq">Zᵢ = λ × xᵢ + (1 - λ) × Zᵢ₋₁</div>
+        <div class="label" style="margin-top:8px;">控制限</div>
+        <div class="eq">UCL = μ₀ + L × σ × √[λ/(2-λ) × (1 - (1-λ)²ⁱ)]</div>
+        <div class="eq">LCL = μ₀ - L × σ × √[λ/(2-λ) × (1 - (1-λ)²ⁱ)]</div>
+        <ul class="where">
+          <li><strong>λ（lambda）</strong>：平滑系数，0 < λ ≤ 1。λ越小越敏感（常用0.1~0.2）</li>
+          <li><strong>L</strong>：控制限系数（常用2.5~3）</li>
+          <li><strong>μ₀</strong>：目标均值（基线）</li>
+          <li><strong>Z₀ = μ₀</strong>：初始值</li>
+        </ul>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">EWMA 对小偏移的敏感性（λ=0.15，均值在第20点偏移0.5σ）</div>
+        <div id="chart-ewma" style="height:260px;"></div>
+      </div>
+      <table>
+        <tr><th>λ值</th><th>灵敏度</th><th>适用场景</th></tr>
+        <tr><td>0.05 ~ 0.10</td><td>极高</td><td>检测极微小偏移（高精度要求）</td></tr>
+        <tr><td>0.15 ~ 0.20</td><td>高</td><td>常规使用（推荐）</td></tr>
+        <tr><td>0.30 ~ 0.50</td><td>中</td><td>兼顾灵敏度和稳定性</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第11章：ARIMA -->
+<!-- ================================================================ -->
+<div class="card" id="sec-arima">
+  <div class="section-header">
+    <div class="icon" style="background:#fef3c7;">🔮</div>
+    <div><h2>ARIMA 模型</h2><div class="subtitle">AutoRegressive Integrated Moving Average — 时间序列预测</div></div>
+  </div>
+
+  <div class="concept" id="arima">
+    <div class="concept-title"><span class="tag tag-trend">核心</span> ARIMA(p, d, q)</div>
+    <div class="concept-body">
+      <p>由三个部分组成的时间序列预测模型，是趋势预测模块的核心算法。通过分析历史数据的自相关性和趋势性，预测未来走向。</p>
+      <table>
+        <tr><th>参数</th><th>名称</th><th>含义</th><th>作用</th></tr>
+        <tr><td><strong>p</strong></td><td>自回归阶数（AR）</td><td>用过去p个值的线性组合预测当前值</td><td>捕捉周期性/自相关</td></tr>
+        <tr><td><strong>d</strong></td><td>差分阶数（I）</td><td>对数据做d次差分使其平稳</td><td>消除趋势</td></tr>
+        <tr><td><strong>q</strong></td><td>滑动平均阶数（MA）</td><td>用过去q个误差的线性组合修正预测</td><td>捕捉随机冲击</td></tr>
+      </table>
+      <div class="formula-box">
+        <div class="label">ARIMA(p,d,q) 模型表达式</div>
+        <div class="eq">(1 - φ₁B - φ₂B² - … - φₚBᵖ)(1-B)ᵈxₜ = (1 + θ₁B + θ₂B² + … + θqBᵍ)εₜ</div>
+        <ul class="where">
+          <li><strong>B</strong>：后移算子（Bxₜ = xₜ₋₁）</li>
+          <li><strong>φᵢ</strong>：自回归系数</li>
+          <li><strong>θⱼ</strong>：滑动平均系数</li>
+          <li><strong>εₜ</strong>：白噪声（随机误差）</li>
+          <li><strong>(1-B)ᵈ</strong>：d阶差分操作</li>
+        </ul>
+      </div>
+      <div class="formula-box">
+        <div class="label">差分操作（使数据平稳）</div>
+        <div class="eq">一阶差分：Δxₜ = xₜ - xₜ₋₁</div>
+        <div class="eq">二阶差分：Δ²xₜ = Δxₜ - Δxₜ₋₁</div>
+        <div class="where">差分后数据应围绕零值波动，无明显趋势</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">ARIMA 预测示例（脂肪含量趋势预测）</div>
+        <div id="chart-arima" style="height:300px;"></div>
+      </div>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>参数选择</strong>：平台使用自动定阶（AIC/BIC最小化），自动确定最优的(p,d,q)。常见组合：ARIMA(1,1,1)适合有轻微趋势的序列；ARIMA(0,1,1)等价于指数平滑；ARIMA(2,1,2)适合有周期波动的序列。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="aic-bic">
+    <div class="concept-title"><span class="tag tag-trend">辅助</span> AIC / BIC（模型选择准则）</div>
+    <div class="concept-body">
+      <p>用于在多个候选ARIMA模型中选择最优参数的准则，平衡<strong>拟合优度</strong>和<strong>模型复杂度</strong>。值越小越好。</p>
+      <div class="formula-box">
+        <div class="eq">AIC = 2k - 2ln(L)</div>
+        <div class="eq">BIC = k·ln(n) - 2ln(L)</div>
+        <ul class="where">
+          <li><strong>k</strong>：模型参数个数</li>
+          <li><strong>L</strong>：最大似然值</li>
+          <li><strong>n</strong>：样本量</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第12章：Mann-Kendall -->
+<!-- ================================================================ -->
+<div class="card" id="sec-mk">
+  <div class="section-header">
+    <div class="icon" style="background:#fef3c7;">📊</div>
+    <div><h2>Mann-Kendall 趋势检验</h2><div class="subtitle">非参数趋势检验 — 不需要正态分布假设</div></div>
+  </div>
+
+  <div class="concept" id="mk-test">
+    <div class="concept-title"><span class="tag tag-trend">核心</span> Mann-Kendall 检验</div>
+    <div="concept-body">
+      <p>一种<strong>非参数</strong>统计检验方法，用于判断时间序列是否存在<strong>单调趋势</strong>（上升或下降）。不要求数据正态分布，不受异常值影响，适合检验液奶检测指标的趋势变化。</p>
+      <div class="formula-box">
+        <div class="label">步骤1：计算S统计量</div>
+        <div class="eq">S = Σᵢ<ⱼ sgn(xⱼ - xᵢ)，其中 i = 1, 2, …, n-1；j = i+1, …, n</div>
+        <div class="eq">sgn(x) = +1 (x>0), 0 (x=0), -1 (x<0)</div>
+        <div class="label" style="margin-top:8px;">步骤2：计算方差（n>10时）</div>
+        <div class="eq">Var(S) = [n(n-1)(2n+5) - Σtₖ(tₖ-1)(2tₖ+5)] / 18</div>
+        <div class="where">tₖ 为第k组相同数据的个数</div>
+        <div class="label" style="margin-top:8px;">步骤3：计算Z统计量</div>
+        <div class="eq">S > 0: Z = (S - 1) / √Var(S)</div>
+        <div class="eq">S = 0: Z = 0</div>
+        <div class="eq">S < 0: Z = (S + 1) / √Var(S)</div>
+        <div class="label" style="margin-top:8px;">步骤4：判断趋势</div>
+        <div class="eq">|Z| > 1.96 → 显著趋势（α=0.05，95%置信度）</div>
+        <div class="eq">|Z| > 2.58 → 高度显著趋势（α=0.01，99%置信度）</div>
+      </div>
+      <table>
+        <tr><th>Z值</th><th>p值</th><th>结论</th><th>趋势方向</th></tr>
+        <tr><td>Z > 1.96</td><td class="num-col">< 0.05</td><td>显著上升趋势</td><td>📈</td></tr>
+        <tr><td>Z < -1.96</td><td class="num-col">< 0.05</td><td>显著下降趋势</td><td>📉</td></tr>
+        <tr><td>|Z| ≤ 1.96</td><td class="num-col">≥ 0.05</td><td>无显著趋势</td><td>➡️</td></tr>
+      </table>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>Sen斜率</strong>：Mann-Kendall检验通常配合Sen斜率估计使用，量化趋势的大小：β = median[(xⱼ - xᵢ)/(j - i)]，表示每期变化的中位数斜率。</div></div>
+    </div>
+  </div>
+
+  <div class="concept" id="sen-slope">
+    <div class="concept-title"><span class="tag tag-trend">辅助</span> Sen 斜率（趋势幅度）</div>
+    <div class="concept-body">
+      <div class="formula-box">
+        <div class="label">计算公式</div>
+        <div class="eq">β = median[(xⱼ - xᵢ) / (j - i)]，∀ i < j</div>
+        <div class="where">β > 0 表示上升趋势，β < 0 表示下降趋势，|β| 表示每期变化量</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第13章：合规判定 -->
+<!-- ================================================================ -->
+<div class="card" id="sec-compliance">
+  <div class="section-header">
+    <div class="icon" style="background:#fce7f3;">✅</div>
+    <div><h2>3σ合规判定</h2><div class="subtitle">基于规格限的产品合格性判定</div></div>
+  </div>
+
+  <div class="concept" id="compliance-3sigma">
+    <div class="concept-title"><span class="tag tag-quality">核心</span> 3σ合规判定规则</div>
+    <div class="concept-body">
+      <p>平台合规判定模块的核心逻辑：以规格限为基准，判定每个检测值是否合格。与SPC控制限不同，合规判定使用的是<strong>外部标准规定的规格限</strong>。</p>
+      <div class="formula-box">
+        <div class="label">判定逻辑</div>
+        <div class="eq">合规：LSL ≤ x ≤ USL</div>
+        <div class="eq">不合规（超上限）：x > USL</div>
+        <div class="eq">不合规（低于下限）：x < LSL</div>
+      </div>
+      <table>
+        <tr><th>判定结果</th><th>条件</th><th>颜色标记</th><th>说明</th></tr>
+        <tr><td><span class="badge badge-good">合规</span></td><td>LSL ≤ x ≤ USL</td><td>🟢 绿色</td><td>检测值在规格范围内</td></tr>
+        <tr><td><span class="badge badge-warning">边缘</span></td><td>距规格限 ≤ 1σ</td><td>🟡 黄色</td><td>接近边界，需关注</td></tr>
+        <tr><td><span class="badge badge-critical">不合规</span></td><td>x > USL 或 x < LSL</td><td>🔴 红色</td><td>超出规格范围</td></tr>
+      </table>
+      <div class="chart-container">
+        <div class="chart-title">合规判定区间示意（以脂肪为例：LSL=3.0%, USL=5.0%）</div>
+        <div id="chart-compliance" style="height:240px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept" id="spec-limits">
+    <div class="concept-title"><span class="tag tag-quality">核心</span> 规格限（USL / LSL / Target）</div>
+    <div class="concept-body">
+      <table>
+        <tr><th>符号</th><th>全称</th><th>含义</th><th>来源</th></tr>
+        <tr><td><strong>USL</strong></td><td>Upper Specification Limit</td><td>规格上限</td><td>国标/企标</td></tr>
+        <tr><td><strong>LSL</strong></td><td>Lower Specification Limit</td><td>规格下限</td><td>国标/企标</td></tr>
+        <tr><td><strong>Target</strong></td><td>Target Value</td><td>目标值</td><td>配方/工艺标准</td></tr>
+      </table>
+      <div class="tip-box tip-warn"><span class="tip-icon">⚠️</span><div><strong>关键区分</strong>：规格限是"产品合不合格"的标准（外部），控制限是"过程稳不稳定"的标准（内部）。一个过程可以"稳定但不合格"（控制限在规格限外），也可以"合格但不稳定"（数据在规格限内但违反Nelson规则）。</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- 第14章：液奶指标体系 -->
+<!-- ================================================================ -->
+<div class="card" id="sec-indicators">
+  <div class="section-header">
+    <div class="icon" style="background:#fce7f3;">🥛</div>
+    <div><h2>液奶关键指标体系</h2><div class="subtitle">FT120 仪器检测的8项核心指标</div></div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-body">
+      <p>FT120乳成分分析仪可一次检测8项指标，平台对全部指标进行SPC监控和Cpk计算。以下是各指标的含义、典型范围和规格限：</p>
+      <table>
+        <tr><th>FT120名称</th><th>平台编码</th><th>中文名</th><th>单位</th><th>典型范围</th><th>数据覆盖率</th><th>均值</th></tr>
+        <tr><td>Fat</td><td>fat</td><td>脂肪</td><td>%</td><td class="num-col">3.0 ~ 5.0</td><td class="num-col">56.8%</td><td class="num-col">3.87</td></tr>
+        <tr><td>Protein</td><td>protein</td><td>蛋白质</td><td>%</td><td class="num-col">3.0 ~ 3.6</td><td class="num-col">56.9%</td><td class="num-col">3.32</td></tr>
+        <tr><td>TS</td><td>total_solids</td><td>全脂乳固体</td><td>%</td><td class="num-col">11.5 ~ 13.0</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+        <tr><td>SNF</td><td>solids_not_fat</td><td>非脂乳固体</td><td>%</td><td class="num-col">8.0 ~ 9.5</td><td class="num-col">56.6%</td><td class="num-col">9.13</td></tr>
+        <tr><td>Lactose</td><td>lactose</td><td>乳糖</td><td>%</td><td class="num-col">4.5 ~ 5.0</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+        <tr><td>Acidity</td><td>acidity</td><td>酸度</td><td>°T</td><td class="num-col">13.0 ~ 16.0</td><td class="num-col">45.4%</td><td class="num-col">14.03</td></tr>
+        <tr><td>FPD</td><td>freezing_point</td><td>冰点</td><td>°C</td><td class="num-col">-0.550 ~ -0.500</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+        <tr><td>Density</td><td>density</td><td>密度</td><td>g/cm³</td><td class="num-col">1.028 ~ 1.034</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+      </table>
+      <div class="tip-box tip-info"><span class="tip-icon">💡</span><div><strong>数据覆盖率说明</strong>：覆盖率表示31108条数据中该指标有检测值的比例。脂肪、蛋白质、非脂乳固体覆盖率约56%，酸度约45%。部分品项不检测全部指标，属正常现象。</div></div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-title"><span class="tag tag-quality">补充</span> 品项分布</div>
+    <div class="concept-body">
+      <p>数据涵盖67种灭菌乳品项，检测量Top4：</p>
+      <div class="chart-container">
+        <div class="chart-title">灭菌乳品项检测量 Top10</div>
+        <div id="chart-products" style="height:280px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 底部 ===== -->
+<div style="text-align:center; padding:40px 20px; color:var(--text-light); font-size:13px;">
+  <hr>
+  <p>🥛 液奶成品检验数据分析平台 — 数据分析专有名词可视化手册 v1.0</p>
+  <p style="margin-top:4px;">涵盖 SPC · 过程能力 · 异常检测 · 趋势预测 · 合规判定 · 液奶指标体系 | 2026-08-18</p>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ===== 工具函数 =====
+function makeChart(id, option) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const chart = echarts.init(el);
+  chart.setOption(option);
+  window.addEventListener('resize', () => chart.resize());
+}
+
+// ===== 1. 标准差对比 =====
+makeChart('chart-std', {
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['σ=0.05 (稳定)', 'σ=0.15 (波动大)'], bottom: 0, textStyle: { fontSize: 11 } },
+  grid: { left: 50, right: 20, top: 20, bottom: 40 },
+  xAxis: { type: 'category', data: Array.from({length:30}, (_,i)=>i+1), axisLabel: { fontSize: 10 } },
+  yAxis: { type: 'value', name: '脂肪(%)', min: 3.4, max: 4.4 },
+  series: [
+    { name: 'σ=0.05 (稳定)', type: 'line', data: Array.from({length:30}, ()=>(3.9 + (Math.random()-0.5)*0.1).toFixed(3)), lineStyle: { width: 1.5 }, itemStyle: { color: '#2563eb' }, symbol: 'circle', symbolSize: 4 },
+    { name: 'σ=0.15 (波动大)', type: 'line', data: Array.from({length:30}, ()=>(3.9 + (Math.random()-0.5)*0.45).toFixed(3)), lineStyle: { width: 1.5 }, itemStyle: { color: '#dc2626' }, symbol: 'circle', symbolSize: 4 }
+  ]
+});
+
+// ===== 2. 四分位数箱线图 =====
+makeChart('chart-quartile', {
+  tooltip: { trigger: 'item' },
+  grid: { left: 60, right: 30, top: 10, bottom: 30 },
+  xAxis: { type: 'category', data: ['脂肪(%)'], axisLabel: { fontSize: 12 } },
+  yAxis: { type: 'value', name: '', min: 3.5, max: 4.3 },
+  series: [{
+    type: 'boxplot',
+    data: [[3.72, 3.85, 3.93, 4.01, 4.15]], // [min, Q1, median, Q3, max]
+    itemStyle: { color: '#dbeafe', borderColor: '#2563eb' }
+  }, {
+    type: 'scatter',
+    data: [[0, 3.65]],
+    symbolSize: 8,
+    itemStyle: { color: '#dc2626' },
+    name: '异常值'
+  }],
+  legend: { data: ['异常值'], bottom: 0, textStyle: { fontSize: 10 } }
+});
+
+// ===== 3. 正态分布曲线 =====
+function normalPDF(x, mu, sigma) {
+  return (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+}
+const normalX = Array.from({length: 200}, (_, i) => 3.4 + i * 0.006);
+const normalY = normalX.map(x => normalPDF(x, 3.9, 0.08));
+makeChart('chart-normal', {
+  tooltip: { trigger: 'axis', formatter: p => `x=${p[0].axisValue}<br/>概率密度=${p[0].data.toFixed(4)}` },
+  grid: { left: 50, right: 30, top: 20, bottom: 40 },
+  xAxis: { type: 'value', name: '脂肪(%)', min: 3.4, max: 4.4 },
+  yAxis: { type: 'value', name: '概率密度' },
+  series: [{
+    type: 'line',
+    data: normalX.map((x, i) => [x, normalY[i]]),
+    smooth: true,
+    symbol: 'none',
+    lineStyle: { width: 2, color: '#2563eb' },
+    areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: 'rgba(37,99,235,0.25)' },
+      { offset: 1, color: 'rgba(37,99,235,0.02)' }
+    ])},
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      data: [
+        { xAxis: 3.82, lineStyle: { color: '#d97706', type: 'dashed', width: 1 }, label: { formatter: 'μ-1σ', fontSize: 10, color: '#d97706' } },
+        { xAxis: 3.9, lineStyle: { color: '#16a34a', width: 1.5 }, label: { formatter: 'μ', fontSize: 11, color: '#16a34a' } },
+        { xAxis: 3.98, lineStyle: { color: '#d97706', type: 'dashed', width: 1 }, label: { formatter: 'μ+1σ', fontSize: 10, color: '#d97706' } },
+        { xAxis: 3.66, lineStyle: { color: '#dc2626', type: 'dashed', width: 1 }, label: { formatter: 'μ-3σ\n(99.73%)', fontSize: 9, color: '#dc2626', position: 'start' } },
+        { xAxis: 4.14, lineStyle: { color: '#dc2626', type: 'dashed', width: 1 }, label: { formatter: 'μ+3σ\n(99.73%)', fontSize: 9, color: '#dc2626', position: 'end' } },
+      ]
+    },
+    markArea: {
+      silent: true,
+      itemStyle: { color: 'rgba(22,163,74,0.08)' },
+      data: [[{ xAxis: 3.82 }, { xAxis: 3.98 }]]
+    }
+  },
+  {
+    type: 'line',
+    data: normalX.map((x, i) => [x, normalY[i]]),
+    smooth: true,
+    symbol: 'none',
+    lineStyle: { width: 0 },
+    areaStyle: { color: 'rgba(217,119,6,0.12)' },
+    markArea: {
+      silent: true,
+      data: [
+        [{ xAxis: 3.66, itemStyle: { color: 'rgba(220,38,38,0.06)' } }, { xAxis: 3.74 }],
+        [{ xAxis: 4.06, itemStyle: { color: 'rgba(220,38,38,0.06)' } }, { xAxis: 4.14 }],
+      ]
+    }
+  }]
+});
+
+// ===== 4. 控制图区域划分 =====
+const zoneData = Array.from({length: 30}, (_, i) => 3.9 + Math.sin(i*0.5)*0.04 + (Math.random()-0.5)*0.03);
+makeChart('chart-zones', {
+  tooltip: { trigger: 'axis' },
+  grid: { left: 50, right: 30, top: 20, bottom: 30 },
+  xAxis: { type: 'category', data: zoneData.map((_,i)=>`#${i+1}`), axisLabel: { fontSize: 9, interval: 4 } },
+  yAxis: { type: 'value', name: '脂肪(%)', min: 3.6, max: 4.2 },
+  series: [{
+    type: 'line',
+    data: zoneData.map(v => v.toFixed(4)),
+    symbol: 'circle',
+    symbolSize: 5,
+    lineStyle: { width: 1.5, color: '#334155' },
+    itemStyle: { color: '#334155' },
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      data: [
+        { yAxis: 4.14, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL (μ+3σ)', fontSize: 10, color: '#dc2626', position: 'end' } },
+        { yAxis: 4.06, lineStyle: { color: '#d97706', type: 'dotted' }, label: { formatter: 'μ+2σ (A区边界)', fontSize: 9, color: '#d97706', position: 'end' } },
+        { yAxis: 3.98, lineStyle: { color: '#16a34a', type: 'dotted' }, label: { formatter: 'μ+1σ (C区边界)', fontSize: 9, color: '#16a34a', position: 'end' } },
+        { yAxis: 3.9, lineStyle: { color: '#0891b2', width: 1.5 }, label: { formatter: 'CL (μ)', fontSize: 10, color: '#0891b2', position: 'end' } },
+        { yAxis: 3.82, lineStyle: { color: '#16a34a', type: 'dotted' }, label: { formatter: 'μ-1σ (C区边界)', fontSize: 9, color: '#16a34a', position: 'start' } },
+        { yAxis: 3.74, lineStyle: { color: '#d97706', type: 'dotted' }, label: { formatter: 'μ-2σ (A区边界)', fontSize: 9, color: '#d97706', position: 'start' } },
+        { yAxis: 3.66, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'LCL (μ-3σ)', fontSize: 10, color: '#dc2626', position: 'start' } },
+      ]
+    },
+    markArea: {
+      silent: true,
+      data: [
+        [{ yAxis: 3.82, itemStyle: { color: 'rgba(22,163,74,0.08)' } }, { yAxis: 3.98 }], // C区
+        [{ yAxis: 3.74, itemStyle: { color: 'rgba(217,119,6,0.06)' } }, { yAxis: 3.82 }], // B区下
+        [{ yAxis: 3.98, itemStyle: { color: 'rgba(217,119,6,0.06)' } }, { yAxis: 4.06 }], // B区上
+        [{ yAxis: 3.66, itemStyle: { color: 'rgba(220,38,38,0.05)' } }, { yAxis: 3.74 }], // A区下
+        [{ yAxis: 4.06, itemStyle: { color: 'rgba(220,38,38,0.05)' } }, { yAxis: 4.14 }], // A区上
+      ]
+    }
+  }]
+});
+
+// ===== 5. 规格限 vs 控制限 =====
+makeChart('chart-spec-vs-control', {
+  tooltip: { trigger: 'axis' },
+  grid: { left: 50, right: 30, top: 30, bottom: 40 },
+  xAxis: { type: 'value', name: '脂肪(%)', min: 3.4, max: 5.2 },
+  yAxis: { type: 'value', show: false },
+  series: [{
+    type: 'line',
+    data: [[3.4, 1], [5.2, 1]],
+    lineStyle: { width: 0 },
+    markArea: {
+      silent: true,
+      data: [
+        [{ xAxis: 3.0, itemStyle: { color: 'rgba(220,38,38,0.08)' } }, { xAxis: 3.66 }], // LCL外
+        [{ xAxis: 3.66, itemStyle: { color: 'rgba(37,99,235,0.12)' } }, { xAxis: 4.14 }], // 控制限内
+        [{ xAxis: 4.14, itemStyle: { color: 'rgba(220,38,38,0.08)' } }, { xAxis: 5.0 }], // UCL外
+      ]
+    },
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      data: [
+        { xAxis: 3.0, lineStyle: { color: '#16a34a', width: 2 }, label: { formatter: 'LSL=3.0 (规格下限)', fontSize: 10, color: '#16a34a' } },
+        { xAxis: 3.66, lineStyle: { color: '#2563eb', type: 'dashed', width: 1.5 }, label: { formatter: 'LCL=3.66 (控制下限)', fontSize: 10, color: '#2563eb' } },
+        { xAxis: 3.9, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'μ=3.9', fontSize: 10, color: '#0891b2' } },
+        { xAxis: 4.14, lineStyle: { color: '#2563eb', type: 'dashed', width: 1.5 }, label: { formatter: 'UCL=4.14 (控制上限)', fontSize: 10, color: '#2563eb' } },
+        { xAxis: 5.0, lineStyle: { color: '#16a34a', width: 2 }, label: { formatter: 'USL=5.0 (规格上限)', fontSize: 10, color: '#16a34a' } },
+      ]
+    }
+  }],
+  graphic: [
+    { type: 'text', left: '25%', top: '40%', style: { text: '不合格区', fill: '#dc2626', fontSize: 11 } },
+    { type: 'text', left: '45%', top: '40%', style: { text: '过程受控区\n(在规格限内)', fill: '#2563eb', fontSize: 11 } },
+    { type: 'text', left: '72%', top: '40%', style: { text: '不合格区', fill: '#dc2626', fontSize: 11 } },
+  ]
+});
+
+// ===== 6. I-MR 控制图 =====
+const imrData = Array.from({length: 30}, (_, i) => {
+  let base = 3.9 + Math.sin(i*0.3)*0.03 + (Math.random()-0.5)*0.025;
+  if (i === 14) base = 4.12; // 模拟一个超限点
+  if (i === 22) base = 3.72;
+  return parseFloat(base.toFixed(4));
+});
+const mrData = imrData.map((v, i) => i === 0 ? null : parseFloat(Math.abs(v - imrData[i-1]).toFixed(4)));
+const imrMean = imrData.reduce((a,b)=>a+b,0) / imrData.length;
+const mrMean = mrData.filter(v=>v!==null).reduce((a,b)=>a+b,0) / 29;
+const imrUCL = imrMean + 2.66 * mrMean;
+const imrLCL = imrMean - 2.66 * mrMean;
+const mrUCL = 3.267 * mrMean;
+
+makeChart('chart-imr', {
+  tooltip: { trigger: 'axis' },
+  grid: [
+    { left: 55, right: 25, top: 20, height: '40%' },
+    { left: 55, right: 25, top: '58%', height: '35%' },
+  ],
+  xAxis: [
+    { type: 'category', gridIndex: 0, data: imrData.map((_,i)=>`#${i+1}`), axisLabel: { show: false } },
+    { type: 'category', gridIndex: 1, data: imrData.map((_,i)=>`#${i+1}`), axisLabel: { fontSize: 9, interval: 4 } },
+  ],
+  yAxis: [
+    { type: 'value', gridIndex: 0, name: 'I图', min: 3.6, max: 4.2, nameTextStyle: { fontSize: 11 } },
+    { type: 'value', gridIndex: 1, name: 'MR图', min: 0, max: 0.25, nameTextStyle: { fontSize: 11 } },
+  ],
+  series: [
+    {
+      name: 'I图', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+      data: imrData,
+      symbol: 'circle', symbolSize: 6,
+      lineStyle: { width: 1.5, color: '#334155' },
+      itemStyle: { color: function(p) {
+        const v = p.value;
+        if (v > imrUCL || v < imrLCL) return '#dc2626';
+        return '#334155';
+      }},
+      markLine: { silent: true, symbol: 'none', data: [
+        { yAxis: imrUCL, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL=' + imrUCL.toFixed(3), fontSize: 9, color: '#dc2626' } },
+        { yAxis: imrMean, lineStyle: { color: '#0891b2' }, label: { formatter: 'CL=' + imrMean.toFixed(3), fontSize: 9, color: '#0891b2' } },
+        { yAxis: imrLCL, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'LCL=' + imrLCL.toFixed(3), fontSize: 9, color: '#dc2626' } },
+      ]}
+    },
+    {
+      name: 'MR图', type: 'line', xAxisIndex: 1, yAxisIndex: 1,
+      data: mrData,
+      symbol: 'circle', symbolSize: 5,
+      lineStyle: { width: 1.5, color: '#64748b' },
+      itemStyle: { color: '#64748b' },
+      markLine: { silent: true, symbol: 'none', data: [
+        { yAxis: mrUCL, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL=' + mrUCL.toFixed(3), fontSize: 9, color: '#dc2626' } },
+        { yAxis: mrMean, lineStyle: { color: '#0891b2' }, label: { formatter: 'CL=' + mrMean.toFixed(3), fontSize: 9, color: '#0891b2' } },
+        { yAxis: 0, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'LCL=0', fontSize: 9, color: '#dc2626' } },
+      ]}
+    }
+  ]
+});
+
+// ===== 7. Nelson 规则图表生成器 =====
+function makeNelsonChart(id, data, ruleConfig) {
+  const labels = data.map((_, i) => `#${i+1}`);
+  const mean = ruleConfig.mean;
+  const sigma = ruleConfig.sigma;
+  const ucl = mean + 3 * sigma;
+  const lcl = mean - 3 * sigma;
+  
+  makeChart(id, {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 50, right: 20, top: 10, bottom: 25 },
+    xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 8, interval: 2 } },
+    yAxis: { type: 'value', min: lcl - sigma, max: ucl + sigma, axisLabel: { fontSize: 9 } },
+    series: [{
+      type: 'line',
+      data: data,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { width: 1.5, color: '#334155' },
+      itemStyle: {
+        color: function(p) {
+          if (ruleConfig.redPoints && ruleConfig.redPoints.includes(p.dataIndex)) return '#dc2626';
+          if (ruleConfig.yellowPoints && ruleConfig.yellowPoints.includes(p.dataIndex)) return '#d97706';
+          return '#334155';
+        }
+      },
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        data: [
+          { yAxis: ucl, lineStyle: { color: '#dc2626', type: 'dashed', width: 1 }, label: { formatter: 'UCL', fontSize: 9, color: '#dc2626' } },
+          { yAxis: mean, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'CL', fontSize: 9, color: '#0891b2' } },
+          { yAxis: lcl, lineStyle: { color: '#dc2626', type: 'dashed', width: 1 }, label: { formatter: 'LCL', fontSize: 9, color: '#dc2626' } },
+        ]
+      },
+      markArea: ruleConfig.markArea || undefined
+    }]
+  });
+}
+
+// R1: 1点超限
+makeNelsonChart('chart-nelson-r1', 
+  [3.90, 3.92, 3.88, 3.91, 3.89, 3.93, 4.15, 3.90, 3.88, 3.91, 3.92, 3.89],
+  { mean: 3.90, sigma: 0.05, redPoints: [6] }
+);
+
+// R2: 连续9点偏低
+makeNelsonChart('chart-nelson-r2',
+  [3.90, 3.92, 3.88, 3.91, 3.89, 3.85, 3.84, 3.83, 3.86, 3.82, 3.84, 3.85, 3.83, 3.86, 3.84],
+  { mean: 3.90, sigma: 0.05, redPoints: [5,6,7,8,9,10,11,12,13], yellowPoints: [] }
+);
+
+// R3: 连续6点递增
+makeNelsonChart('chart-nelson-r3',
+  [3.88, 3.90, 3.85, 3.87, 3.89, 3.91, 3.93, 3.95, 3.97, 3.99, 4.01, 3.88, 3.90],
+  { mean: 3.92, sigma: 0.05, redPoints: [], yellowPoints: [4,5,6,7,8,9] }
+);
+
+// R4: 交替振荡
+makeNelsonChart('chart-nelson-r4',
+  [3.96, 3.84, 3.95, 3.85, 3.94, 3.86, 3.93, 3.87, 3.92, 3.88, 3.91, 3.89, 3.90, 3.88, 3.91],
+  { mean: 3.90, sigma: 0.05 }
+);
+
+// R5: 3点中2点在A区外
+makeNelsonChart('chart-nelson-r5',
+  [3.90, 3.88, 3.92, 4.05, 3.87, 4.03, 3.89, 3.91, 3.88, 3.90],
+  { mean: 3.90, sigma: 0.05, redPoints: [], yellowPoints: [3, 5] }
+);
+
+// R6: 5点中4点在B区外
+makeNelsonChart('chart-nelson-r6',
+  [3.90, 3.97, 3.98, 3.85, 3.96, 3.84, 3.89, 3.91, 3.88, 3.90],
+  { mean: 3.90, sigma: 0.05, redPoints: [], yellowPoints: [1, 2, 3, 4, 5] }
+);
+
+// R7: 15点全在C区
+makeNelsonChart('chart-nelson-r7',
+  [3.91, 3.89, 3.90, 3.91, 3.90, 3.89, 3.91, 3.90, 3.89, 3.90, 3.91, 3.89, 3.90, 3.91, 3.90, 3.89, 3.91],
+  { mean: 3.90, sigma: 0.05, yellowPoints: Array.from({length: 17}, (_, i) => i) }
+);
+
+// R8: 8点全在C区外
+makeNelsonChart('chart-nelson-r8',
+  [3.96, 3.84, 3.97, 3.83, 3.95, 3.85, 3.98, 3.82, 3.90, 3.91, 3.89],
+  { mean: 3.90, sigma: 0.05, yellowPoints: [0,1,2,3,4,5,6,7] }
+);
+
+// ===== 8. Cpk 仪表盘 =====
+makeChart('chart-cpk-gauge', {
+  series: [{
+    type: 'gauge',
+    min: 0,
+    max: 2.5,
+    splitNumber: 5,
+    progress: { show: true, width: 18 },
+    axisLine: { lineStyle: { width: 18, color: [
+      [0.67/2.5, '#dc2626'],
+      [1.0/2.5, '#d97706'],
+      [1.33/2.5, '#d97706'],
+      [1.67/2.5, '#16a34a'],
+      [1, '#16a34a']
+    ]}},
+    pointer: { width: 5 },
+    detail: { valueAnimation: true, formatter: '{value}', fontSize: 28, offsetCenter: [0, '70%'] },
+    title: { offsetCenter: [0, '95%'], fontSize: 12 },
+    data: [{ value: 1.52, name: 'Cpk = 1.52 (良好)' }]
+  }],
+  graphic: [
+    { type: 'text', left: '15%', top: '65%', style: { text: '严重不足', fill: '#dc2626', fontSize: 9 } },
+    { type: 'text', left: '30%', top: '80%', style: { text: '不足', fill: '#d97706', fontSize: 9 } },
+    { type: 'text', left: '48%', top: '82%', style: { text: '尚可', fill: '#d97706', fontSize: 9 } },
+    { type: 'text', left: '65%', top: '80%', style: { text: '良好', fill: '#16a34a', fontSize: 9 } },
+    { type: 'text', left: '82%', top: '65%', style: { text: '优秀', fill: '#16a34a', fontSize: 9 } },
+  ]
+});
+
+// ===== 9. Z-Score =====
+const zData = Array.from({length: 40}, () => parseFloat((3.9 + (Math.random()-0.5)*0.1).toFixed(4)));
+zData[15] = 4.18; zData[28] = 3.62; zData[33] = 4.05;
+const zMean = zData.reduce((a,b)=>a+b,0)/zData.length;
+const zStd = Math.sqrt(zData.reduce((a,b)=>a+(b-zMean)**2,0)/(zData.length-1));
+makeChart('chart-zscore', {
+  tooltip: { trigger: 'axis' },
+  grid: { left: 50, right: 25, top: 20, bottom: 30 },
+  xAxis: { type: 'category', data: zData.map((_,i)=>`#${i+1}`), axisLabel: { fontSize: 8, interval: 4 } },
+  yAxis: { type: 'value', name: '检测值' },
+  series: [{
+    type: 'scatter',
+    data: zData,
+    symbolSize: 8,
+    itemStyle: {
+      color: function(p) {
+        const z = Math.abs((p.value - zMean) / zStd);
+        if (z > 3) return '#dc2626';
+        if (z > 2) return '#d97706';
+        return '#2563eb';
+      }
+    },
+    markLine: { silent: true, symbol: 'none', data: [
+      { yAxis: zMean + 3*zStd, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'μ+3σ (|Z|>3 红)', fontSize: 9, color: '#dc2626' } },
+      { yAxis: zMean + 2*zStd, lineStyle: { color: '#d97706', type: 'dashed' }, label: { formatter: 'μ+2σ (|Z|>2 黄)', fontSize: 9, color: '#d97706' } },
+      { yAxis: zMean, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'μ', fontSize: 9, color: '#0891b2' } },
+      { yAxis: zMean - 2*zStd, lineStyle: { color: '#d97706', type: 'dashed' }, label: { formatter: 'μ-2σ', fontSize: 9, color: '#d97706' } },
+      { yAxis: zMean - 3*zStd, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'μ-3σ', fontSize: 9, color: '#dc2626' } },
+    ]}
+  }]
+});
+
+// ===== 10. IQR 箱线图 =====
+const iqrData = Array.from({length: 50}, () => parseFloat((3.9 + (Math.random()-0.5)*0.15).toFixed(4)));
+iqrData[10] = 4.35; iqrData[35] = 3.45; iqrData[42] = 4.28;
+iqrData.sort((a,b)=>a-b);
+makeChart('chart-iqr', {
+  grid: { left: 60, right: 30, top: 10, bottom: 30 },
+  xAxis: { type: 'value', name: '脂肪(%)', min: 3.3, max: 4.5 },
+  yAxis: { type: 'category', data: ['检测值'], axisLabel: { fontSize: 11 } },
+  series: [{
+    type: 'boxplot',
+    data: [[iqrData[0], iqrData[12], iqrData[25], iqrData[37], iqrData[49]].map(v=>parseFloat(v.toFixed(4)))],
+    itemStyle: { color: '#dbeafe', borderColor: '#2563eb' }
+  }, {
+    type: 'scatter',
+    data: [[4.35, 0], [3.45, 0], [4.28, 0]],
+    symbolSize: 10,
+    itemStyle: { color: '#dc2626' },
+    name: '异常值'
+  }],
+  legend: { data: ['异常值'], bottom: 0, textStyle: { fontSize: 10 } }
+});
+
+// ===== 11. EWMA =====
+const ewmaRaw = Array.from({length: 40}, (_, i) => {
+  let base = 3.9 + (Math.random()-0.5)*0.04;
+  if (i >= 20) base += 0.02 * (i - 19); // 第20点后均值偏移0.5σ
+  return parseFloat(base.toFixed(4));
+});
+const lambda = 0.15;
+let ewmaPrev = 3.9;
+const ewmaData = ewmaRaw.map(v => { ewmaPrev = lambda * v + (1-lambda) * ewmaPrev; return parseFloat(ewmaPrev.toFixed(4)); });
+const ewmaSigma = 0.04;
+makeChart('chart-ewma', {
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['原始数据', 'EWMA'], bottom: 0, textStyle: { fontSize: 10 } },
+  grid: { left: 50, right: 25, top: 20, bottom: 40 },
+  xAxis: { type: 'category', data: ewmaRaw.map((_,i)=>`#${i+1}`), axisLabel: { fontSize: 8, interval: 4 } },
+  yAxis: { type: 'value', name: '脂肪(%)', min: 3.8, max: 4.3 },
+  series: [
+    { name: '原始数据', type: 'scatter', data: ewmaRaw, symbolSize: 5, itemStyle: { color: '#94a3b8' } },
+    { name: 'EWMA', type: 'line', data: ewmaData, symbol: 'none', lineStyle: { width: 2, color: '#dc2626' },
+      markLine: { silent: true, symbol: 'none', data: [
+        { yAxis: 3.9 + 3*ewmaSigma*Math.sqrt(lambda/(2-lambda)), lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL', fontSize: 9, color: '#dc2626' } },
+        { yAxis: 3.9, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'μ₀', fontSize: 9, color: '#0891b2' } },
+        { yAxis: 3.9 - 3*ewmaSigma*Math.sqrt(lambda/(2-lambda)), lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'LCL', fontSize: 9, color: '#dc2626' } },
+      ]},
+      markArea: { silent: true, data: [[{ xAxis: '#20', itemStyle: { color: 'rgba(220,38,38,0.05)' } }, { xAxis: '#40' }]] }
+    }
+  ]
+});
+
+// ===== 12. ARIMA 预测 =====
+const arimaHist = Array.from({length: 40}, (_, i) => {
+  return parseFloat((3.9 + Math.sin(i*0.3)*0.04 + (Math.random()-0.5)*0.03).toFixed(4));
+});
+const arimaPred = Array.from({length: 10}, (_, i) => {
+  return parseFloat((3.9 + Math.sin((40+i)*0.3)*0.04 + 0.005*i).toFixed(4));
+});
+const arimaUpper = arimaPred.map((v, i) => parseFloat((v + 0.03 + 0.005*i).toFixed(4)));
+const arimaLower = arimaPred.map((v, i) => parseFloat((v - 0.03 - 0.005*i).toFixed(4)));
+makeChart('chart-arima', {
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['历史数据', '预测值', '95%置信区间'], bottom: 0, textStyle: { fontSize: 10 } },
+  grid: { left: 50, right: 25, top: 20, bottom: 40 },
+  xAxis: { type: 'category', data: [...arimaHist.map((_,i)=>`T${i+1}`), ...arimaPred.map((_,i)=>`F${i+1}`)], axisLabel: { fontSize: 8, interval: 5 } },
+  yAxis: { type: 'value', name: '脂肪(%)', min: 3.7, max: 4.1 },
+  series: [
+    { name: '历史数据', type: 'line', data: [...arimaHist, ...Array(10).fill(null)], symbol: 'circle', symbolSize: 4, lineStyle: { width: 1.5, color: '#2563eb' }, itemStyle: { color: '#2563eb' } },
+    { name: '95%置信区间', type: 'line', data: [...Array(40).fill(null), ...arimaUpper], symbol: 'none', lineStyle: { width: 0 }, areaStyle: { color: 'rgba(37,99,235,0.1)', origin: 'auto' }, stack: 'ci' },
+    { name: '预测值', type: 'line', data: [...Array(40).fill(null), ...arimaPred], symbol: 'diamond', symbolSize: 6, lineStyle: { width: 2, color: '#dc2626', type: 'dashed' }, itemStyle: { color: '#dc2626' } },
+  ]
+});
+
+// ===== 13. 合规判定区间 =====
+makeChart('chart-compliance', {
+  tooltip: { trigger: 'axis' },
+  grid: { left: 50, right: 25, top: 20, bottom: 30 },
+  xAxis: { type: 'value', name: '脂肪(%)', min: 2.5, max: 5.5 },
+  yAxis: { type: 'value', show: false },
+  series: [{
+    type: 'line',
+    data: [[2.5, 1], [5.5, 1]],
+    lineStyle: { width: 0 },
+    markArea: {
+      silent: true,
+      data: [
+        [{ xAxis: 2.5, itemStyle: { color: 'rgba(220,38,38,0.12)' } }, { xAxis: 3.0 }], // 低于LSL
+        [{ xAxis: 3.0, itemStyle: { color: 'rgba(217,119,6,0.1)' } }, { xAxis: 3.2 }], // 边缘
+        [{ xAxis: 3.2, itemStyle: { color: 'rgba(22,163,74,0.1)' } }, { xAxis: 4.8 }], // 合规
+        [{ xAxis: 4.8, itemStyle: { color: 'rgba(217,119,6,0.1)' } }, { xAxis: 5.0 }], // 边缘
+        [{ xAxis: 5.0, itemStyle: { color: 'rgba(220,38,38,0.12)' } }, { xAxis: 5.5 }], // 超出USL
+      ]
+    },
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      data: [
+        { xAxis: 3.0, lineStyle: { color: '#dc2626', width: 2 }, label: { formatter: 'LSL=3.0', fontSize: 10, color: '#dc2626' } },
+        { xAxis: 3.9, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'Target=3.9', fontSize: 10, color: '#0891b2' } },
+        { xAxis: 5.0, lineStyle: { color: '#dc2626', width: 2 }, label: { formatter: 'USL=5.0', fontSize: 10, color: '#dc2626' } },
+      ]
+    }
+  }],
+  graphic: [
+    { type: 'text', left: '8%', top: '35%', style: { text: '不合规\n(低于下限)', fill: '#dc2626', fontSize: 10 } },
+    { type: 'text', left: '22%', top: '35%', style: { text: '边缘', fill: '#d97706', fontSize: 10 } },
+    { type: 'text', left: '40%', top: '35%', style: { text: '✅ 合规区间', fill: '#16a34a', fontSize: 12 } },
+    { type: 'text', left: '72%', top: '35%', style: { text: '边缘', fill: '#d97706', fontSize: 10 } },
+    { type: 'text', left: '85%', top: '35%', style: { text: '不合规\n(超出上限)', fill: '#dc2626', fontSize: 10 } },
+  ]
+});
+
+// ===== 14. 品项分布 =====
+makeChart('chart-products', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 100, right: 40, top: 20, bottom: 30 },
+  xAxis: { type: 'value', name: '检测量(条)' },
+  yAxis: { type: 'category', data: ['钻金典纯牛奶','砖金典纯牛奶','枕纯牛奶','砖纯牛奶'].reverse(), axisLabel: { fontSize: 11 } },
+  series: [{
+    type: 'bar',
+    data: [2155, 3167, 7039, 8241],
+    itemStyle: {
+      color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+        { offset: 0, color: '#2563eb' },
+        { offset: 1, color: '#0891b2' }
+      ]),
+      borderRadius: [0, 4, 4, 0]
+    },
+    barWidth: 20,
+    label: { show: true, position: 'right', fontSize: 12, fontWeight: 600 }
+  }]
+});
+
+// ===== 侧边栏高亮 =====
+const navItems = document.querySelectorAll('.nav-item');
+const sections = document.querySelectorAll('.card');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(sec => {
+    const top = sec.offsetTop - 100;
+    if (window.scrollY >= top) current = sec.id;
+  });
+  navItems.forEach(item => {
+    item.classList.remove('active');
+    if (item.getAttribute('href') === '#' + current) item.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>

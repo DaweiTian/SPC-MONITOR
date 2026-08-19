@@ -6,6 +6,8 @@ import { SPCPage } from './pages/SPC'
 import { CapabilityPage } from './pages/Capability'
 import { AlertsPage } from './pages/Alerts'
 import { ConfigPage } from './pages/Config'
+import { DataPage } from './pages/Data'
+import { HelpPage } from './pages/Help'
 
 const App: React.FC = () => {
   return (
@@ -18,6 +20,7 @@ const App: React.FC = () => {
           <Route path="/capability" element={<CapabilityPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/config" element={<ConfigPage />} />
+          <Route path="/help" element={<HelpPage />} />
         </Routes>
       </AppLayout>
     </BrowserRouter>
