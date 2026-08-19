@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons'
 import { api, websocketService } from '../../services'
 import type { DashboardData, SchedulerStatus } from '../../types'
+import HelpTooltip from '../../components/HelpTooltip'
 
 export const Dashboard: React.FC = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
@@ -77,7 +78,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24 }}>实时看板</h2>
+      <h2 style={{ marginBottom: 24 }}>实时看板 <HelpTooltip termId="spc-concept" placement="right" /></h2>
       
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>

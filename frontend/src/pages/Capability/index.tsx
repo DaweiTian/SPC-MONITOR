@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Select, Button, Row, Col, Statistic } from 'antd'
 import { api } from '../../services'
 import type { CapabilityData, Product, Indicator } from '../../types'
+import HelpTooltip from '../../components/HelpTooltip'
 
 export const CapabilityPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
@@ -44,7 +45,7 @@ export const CapabilityPage: React.FC = () => {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24 }}>过程能力分析</h2>
+      <h2 style={{ marginBottom: 24 }}>过程能力分析 <HelpTooltip termId="cp" placement="right" /></h2>
       
       <Card style={{ marginBottom: 24 }}>
         <Select

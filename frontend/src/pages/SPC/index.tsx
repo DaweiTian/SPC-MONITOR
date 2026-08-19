@@ -3,6 +3,7 @@ import { Card, Select, Button, Table, Tag, InputNumber, Form, Row, Col } from 'a
 import * as echarts from 'echarts'
 import { api } from '../../services'
 import type { SPCData, Product, Indicator } from '../../types'
+import HelpTooltip from '../../components/HelpTooltip'
 
 export const SPCPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
@@ -113,7 +114,7 @@ export const SPCPage: React.FC = () => {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24 }}>SPC 控制图</h2>
+      <h2 style={{ marginBottom: 24 }}>SPC 控制图 <HelpTooltip termId="spc-concept" placement="right" /></h2>
       
       <Card style={{ marginBottom: 24 }}>
         <Form layout="inline">
