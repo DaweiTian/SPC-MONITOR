@@ -29,7 +29,34 @@ FT120 仪器数据的实时检测和分析平台
 - Node.js 18+
 - Rust 1.70+ (仅启动器)
 
-### 后端
+### 一键启动（推荐）
+
+#### Linux / macOS
+
+```bash
+# 开发模式（同时启动前端和后端）
+./scripts/dev.sh
+
+# 生产模式（构建前端并启动后端）
+./scripts/start.sh
+
+# 停止服务
+./scripts/stop.sh
+```
+
+#### Windows
+
+```cmd
+# 开发模式（同时启动前端和后端）
+scripts\dev.bat
+
+# 生产模式（构建前端并启动后端）
+scripts\start.bat
+```
+
+### 手动启动
+
+#### 后端
 
 ```bash
 cd backend
@@ -37,7 +64,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### 前端
+#### 前端
 
 ```bash
 cd frontend
@@ -45,7 +72,7 @@ npm install
 npm run dev
 ```
 
-### 启动器
+#### 启动器
 
 ```bash
 cd launcher
@@ -81,6 +108,12 @@ FT1-MONITOR/
 ├── launcher/          # Rust 启动器
 │   ├── src/
 │   └── Cargo.toml
+├── scripts/           # 启动脚本
+│   ├── dev.sh         # Linux/macOS 开发模式
+│   ├── dev.bat        # Windows 开发模式
+│   ├── start.sh       # Linux/macOS 生产模式
+│   ├── start.bat      # Windows 生产模式
+│   └── stop.sh        # 停止服务
 ├── config/            # 配置文件
 ├── data/              # 数据存储
 └── docs/              # 文档
