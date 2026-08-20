@@ -46,11 +46,11 @@
   /* ===== 侧边导航 ===== */
   .sidebar {
     position: fixed; top: 56px; left: 0; width: 260px; bottom: 0;
-    background: white; border-right: 1px solid var(--border);
+    background: var(--card-bg); border-right: 1px solid var(--border);
     overflow-y: auto; padding: 16px 0; z-index: 900;
   }
   .sidebar::-webkit-scrollbar { width: 4px; }
-  .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .nav-group-title {
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
     color: var(--text-light); padding: 16px 20px 6px; 
@@ -70,7 +70,7 @@
   .nav-item.active .num { background: var(--primary); color: white; }
 
   /* ===== 主内容 ===== */
-  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: 1100px; }
+  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: none; overflow-x: hidden; }
 
   /* ===== 卡片 ===== */
   .card {
@@ -106,14 +106,14 @@
     text-transform: uppercase; letter-spacing: 0.5px;
   }
   .tag-spc { background: rgba(0,212,255,0.12); color: #00d4ff; }
-  .tag-capability { background: #dcfce7; color: #15803d; }
+  .tag-capability { background: rgba(16,185,129,0.12); color: #10b981; }
   .tag-anomaly { background: rgba(239,68,68,0.15); color: #ef4444; }
   .tag-trend { background: rgba(245,158,11,0.15); color: #f59e0b; }
-  .tag-stats { background: #e0e7ff; color: #4338ca; }
+  .tag-stats { background: rgba(99,102,241,0.12); color: #818cf8; }
   .tag-quality { background: rgba(236,72,153,0.12); color: #ec4899; }
 
   .concept-body { padding: 0 8px; }
-  .concept-body p { margin-bottom: 10px; font-size: 14px; color: #334155; }
+  .concept-body p { margin-bottom: 10px; font-size: 14px; color: var(--text-muted); }
   .concept-body strong { color: var(--text); }
 
   /* ===== 公式块 ===== */
@@ -135,7 +135,7 @@
   /* ===== 图表容器 ===== */
   .chart-container {
     width: 100%; border-radius: 8px; border: 1px solid var(--border);
-    background: white; padding: 12px; margin: 12px 0;
+    background: var(--card-bg); padding: 12px; margin: 12px 0;
   }
   .chart-container .chart-title {
     font-size: 13px; font-weight: 600; color: var(--text-light);
@@ -145,7 +145,7 @@
   /* ===== 表格 ===== */
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
   th { background: var(--code-bg); padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); }
-  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #334155; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
   tr:hover td { background: var(--code-bg); }
   table .num-col { text-align: center; font-variant-numeric: tabular-nums; }
 
@@ -189,7 +189,7 @@
   /* ===== 封面 ===== */
   .cover {
     text-align: center; padding: 60px 40px; 
-    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #0891b2 100%);
+    background: linear-gradient(135deg, #0a0e17 0%, #141a2a 50%, #1a2234 100%);
     color: white; border-radius: 16px; margin-bottom: 32px;
   }
   .cover h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
@@ -201,7 +201,7 @@
   /* ===== 目录卡片网格 ===== */
   .toc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
   .toc-card {
-    background: white; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
     padding: 20px; text-decoration: none; color: var(--text); transition: all 0.2s;
     display: flex; flex-direction: column; gap: 8px;
   }
