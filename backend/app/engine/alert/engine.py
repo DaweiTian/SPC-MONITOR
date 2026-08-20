@@ -179,7 +179,7 @@ class AlertEngine:
             if (e['product_code'] == alert['product_code'] and
                 e['indicator_code'] == alert['indicator_code'] and
                 e['rule_type'] == alert['rule_type'] and
-                datetime.fromisoformat(e['generated_at']) > cutoff):
+                datetime.fromisoformat(e['created_at']) > cutoff):
                 return True
         
         return False
