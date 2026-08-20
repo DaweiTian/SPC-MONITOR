@@ -8,7 +8,6 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  overflow: hidden;
   margin-bottom: 16px;
 }
 
@@ -22,7 +21,8 @@
   position: sticky;
   top: 0;
   background: var(--bg-card);
-  z-index: 10;
+  z-index: 20;
+  border-radius: 12px 12px 0 0;
 }
 
 .panelTitle {
@@ -110,7 +110,8 @@
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
 
@@ -122,9 +123,9 @@
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
   position: sticky;
-  top: 0;
+  top: 56px;
   background: var(--bg-secondary);
-  z-index: 5;
+  z-index: 15;
 }
 
 .table td {
