@@ -10,46 +10,51 @@ export const DataPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
 
+  const today = new Date().toISOString().split('T')[0]
   const [data, setData] = useState<MonitorData[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
 
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
-    date: '',
+    date: today,
   })
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await api.getRecentData({
-        product_code: filter.product_code,
-        indicator_code: filter.indicator_code,
-        limit: 500,
+      const result = await api.getDataList({
+        page,
+        page_size: PAGE_SIZE,
+        date: filter.date || undefined,
+        product_code: filter.product_code || undefined,
+        indicator_code: filter.indicator_code || undefined,
       })
-      const rows = Array.isArray(result) ? result : result.data || []
-      setData(rows)
-      setPage(1)
+      setData(result.data || [])
+      setTotal(result.total || 0)
     } catch (e) {
       console.error('获取数据失败:', e)
     } finally {
       setLoading(false)
     }
-  }, [filter.product_code, filter.indicator_code])
+  }, [filter.product_code, filter.indicator_code, filter.date, page])
 
-  // Auto-fetch when product or indicator changes
+  // Auto-fetch when filters or page changes
   useEffect(() => {
-    if (filter.product_code && filter.indicator_code) {
-      fetchData()
-    }
-  }, [fetchData, filter.product_code, filter.indicator_code])
+    fetchData()
+  }, [fetchData])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [filter.product_code, filter.indicator_code, filter.date])
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE))
-  const pagedData = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const startIdx = data.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const endIdx = Math.min(page * PAGE_SIZE, data.length)
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const startIdx = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const endIdx = Math.min(page * PAGE_SIZE, total)
 
   // Export
   const handleExport = async (format: 'csv' | 'excel') => {
@@ -107,8 +112,11 @@ export const DataPage: React.FC = () => {
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
           <div className={styles.panelTitle}>
-            <span className={styles.panelIcon}>💾</span>
-            FT1 数据管理
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            </svg>
+            数据管理
           </div>
           <div className={styles.panelActions}>
             <select
@@ -137,14 +145,17 @@ export const DataPage: React.FC = () => {
               value={filter.date}
               onChange={e => setFilter(f => ({ ...f, date: e.target.value }))}
             />
-            <button className={styles.btnPrimary} onClick={fetchData}>
-              🔍 查询
-            </button>
             <button className={styles.btnGhost} onClick={() => handleExport('csv')}>
-              📥 导出CSV
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              导出CSV
             </button>
             <button className={styles.btnGhost} onClick={() => handleExport('excel')}>
-              📊 导出Excel
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+              </svg>
+              导出Excel
             </button>
           </div>
         </div>
@@ -173,14 +184,14 @@ export const DataPage: React.FC = () => {
                     加载中...
                   </td>
                 </tr>
-              ) : pagedData.length === 0 ? (
+              ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={styles.emptyRow}>
                     暂无数据
                   </td>
                 </tr>
               ) : (
-                pagedData.map((row, idx) => (
+                data.map((row, idx) => (
                   <tr key={row.id}>
                     <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                     <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
@@ -212,10 +223,10 @@ export const DataPage: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        {data.length > 0 && (
+        {total > 0 && (
           <div className={styles.pagination}>
             <span className={styles.paginationInfo}>
-              显示 {startIdx} - {endIdx} 条，共 {data.length} 条
+              显示 {startIdx} - {endIdx} 条，共 {total} 条
             </span>
             <div className={styles.paginationBtns}>
               <button
