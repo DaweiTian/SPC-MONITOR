@@ -138,10 +138,9 @@
 }
 
 .docFrame {
-  border: 1px solid var(--border-color);
   border-radius: 12px;
   overflow: hidden;
-  background: #0a0e17;
+  background: #0a0e1a;
 }
 
 .docIframe {
