@@ -93,6 +93,11 @@ async def get_product_indicator_count(product_code: str):
     count = storage.get_product_indicator_count(product_code)
     return {"count": count}
 
+@router.get("/products/{product_code}/indicator-codes")
+async def get_product_indicator_codes(product_code: str):
+    codes = storage.get_product_indicator_codes(product_code)
+    return {"codes": codes}
+
 @router.get("/indicators")
 async def get_indicators():
     return {"indicators": collector.get_indicators() if collector else []}

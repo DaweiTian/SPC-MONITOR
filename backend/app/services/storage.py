@@ -204,6 +204,17 @@ class OnlineStorage:
         finally:
             conn.close()
 
+    def get_product_indicator_codes(self, product_code: str) -> list[str]:
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT indicator_code FROM monitor_data WHERE product_code = ?",
+                (product_code,),
+            )
+            return [row["indicator_code"] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
     def get_alerts(
         self,
         severity: str | None = None,

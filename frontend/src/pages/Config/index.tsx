@@ -453,12 +453,9 @@ export const ConfigPage: React.FC = () => {
     // Fetch which indicators have actual data for this product
     let indicatorsWithData = new Set<string>()
     try {
-      const countResult = await api.getProductIndicatorCount(product.code)
-      // We need the actual indicator codes, not just the count
-      // Use the data list API to get a sample
-      const sampleData = await api.getDataList({ product_code: product.code, page_size: 500 })
-      if (sampleData?.data) {
-        sampleData.data.forEach((d: any) => indicatorsWithData.add(d.indicator_code))
+      const codesResult = await api.getProductIndicatorCodes(product.code)
+      if (codesResult?.codes) {
+        codesResult.codes.forEach((code: string) => indicatorsWithData.add(code))
       }
     } catch {}
 
