@@ -98,6 +98,20 @@ async def get_product_indicator_codes(product_code: str):
     codes = storage.get_product_indicator_codes(product_code)
     return {"codes": codes}
 
+@router.post("/products/snapshot-indicators")
+async def snapshot_product_indicators():
+    """初始化时扫描数据库，保存每个品项有数据的指标编码（一次性操作）"""
+    mapping = storage.get_all_product_indicator_codes()
+    from backend.app.api.config import _save_json_config
+    _save_json_config("product_indicators.json", mapping)
+    return {"success": True, "count": len(mapping), "mapping": mapping}
+
+@router.get("/products/saved-indicators")
+async def get_saved_indicators():
+    """读取已保存的品项指标配置"""
+    from backend.app.api.config import _load_json_config
+    return _load_json_config("product_indicators.json", {})
+
 @router.get("/indicators")
 async def get_indicators():
     return {"indicators": collector.get_indicators() if collector else []}

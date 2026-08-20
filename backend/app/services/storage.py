@@ -215,6 +215,22 @@ class OnlineStorage:
         finally:
             conn.close()
 
+    def get_all_product_indicator_codes(self) -> dict[str, list[str]]:
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT product_code, indicator_code FROM monitor_data ORDER BY product_code"
+            )
+            result: dict[str, list[str]] = {}
+            for row in cursor.fetchall():
+                pc = row["product_code"]
+                if pc not in result:
+                    result[pc] = []
+                result[pc].append(row["indicator_code"])
+            return result
+        finally:
+            conn.close()
+
     def get_alerts(
         self,
         severity: str | None = None,

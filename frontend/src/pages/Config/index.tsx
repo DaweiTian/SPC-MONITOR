@@ -171,6 +171,7 @@ export const ConfigPage: React.FC = () => {
   const [productAlias, setProductAlias] = useState('')
   const [productAliases, setProductAliases] = useState<Record<string, string>>({})
   const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [frequencyStatus, setFrequencyStatus] = useState<{
     current_level: number
     current_interval_minutes: number
@@ -216,13 +217,14 @@ export const ConfigPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult, aliasResult] = await Promise.all([
+      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult, aliasResult, savedIndResult] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
         api.getProductStatus().catch(() => ({} as Record<string, string>)),
         api.getSpecLimits().catch(() => ({} as Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>)),
         api.getAlertRules().catch(() => null),
         api.getAliases().catch(() => ({ products: {}, indicators: {} })),
+        api.getSavedIndicators().catch(() => ({} as Record<string, string[]>)),
       ])
 
       if (indicatorsResult?.indicators) {
@@ -239,6 +241,10 @@ export const ConfigPage: React.FC = () => {
 
       if (rulesResult?.rules) {
         setNelsonRules(rulesResult.rules)
+      }
+
+      if (savedIndResult) {
+        setSavedIndicators(savedIndResult)
       }
 
       if (productsResult?.products) {
@@ -396,10 +402,17 @@ export const ConfigPage: React.FC = () => {
       const collectResult = await api.manualCollect()
       
       if (collectResult?.status === 'success') {
-        setCollectResult({ 
-          success: true, 
-          message: `采集成功！新增 ${collectResult.new_records || 0} 条数据` 
+        setCollectResult({
+          success: true,
+          message: `采集成功！新增 ${collectResult.new_records || 0} 条数据`
         })
+        // Snapshot product indicators (one-time per initialization)
+        try {
+          const snapshot = await api.snapshotProductIndicators()
+          if (snapshot?.mapping) {
+            setSavedIndicators(snapshot.mapping)
+          }
+        } catch {}
         // Refresh products after collection
         await fetchProducts()
       } else {
@@ -450,14 +463,8 @@ export const ConfigPage: React.FC = () => {
       // use empty
     }
 
-    // Fetch which indicators have actual data for this product
-    let indicatorsWithData = new Set<string>()
-    try {
-      const codesResult = await api.getProductIndicatorCodes(product.code)
-      if (codesResult?.codes) {
-        codesResult.codes.forEach((code: string) => indicatorsWithData.add(code))
-      }
-    } catch {}
+    // Use saved indicator codes (from initialization snapshot)
+    const indicatorsWithData = new Set<string>(savedIndicators[product.code] || [])
 
     // Initialize indicator specs - only enable indicators with data or saved limits
     setIndicatorSpecs(availableIndicators.map(ind => {
