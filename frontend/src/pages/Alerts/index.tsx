@@ -175,6 +175,8 @@ export const AlertsPage: React.FC = () => {
   const [pageSize] = useState(20)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState({ severity: '', status: 'pending', product: '', search: '' })
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [resolveNote, setResolveNote] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -206,6 +208,12 @@ export const AlertsPage: React.FC = () => {
 
   useEffect(() => { fetchOverview() }, [fetchOverview])
 
+  // 搜索防抖：输入停止300ms后才触发请求
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   // 列表数据：受筛选条件影响，仅用于下方表格
   const fetchAlerts = useCallback(async () => {
     setLoading(true)
@@ -214,7 +222,7 @@ export const AlertsPage: React.FC = () => {
         severity: filter.severity || undefined,
         status: filter.status || undefined,
         product_code: filter.product || undefined,
-        search: filter.search || undefined,
+        search: debouncedSearch || undefined,
         page,
         page_size: pageSize,
       })
@@ -225,12 +233,12 @@ export const AlertsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [filter, page, pageSize])
+  }, [filter.severity, filter.status, filter.product, debouncedSearch, page, pageSize])
 
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
-  // Reset to page 1 when filter changes
-  useEffect(() => { setPage(1) }, [filter.severity, filter.status, filter.product, filter.search])
+  // Reset to page 1 when filter changes (debouncedSearch uses its own effect)
+  useEffect(() => { setPage(1) }, [filter.severity, filter.status, filter.product, debouncedSearch])
 
   /* ---- 统计（基于总览数据，不受筛选影响） ---- */
   const stats = useMemo(
@@ -369,10 +377,10 @@ export const AlertsPage: React.FC = () => {
           className={styles.filterInput}
           type="text"
           placeholder="搜索品项/指标/描述..."
-          value={filter.search}
-          onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
-        <button className={styles.filterResetBtn} onClick={() => setFilter({ severity: '', status: 'pending', product: '', search: '' })}>重置</button>
+        <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '' }); setSearchInput('') }}>重置</button>
         {selected.size > 0 && (
           <button className={styles.batchBtn} onClick={() => setBatchConfirm(true)}>批量处理 ({selected.size})</button>
         )}
