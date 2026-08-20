@@ -475,6 +475,10 @@
   font-size: 12px;
 }
 
+.formInput[type="number"] {
+  color-scheme: dark;
+}
+
 .formSelect {
   cursor: pointer;
   appearance: none;
