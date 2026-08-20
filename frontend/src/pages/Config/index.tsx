@@ -36,6 +36,7 @@ interface NelsonRule {
   description: string
   severity: 'CRITICAL' | 'WARNING' | 'INFO'
   enabled: boolean
+  rule_type: string
 }
 
 interface DBConfig {
@@ -96,17 +97,6 @@ const FREQUENCY_ROWS: FrequencyRow[] = [
   { level: 'L0', frequency: '1 分钟', trigger: '产线运行时持续', status: 'current' },
   { level: 'L1', frequency: '5 分钟', trigger: '常规监控', status: 'standby' },
   { level: 'L2', frequency: '30 分钟', trigger: '待机/低负荷', status: 'standby' },
-]
-
-const INITIAL_NELSON: NelsonRule[] = [
-  { id: 1, rule: '规则1', description: '1个点超出3σ控制限', severity: 'CRITICAL', enabled: true },
-  { id: 2, rule: '规则2', description: '连续9个点在中心线同一侧', severity: 'CRITICAL', enabled: true },
-  { id: 3, rule: '规则3', description: '连续6个点递增或递减', severity: 'WARNING', enabled: true },
-  { id: 4, rule: '规则4', description: '连续14个点交替升降', severity: 'WARNING', enabled: true },
-  { id: 5, rule: '规则5', description: '连续3个点中有2个超出2σ', severity: 'CRITICAL', enabled: true },
-  { id: 6, rule: '规则6', description: '连续5个点中有4个超出1σ', severity: 'WARNING', enabled: false },
-  { id: 7, rule: '规则7', description: '连续15个点在1σ以内（层叠）', severity: 'INFO', enabled: false },
-  { id: 8, rule: '规则8', description: '连续8个点在1σ以外（混合）', severity: 'INFO', enabled: false },
 ]
 
 const DEFAULT_DB_CONFIG: DBConfig = {
@@ -175,7 +165,7 @@ interface IndicatorSpec {
 export const ConfigPage: React.FC = () => {
   const [products, setProducts] = useState<ProductItem[]>([])
   const [specs, setSpecs] = useState<SpecLimit[]>(INITIAL_SPECS)
-  const [nelsonRules, setNelsonRules] = useState<NelsonRule[]>(INITIAL_NELSON)
+  const [nelsonRules, setNelsonRules] = useState<NelsonRule[]>([])
   const [currentInstrument, setCurrentInstrument] = useState<string>('mock')
   const [sourceLoading, setSourceLoading] = useState(false)
   const [dbConfig, setDbConfig] = useState<DBConfig>(DEFAULT_DB_CONFIG)
@@ -219,11 +209,12 @@ export const ConfigPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const [productsResult, indicatorsResult, statusResult, limitsResult] = await Promise.all([
+      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
         api.getProductStatus().catch(() => ({} as Record<string, string>)),
         api.getSpecLimits().catch(() => ({} as Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>)),
+        api.getAlertRules().catch(() => null),
       ])
 
       if (indicatorsResult?.indicators) {
@@ -232,6 +223,10 @@ export const ConfigPage: React.FC = () => {
 
       if (limitsResult) {
         setSavedSpecLimits(limitsResult)
+      }
+
+      if (rulesResult?.rules) {
+        setNelsonRules(rulesResult.rules)
       }
 
       if (productsResult?.products) {
@@ -561,10 +556,14 @@ export const ConfigPage: React.FC = () => {
     }
   }
 
-  const toggleNelsonRule = (id: number) => {
-    setNelsonRules(prev =>
-      prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r)
-    )
+  const toggleNelsonRule = async (id: number) => {
+    const newRules = nelsonRules.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r)
+    setNelsonRules(newRules)
+    try {
+      await api.updateAlertRules({ rules: newRules })
+    } catch (e) {
+      console.error('保存预警规则失败:', e)
+    }
   }
 
   const severityTag = (severity: string) => {

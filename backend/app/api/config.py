@@ -688,3 +688,36 @@ async def update_single_spec_limit(indicator_code: str, body: dict):
     if success:
         return {"success": True, "message": "规格限已更新"}
     return {"success": False, "message": "更新失败"}
+
+
+# ========== Alert Rules Configuration ==========
+
+ALERT_RULES_FILE = "alert_rules.json"
+
+_default_alert_rules = [
+    {"id": 1, "rule": "规则1", "description": "1个点超出3σ控制限", "severity": "CRITICAL", "enabled": True, "rule_type": "nelson_1"},
+    {"id": 2, "rule": "规则2", "description": "连续9个点在中心线同一侧", "severity": "CRITICAL", "enabled": True, "rule_type": "nelson_2"},
+    {"id": 3, "rule": "规则3", "description": "连续6个点递增或递减", "severity": "WARNING", "enabled": True, "rule_type": "nelson_3"},
+    {"id": 4, "rule": "规则4", "description": "连续14个点交替升降", "severity": "WARNING", "enabled": True, "rule_type": "nelson_4"},
+    {"id": 5, "rule": "规则5", "description": "连续3个点中有2个超出2σ", "severity": "CRITICAL", "enabled": True, "rule_type": "nelson_5"},
+    {"id": 6, "rule": "规则6", "description": "连续5个点中有4个超出1σ", "severity": "WARNING", "enabled": False, "rule_type": "nelson_6"},
+    {"id": 7, "rule": "规则7", "description": "连续15个点在1σ以内（层叠）", "severity": "INFO", "enabled": False, "rule_type": "nelson_7"},
+    {"id": 8, "rule": "规则8", "description": "连续8个点在1σ以外（混合）", "severity": "INFO", "enabled": False, "rule_type": "nelson_8"},
+    {"id": 9, "rule": "CPK预警", "description": "CPK低于目标值", "severity": "WARNING", "enabled": True, "rule_type": "cpk_below_target"},
+    {"id": 10, "rule": "规格越限", "description": "检测值超出规格线（USL/LSL）", "severity": "CRITICAL", "enabled": True, "rule_type": "spec_limit_breach"},
+]
+
+
+@router.get("/alert-rules")
+async def get_alert_rules():
+    """获取预警规则配置"""
+    return _load_json_config(ALERT_RULES_FILE, {"rules": _default_alert_rules})
+
+
+@router.put("/alert-rules")
+async def update_alert_rules(config: dict):
+    """更新预警规则配置"""
+    success = _save_json_config(ALERT_RULES_FILE, config)
+    if success:
+        return {"success": True, "message": "预警规则已保存"}
+    return {"success": False, "message": "保存失败"}

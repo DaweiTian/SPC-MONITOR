@@ -100,4 +100,10 @@ export const api = {
     http.put('/config/spec-limits', config).then(r => r.data),
   updateSingleSpecLimit: (indicatorCode: string, limits: { lsl?: number; usl?: number; target?: number; product_code?: string }) =>
     http.put(`/config/spec-limits/${indicatorCode}`, limits).then(r => r.data),
+
+  // Alert rules configuration
+  getAlertRules: () =>
+    http.get<{ rules: Array<{ id: number; rule: string; description: string; severity: string; enabled: boolean; rule_type: string }> }>('/config/alert-rules').then(r => r.data),
+  updateAlertRules: (config: { rules: Array<{ id: number; rule: string; description: string; severity: string; enabled: boolean; rule_type: string }> }) =>
+    http.put('/config/alert-rules', config).then(r => r.data),
 }
