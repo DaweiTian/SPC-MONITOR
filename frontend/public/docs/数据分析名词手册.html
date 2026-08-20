@@ -71,13 +71,13 @@ body {
 .nav-item.active { background: var(--primary-light); border-left-color: var(--primary); font-weight: 600; color: var(--primary); }
 
 /* ===== 主内容区 ===== */
-.main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: none; overflow-x: hidden; }
+.main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; width: calc(100vw - 260px); box-sizing: border-box; overflow-x: hidden; }
 
 /* ===== 卡片 ===== */
 .card {
   background: var(--card-bg); border-radius: 12px; padding: 28px;
   box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
-  overflow-x: auto;
+  overflow-x: auto; width: 100%; box-sizing: border-box; word-break: break-word;
 }
 .card-header {
   display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
@@ -188,7 +188,7 @@ body.embedded .sidebar {
   z-index: 200;
 }
 body.embedded .sidebar.open { transform: translateX(0); }
-body.embedded .main { margin-left: 0; }
+body.embedded .main { margin-left: 0; width: 100vw; }
 
 /* 目录切换按钮 */
 .toc-toggle {
