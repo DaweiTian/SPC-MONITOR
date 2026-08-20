@@ -710,7 +710,7 @@ export const ConfigPage: React.FC = () => {
           <div className={styles.cardBody} style={{ padding: '24px' }}>
             {frequencyStatus ? (
               <>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   自适应降级阶梯
                 </div>
                 <div className={styles.freqLadder}>
