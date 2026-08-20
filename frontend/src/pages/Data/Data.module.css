@@ -19,6 +19,10 @@
   border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap;
   gap: 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 10;
 }
 
 .panelTitle {
@@ -117,6 +121,10 @@
   font-weight: 500;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 5;
 }
 
 .table td {
