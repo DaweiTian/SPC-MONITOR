@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
 import { AliasConfig } from '../../components/AliasConfig'
+import { SpecLimitsConfig } from '../../components/SpecLimitsConfig'
 import styles from './Config.module.css'
 
 /* ── Mock data for initial display ───────────────────────────── */
@@ -191,6 +192,7 @@ export const ConfigPage: React.FC = () => {
   const [availableIndicators, setAvailableIndicators] = useState<Array<{ code: string; name: string }>>([])
   const [indicatorSpecs, setIndicatorSpecs] = useState<IndicatorSpec[]>([])
   const [newProduct, setNewProduct] = useState({ name: '', code: '', status: 'enabled' as 'enabled' | 'disabled' })
+  const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
 
   /* Fetch current instrument and configs on mount */
   useEffect(() => {
@@ -218,16 +220,21 @@ export const ConfigPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const [productsResult, indicatorsResult, statusResult] = await Promise.all([
+      const [productsResult, indicatorsResult, statusResult, limitsResult] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
-        api.getProductStatus().catch(() => ({} as Record<string, string>))
+        api.getProductStatus().catch(() => ({} as Record<string, string>)),
+        api.getSpecLimits().catch(() => ({} as Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>)),
       ])
-      
+
       if (indicatorsResult?.indicators) {
         setAvailableIndicators(indicatorsResult.indicators)
       }
-      
+
+      if (limitsResult) {
+        setSavedSpecLimits(limitsResult)
+      }
+
       if (productsResult?.products) {
         const indicatorCount = indicatorsResult?.indicators?.length || 0
         const productList: ProductItem[] = productsResult.products.map((p: any, index: number) => ({
@@ -405,7 +412,8 @@ export const ConfigPage: React.FC = () => {
   const handleAddProduct = () => {
     setEditingProduct(null)
     setNewProduct({ name: '', code: '', status: 'enabled' })
-    // Initialize with all indicators enabled by default
+
+    // New product starts with empty limits
     setIndicatorSpecs(availableIndicators.map(ind => ({
       indicator_code: ind.code,
       indicator_name: ind.name,
@@ -418,27 +426,32 @@ export const ConfigPage: React.FC = () => {
     setShowProductDialog(true)
   }
 
-  const handleEditProduct = (product: ProductItem) => {
+  const handleEditProduct = async (product: ProductItem) => {
     setEditingProduct(product)
     setNewProduct({ name: product.name, code: product.code, status: product.status })
-    
-    // Load existing spec limits for this product
-    const productSpecs = specs.filter(s => s.product === product.code)
-    
-    // Initialize indicator specs - all enabled by default
+
+    // Load per-product spec limits from backend
+    let savedLimits: Record<string, { lsl?: number; usl?: number; target?: number }> = {}
+    try {
+      savedLimits = await api.getSpecLimits(product.code)
+    } catch {
+      // use empty
+    }
+
+    // Initialize indicator specs - all enabled by default, pre-fill from backend
     setIndicatorSpecs(availableIndicators.map(ind => {
-      const existingSpec = productSpecs.find(s => s.indicator === ind.name)
+      const limits = savedLimits[ind.code]
       return {
         indicator_code: ind.code,
         indicator_name: ind.name,
-        enabled: true,  // Default all enabled
-        usl: existingSpec?.usl?.toString() || '',
-        lsl: existingSpec?.lsl?.toString() || '',
-        target: existingSpec?.target?.toString() || '',
-        unit: existingSpec?.unit || ''
+        enabled: true,
+        usl: limits?.usl?.toString() || '',
+        lsl: limits?.lsl?.toString() || '',
+        target: limits?.target?.toString() || '',
+        unit: ''
       }
     }))
-    
+
     setShowProductDialog(true)
   }
 
@@ -481,24 +494,41 @@ export const ConfigPage: React.FC = () => {
       console.error('保存品项状态失败:', e)
     }
 
-    // Update specs for this product
+    // Persist spec limits to backend
     const enabledSpecs = indicatorSpecs
       .filter(s => s.enabled && (s.usl || s.lsl))
       .map(s => ({
         id: `${newProduct.code}-${s.indicator_code}`,
         product: newProduct.code,
         indicator: s.indicator_name,
+        indicator_code: s.indicator_code,
         usl: parseFloat(s.usl as string) || 0,
         lsl: parseFloat(s.lsl as string) || 0,
         target: parseFloat(s.target as string) || 0,
         unit: s.unit
       }))
 
-    // Update specs: remove old specs for this product and add new ones
+    // Update local specs state
     setSpecs(prev => [
       ...prev.filter(s => s.product !== newProduct.code),
       ...enabledSpecs
     ])
+
+    // Save each indicator's spec limits to backend (per-product)
+    const productLimits: Record<string, { lsl?: number; usl?: number; target?: number }> = {}
+    for (const spec of enabledSpecs) {
+      try {
+        const limits: { lsl?: number; usl?: number; target?: number; product_code: string } = { product_code: newProduct.code }
+        if (spec.lsl) limits.lsl = spec.lsl
+        if (spec.usl) limits.usl = spec.usl
+        if (spec.target) limits.target = spec.target
+        await api.updateSingleSpecLimit(spec.indicator_code, limits)
+        productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
+      } catch (e) {
+        console.error(`保存指标 ${spec.indicator_code} 规格限失败:`, e)
+      }
+    }
+    setSavedSpecLimits(prev => ({ ...prev, [newProduct.code]: productLimits }))
 
     setShowProductDialog(false)
   }
@@ -580,9 +610,14 @@ export const ConfigPage: React.FC = () => {
                   <td className={styles.tableCellMono}>{p.code}</td>
                   <td>{p.indicatorCount}</td>
                   <td>
-                    {specs.filter(s => s.product === p.code).length > 0 
-                      ? specs.filter(s => s.product === p.code).map(s => `${s.indicator}: ${s.usl}/${s.lsl}`).join(', ')
-                      : '-'
+                    {savedSpecLimits[p.code] && Object.keys(savedSpecLimits[p.code]).length > 0
+                      ? Object.entries(savedSpecLimits[p.code])
+                          .map(([k, v]) => {
+                            const indName = availableIndicators.find(i => i.code === k)?.name || k
+                            return `${indName}: ${v.usl ?? '-'}/${v.lsl ?? '-'}`
+                          })
+                          .join(', ')
+                      : <span style={{ color: 'var(--text-muted)' }}>未配置</span>
                     }
                   </td>
                   <td>
@@ -621,13 +656,26 @@ export const ConfigPage: React.FC = () => {
           </span>
         </div>
         <div className={styles.cardBody} style={{ padding: 0 }}>
-          <AliasConfig 
+          <AliasConfig
             products={products.map(p => ({ code: p.code, name: p.name }))}
             indicators={availableIndicators}
             onUpdate={() => {
               // 可以在这里添加更新后的回调
             }}
           />
+        </div>
+      </div>
+
+      {/* ── 规格限配置 ─────────────────────── */}
+      <div className={styles.card} style={{ marginBottom: '20px' }}>
+        <div className={styles.cardHeader}>
+          <span className={styles.cardTitle}>
+            <span className={styles.cardTitleDot} />
+            规格限配置
+          </span>
+        </div>
+        <div className={styles.cardBody}>
+          <SpecLimitsConfig indicators={availableIndicators} />
         </div>
       </div>
 

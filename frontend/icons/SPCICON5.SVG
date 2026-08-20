@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="45%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="dropGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#BAE6FD"/>
+    </linearGradient>
+    <radialGradient id="shineGrad" cx="30%" cy="25%" r="55%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- 圆角背景 -->
+  <rect width="256" height="256" rx="56" fill="url(#bgGrad)"/>
+
+  <!-- 装饰光斑 -->
+  <circle cx="218" cy="48" r="42" fill="#FFFFFF" opacity="0.07"/>
+  <circle cx="32" cy="222" r="52" fill="#FFFFFF" opacity="0.06"/>
+  <circle cx="244" cy="200" r="18" fill="#FFFFFF" opacity="0.06"/>
+
+  <!-- 背景网格暗示数据流 -->
+  <line x1="20" y1="76" x2="50" y2="76" stroke="#FFFFFF" stroke-opacity="0.20" stroke-width="2"/>
+  <line x1="20" y1="88" x2="38" y2="88" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
+  <line x1="208" y1="184" x2="236" y2="184" stroke="#FFFFFF" stroke-opacity="0.20" stroke-width="2"/>
+  <line x1="218" y1="196" x2="236" y2="196" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
+
+  <!-- 牛奶水滴 + 实时分析曲线 -->
+  <g transform="translate(128, 108)" filter="url(#dropShadow)">
+    <path d="M 0,-70 C -20,-28 -52,12 -52,42 A 52,52 0 1,0 52,42 C 52,12 20,-28 0,-70 Z"
+          fill="url(#dropGrad)"/>
+    <ellipse cx="-22" cy="-10" rx="14" ry="28" fill="url(#shineGrad)"/>
+
+    <!-- 过程控制实时曲线（绿色 = 在线监测） -->
+    <path d="M -38,14 L -22,-8 L -4,8 L 12,-12 L 28,4 L 40,-10"
+          stroke="#10B981" stroke-width="4.5" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="-38" cy="14" r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="-22" cy="-8" r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="-4"  cy="8"  r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="12"  cy="-12" r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="28"  cy="4"  r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="40"  cy="-10" r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+
+  <!-- 三项核心指标胶囊 -->
+  <g transform="translate(128, 218)">
+    <g transform="translate(-58, 0)">
+      <circle r="22" fill="#FBBF24" opacity="0.20"/>
+      <circle r="15" fill="#FBBF24"/>
+      <text x="0" y="6" text-anchor="middle" font-size="16" font-weight="800"
+            fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif">F</text>
+    </g>
+    <g>
+      <circle r="22" fill="#10B981" opacity="0.20"/>
+      <circle r="15" fill="#10B981"/>
+      <text x="0" y="6" text-anchor="middle" font-size="16" font-weight="800"
+            fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif">P</text>
+    </g>
+    <g transform="translate(58, 0)">
+      <circle r="22" fill="#60A5FA" opacity="0.20"/>
+      <circle r="15" fill="#60A5FA"/>
+      <text x="0" y="6" text-anchor="middle" font-size="16" font-weight="800"
+            fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif">S</text>
+    </g>
+  </g>
+
+  <!-- 实时运行状态指示（右上角脉冲点） -->
+  <g transform="translate(214, 42)">
+    <circle r="26" fill="#10B981" opacity="0.12"/>
+    <circle r="18" fill="#10B981" opacity="0.25"/>
+    <circle r="11" fill="#10B981"/>
+    <circle r="4.5" fill="#FFFFFF"/>
+  </g>
+</svg>

@@ -157,3 +157,9 @@ product_status.json
 
 # Data directory
 data/
+
+# Vite cache
+.vite/
+
+# Spec limits config (runtime)
+spec_limits.json

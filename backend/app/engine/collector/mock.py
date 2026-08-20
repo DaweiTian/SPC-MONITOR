@@ -81,7 +81,7 @@ class MockCollector(BaseCollector):
     def set_breakpoint(self, last_collect_time: str):
         self._last_collect_time = datetime.fromisoformat(last_collect_time)
     
-    def get_spec_limits(self) -> Dict[str, Dict[str, float]]:
+    def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
         return {
             ind['code']: {'lsl': ind['lsl'], 'usl': ind['usl']}
             for ind in MOCK_INDICATORS

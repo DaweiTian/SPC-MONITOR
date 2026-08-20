@@ -27,6 +27,8 @@ async def get_dashboard():
     return {
         "today_data_count": today_stats['data_count'],
         "today_sync_count": today_stats['sync_count'],
+        "today_collect_attempts": today_stats.get('collect_attempts', 0),
+        "today_collect_success": today_stats.get('collect_success', 0),
         "today_unqualified_count": today_stats['unqualified_count'],
         "pending_alerts": alerts_by_severity,
         "recent_alerts": recent_alerts,
@@ -34,7 +36,13 @@ async def get_dashboard():
 
 @router.get("/status")
 async def get_status():
-    return scheduler.get_status() if scheduler else {}
+    status = scheduler.get_status() if scheduler else {}
+    # Include connection status from source_status
+    from backend.app.api.config import _source_status
+    status["connected"] = _source_status.get("connected", False)
+    status["source"] = _source_status.get("source", "mock")
+    status["instrument_type"] = _source_status.get("instrument_type", "mock")
+    return status
 
 @router.post("/collect/manual")
 async def manual_collect():

@@ -59,6 +59,12 @@
   font-size: 18px;
 }
 
+.kpiIcon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
 .kpiCardCyan .kpiIcon { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
 .kpiCardGreen .kpiIcon { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
 .kpiCardOrange .kpiIcon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
@@ -235,6 +241,7 @@
 
 .collectValueGreen { color: var(--accent-green); }
 .collectValueCyan { color: var(--accent-cyan); }
+.collectValueRed { color: var(--accent-red); }
 
 /* ========== 按钮 ========== */
 .btnPrimary {

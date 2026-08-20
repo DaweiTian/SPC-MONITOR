@@ -57,10 +57,15 @@ export const Dashboard: React.FC = () => {
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
   const [collecting, setCollecting] = useState(false)
   const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
+  const [allSpecLimits, setAllSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
   
-  /* ── 品项选择状态 ── */
-  const [productMode, setProductMode] = useState<ProductMode>('auto')
-  const [selectedProduct, setSelectedProduct] = useState<string>('')
+  /* ── 品项选择状态（从 localStorage 恢复） ── */
+  const [productMode, setProductMode] = useState<ProductMode>(() => {
+    return (localStorage.getItem('dashboard_product_mode') as ProductMode) || 'auto'
+  })
+  const [selectedProduct, setSelectedProduct] = useState<string>(() => {
+    return localStorage.getItem('dashboard_selected_product') || ''
+  })
   const [autoProducts, setAutoProducts] = useState<Product[]>([])
   const [autoProductIndex, setAutoProductIndex] = useState(0)
   
@@ -121,21 +126,23 @@ export const Dashboard: React.FC = () => {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [p, i, a, status] = await Promise.all([
-        api.getProducts(), 
+      const [p, i, a, status, allLimits] = await Promise.all([
+        api.getProducts(),
         api.getIndicators(),
         api.getAliases().catch(() => ({ products: {}, indicators: {} })),
-        api.getProductStatus().catch(() => ({} as Record<string, string>))
+        api.getProductStatus().catch(() => ({} as Record<string, string>)),
+        api.getSpecLimits().catch(() => ({})),
       ])
-      
+
       // 过滤掉停用的品项
-      const enabledProducts = p.products.filter((product: any) => 
+      const enabledProducts = p.products.filter((product: any) =>
         (status as Record<string, string>)[product.code] !== 'disabled'
       )
-      
+
       setProducts(enabledProducts)
       setIndicators(i.indicators)
       setAliases(a)
+      setAllSpecLimits(allLimits)
       
       // 自动模式时，取最近3个启用的品项
       if (productMode === 'auto') {
@@ -316,10 +323,14 @@ export const Dashboard: React.FC = () => {
     )
     const values = sorted.map(d => d.value)
 
-    // use first data point's spec limits as USL/LSL if available
+    // use first data point's spec limits, or fall back to config spec limits
     const first = sorted[0]
-    const usl = first.upper_limit ?? null
-    const lsl = first.lower_limit ?? null
+    const dataUsl = first.upper_limit ?? null
+    const dataLsl = first.lower_limit ?? null
+    const productLimits = currentProduct ? allSpecLimits[currentProduct.code] : undefined
+    const configLimits = currentIndicator && productLimits ? productLimits[currentIndicator.code] : undefined
+    const usl = dataUsl ?? configLimits?.usl ?? null
+    const lsl = dataLsl ?? configLimits?.lsl ?? null
 
     const markLineData: any[] = []
     if (usl !== null) {
@@ -379,7 +390,7 @@ export const Dashboard: React.FC = () => {
         },
       ],
     }
-  }, [recentData, currentIndicator])
+  }, [recentData, currentIndicator, currentProduct, allSpecLimits])
 
   const { containerRef } = useChart(chartOption)
 
@@ -418,7 +429,12 @@ export const Dashboard: React.FC = () => {
         <div className={`${styles.kpiCard} ${styles.kpiCardCyan}`}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>今日检测</span>
-            <div className={styles.kpiIcon}>📋</div>
+            <div className={styles.kpiIcon}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+              </svg>
+            </div>
           </div>
           <div className={styles.kpiValue}>
             {dashboard?.today_data_count ?? 0}<span className={styles.kpiUnit}>次</span>
@@ -430,7 +446,13 @@ export const Dashboard: React.FC = () => {
         <div className={`${styles.kpiCard} ${styles.kpiCardRed}`}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>待处理预警</span>
-            <div className={styles.kpiIcon}>⚠️</div>
+            <div className={styles.kpiIcon}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
           </div>
           <div className={styles.kpiValue}>
             {pendingAlerts}<span className={styles.kpiUnit}>条</span>
@@ -444,13 +466,19 @@ export const Dashboard: React.FC = () => {
         <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>今日采集</span>
-            <div className={styles.kpiIcon}>🔄</div>
+            <div className={styles.kpiIcon}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+            </div>
           </div>
           <div className={styles.kpiValue}>
             {dashboard?.today_data_count ?? 0}<span className={styles.kpiUnit}>条</span>
           </div>
           <div className={`${styles.kpiTrend} ${styles.kpiTrendUp}`}>
-            {dashboard?.today_data_count ? `成功率 ${((1 - (dashboard?.today_unqualified_count ?? 0) / dashboard.today_data_count) * 100).toFixed(1)}%` : '-'}
+            {dashboard?.today_collect_attempts ? `成功率 ${((dashboard.today_collect_success / dashboard.today_collect_attempts) * 100).toFixed(1)}%` : '-'}
           </div>
         </div>
 
@@ -458,7 +486,13 @@ export const Dashboard: React.FC = () => {
         <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>平均Cpk</span>
-            <div className={styles.kpiIcon}>🎯</div>
+            <div className={styles.kpiIcon}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
+            </div>
           </div>
           <div className={styles.kpiValue}>
             {avgCpk || '-'}<span className={styles.kpiUnit} />
@@ -472,7 +506,12 @@ export const Dashboard: React.FC = () => {
         <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>采集频率</span>
-            <div className={styles.kpiIcon}>⏱️</div>
+            <div className={styles.kpiIcon}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
           </div>
           <div className={styles.kpiValue}>
             {status?.current_interval_minutes ?? 5}<span className={styles.kpiUnit}>分钟</span>
@@ -502,15 +541,19 @@ export const Dashboard: React.FC = () => {
                     if (value === 'auto') {
                       setProductMode('auto')
                       setAutoProductIndex(0)
+                      localStorage.setItem('dashboard_product_mode', 'auto')
+                      localStorage.removeItem('dashboard_selected_product')
                     } else {
                       setProductMode('manual')
                       setSelectedProduct(value)
+                      localStorage.setItem('dashboard_product_mode', 'manual')
+                      localStorage.setItem('dashboard_selected_product', value)
                     }
                   }}
                 >
                   <option value="auto">🔄 自动轮换</option>
                   {products.map(p => (
-                    <option key={p.code} value={p.code}>{p.name}</option>
+                    <option key={p.code} value={p.code}>{productNameMap[p.code] || p.name}</option>
                   ))}
                 </select>
               </div>
@@ -523,7 +566,7 @@ export const Dashboard: React.FC = () => {
                     <span
                       key={ind.code}
                       className={`${styles.indicatorDot} ${idx === currentIndicatorIndex ? styles.indicatorDotActive : ''}`}
-                      title={ind.name}
+                      title={indicatorNameMap[ind.code] || ind.name}
                     />
                   ))}
                 </div>
@@ -531,7 +574,7 @@ export const Dashboard: React.FC = () => {
               {/* 当前指标名称 */}
               {currentIndicator && (
                 <span className={styles.currentIndicator}>
-                  {currentIndicator.name}
+                  {indicatorNameMap[currentIndicator.code] || currentIndicator.name}
                 </span>
               )}
             </div>
@@ -596,8 +639,8 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className={styles.collectStatusItem}>
                 <span className={styles.collectLabel}>今日成功率</span>
-                <span className={`${styles.collectValue} ${dashboard?.today_data_count ? styles.collectValueGreen : ''}`}>
-                  {dashboard?.today_data_count ? `${((1 - (dashboard?.today_unqualified_count ?? 0) / dashboard.today_data_count) * 100).toFixed(1)}%` : '-'}
+                <span className={`${styles.collectValue} ${dashboard?.today_collect_attempts ? styles.collectValueGreen : ''}`}>
+                  {dashboard?.today_collect_attempts ? `${((dashboard.today_collect_success / dashboard.today_collect_attempts) * 100).toFixed(1)}%` : '-'}
                 </span>
               </div>
               <div className={styles.collectStatusItem}>
@@ -627,7 +670,7 @@ export const Dashboard: React.FC = () => {
               <span className={styles.panelTitleIcon}>🏭</span>
               品项过程能力概览
               {currentProduct && (
-                <span className={styles.productBadge}>{currentProduct.name}</span>
+                <span className={styles.productBadge}>{productNameMap[currentProduct.code] || currentProduct.name}</span>
               )}
             </div>
           </div>

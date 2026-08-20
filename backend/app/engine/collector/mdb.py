@@ -387,7 +387,26 @@ class MDBCollector(BaseCollector):
             for name in components_map.values()
         ]
     
-    def get_spec_limits(self) -> Dict[str, Dict[str, float]]:
+    def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
+        # Load from spec_limits.json if available
+        spec_limits_file = "spec_limits.json"
+        if os.path.exists(spec_limits_file):
+            try:
+                with open(spec_limits_file, 'r', encoding='utf-8') as f:
+                    raw = json.load(f)
+                if not raw:
+                    return {}
+                # Detect format: flat (old) vs per-product (new)
+                first_val = next(iter(raw.values()), None)
+                is_flat = isinstance(first_val, dict) and ('lsl' in first_val or 'usl' in first_val)
+                if is_flat:
+                    return raw  # old global format
+                # New per-product format
+                if product_code and product_code in raw:
+                    return raw[product_code]
+                return {}
+            except Exception:
+                pass
         return {}
     
     def clear_cache(self):

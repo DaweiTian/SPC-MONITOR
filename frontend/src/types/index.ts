@@ -36,6 +36,8 @@ export interface Alert {
 export interface DashboardData {
   today_data_count: number
   today_sync_count: number
+  today_collect_attempts: number
+  today_collect_success: number
   today_unqualified_count: number
   pending_alerts: {
     CRITICAL: number

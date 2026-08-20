@@ -8,7 +8,7 @@ interface NavItem {
   key: string
   path: string
   label: string
-  icon: string
+  icon: React.ReactNode
   badge?: number
 }
 
@@ -21,24 +21,61 @@ const navGroups: NavGroup[] = [
   {
     title: '监控中心',
     items: [
-      { key: 'dashboard', path: '/dashboard', label: '实时看板', icon: '📊' },
-      { key: 'spc', path: '/spc', label: 'SPC控制图', icon: '📈' },
-      { key: 'capability', path: '/capability', label: '过程能力', icon: '🎯' },
-      { key: 'prediction', path: '/prediction', label: '指标预测', icon: '🔮' },
-      { key: 'alerts', path: '/alerts', label: '预警中心', icon: '🚨' },
+      { key: 'dashboard', path: '/dashboard', label: '实时看板', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      )},
+      { key: 'spc', path: '/spc', label: 'SPC控制图', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      )},
+      { key: 'capability', path: '/capability', label: '过程能力', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
+        </svg>
+      )},
+      { key: 'prediction', path: '/prediction', label: '指标预测', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+        </svg>
+      )},
+      { key: 'alerts', path: '/alerts', label: '预警中心', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      )},
     ],
   },
   {
     title: '数据管理',
     items: [
-      { key: 'data', path: '/data', label: '数据管理', icon: '💾' },
-      { key: 'config', path: '/config', label: '配置管理', icon: '⚙️' },
+      { key: 'data', path: '/data', label: '数据管理', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+        </svg>
+      )},
+      { key: 'config', path: '/config', label: '配置管理', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      )},
     ],
   },
   {
     title: '其他',
     items: [
-      { key: 'help', path: '/help', label: '帮助说明', icon: '❓' },
+      { key: 'help', path: '/help', label: '帮助说明', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      )},
     ],
   },
 ]
@@ -107,7 +144,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       {/* ===== 侧边栏 ===== */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarLogo}>
-          <div className={styles.logoIcon}>S</div>
+          <img src="/favicon.ico" alt="Logo" className={styles.logoIconImg} />
           <div className={styles.logoText}>
             液奶过程监控
             <span className={styles.logoSubTitle}>SPC实时分析平台</span>

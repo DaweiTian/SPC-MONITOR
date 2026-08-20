@@ -3,6 +3,7 @@ import numpy as np
 from backend.app.engine.spc.control_charts import IMRControlChart
 from backend.app.engine.spc.rules import NelsonRules
 from backend.app.engine.spc.capability import ProcessCapability
+from backend.app.api.config import _get_merged_spec_limits
 
 router = APIRouter(tags=["SPC"])
 
@@ -16,23 +17,26 @@ async def get_spc_data(product_code: str, indicator_code: str, window: int = 30)
         product_code=product_code,
         limit=window,
     )
-    
+
     if len(data) < 2:
         raise HTTPException(status_code=404, detail="数据不足")
-    
+
+    # Reverse to chronological order (oldest first)
+    data = list(reversed(data))
+
     values = np.array([d['value'] for d in data], dtype=float)
     timestamps = [d['sample_time'] for d in data]
-    
+
     chart = IMRControlChart()
     result = chart.calculate(values)
-    
+
     rules = NelsonRules()
     violations = rules.check_all(values, result['i_chart'].cl, result['sigma_estimate'])
-    
+
     violation_indices = set()
     for v in violations:
         violation_indices.update(v.violation_points)
-    
+
     data_points = []
     for i, (ts, val) in enumerate(zip(timestamps, values)):
         data_points.append({
@@ -40,12 +44,16 @@ async def get_spc_data(product_code: str, indicator_code: str, window: int = 30)
             "value": round(float(val), 4),
             "is_violation": i in violation_indices,
         })
-    
+
     mean = float(np.mean(values))
     std = float(np.std(values, ddof=1))
-    spec_usl = round(mean + 3 * std, 4)
-    spec_lsl = round(mean - 3 * std, 4)
-    
+
+    # Read actual spec limits from config (per-product)
+    product_specs = _get_merged_spec_limits(product_code)
+    indicator_spec = product_specs.get(indicator_code, {})
+    spec_usl = indicator_spec.get('usl')
+    spec_lsl = indicator_spec.get('lsl')
+
     return {
         "product_code": product_code,
         "indicator_code": indicator_code,
@@ -60,8 +68,8 @@ async def get_spc_data(product_code: str, indicator_code: str, window: int = 30)
             "lcl": round(result['mr_chart'].lcl, 4),
         },
         "spec_limits": {
-            "usl": spec_usl,
-            "lsl": spec_lsl,
+            "usl": round(spec_usl, 4) if spec_usl is not None else None,
+            "lsl": round(spec_lsl, 4) if spec_lsl is not None else None,
             "mean": round(mean, 4),
             "std": round(std, 4),
         },
@@ -82,7 +90,7 @@ async def get_cpk_data(product_code: str, indicator_code: str, window: int = 30)
         raise HTTPException(status_code=404, detail="数据不足（至少需要5个数据点）")
     
     values = np.array([d['value'] for d in data], dtype=float)
-    spec_limits = collector.get_spec_limits().get(indicator_code, {})
+    spec_limits = collector.get_spec_limits(product_code=product_code).get(indicator_code, {})
     
     if not spec_limits.get('lsl') and not spec_limits.get('usl'):
         raise HTTPException(status_code=400, detail="未配置规格限")

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="lbg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#162447"/>
+      <stop offset="100%" stop-color="#0c1829"/>
+    </linearGradient>
+    <linearGradient id="ldrop" x1="64" y1="28" x2="64" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#d4dde8"/>
+    </linearGradient>
+    <linearGradient id="lline" x1="42" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00e5a0"/>
+      <stop offset="100%" stop-color="#00b4d8"/>
+    </linearGradient>
+    <filter id="lglow">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="ldropClip">
+      <path d="M64 28 C64 28,35 56,35 70 C35 85,48 100,64 100 C80 100,93 85,93 70 C93 56,64 28,64 28Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="128" height="128" rx="28" fill="url(#lbg)"/>
+
+  <!-- 细环 -->
+  <circle cx="64" cy="66" r="50" fill="none" stroke="#1a3560" stroke-width="1.5"
+          opacity="0.25" stroke-dasharray="3 6"/>
+  <!-- 进度弧 -->
+  <circle cx="64" cy="66" r="50" fill="none" stroke="url(#lline)" stroke-width="2"
+          stroke-dasharray="100 315" stroke-dashoffset="-85" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- 乳滴 -->
+  <path d="M64 28 C64 28,35 56,35 70 C35 85,48 100,64 100 C80 100,93 85,93 70 C93 56,64 28,64 28Z"
+        fill="url(#ldrop)" opacity="0.95"/>
+  <!-- 高光 -->
+  <ellipse cx="56" cy="52" rx="8" ry="15" fill="#fff" opacity="0.3" transform="rotate(-10 56 52)"/>
+
+  <!-- 迷你波形 -->
+  <g clip-path="url(#ldropClip)">
+    <polyline points="42,74 50,70 58,76 66,65 74,69 82,60 90,57"
+              fill="none" stroke="url(#lline)" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" filter="url(#lglow)"/>
+    <!-- 面积 -->
+    <path d="M42,74 L50,70 L58,76 L66,65 L74,69 L82,60 L90,57 L90,95 L42,95Z"
+          fill="url(#lline)" opacity="0.06"/>
+    <!-- 脉冲数据点 -->
+    <circle cx="90" cy="57" r="2.5" fill="#00b4d8"/>
+    <circle cx="90" cy="57" r="2.5" fill="#00b4d8" opacity="0.5">
+      <animate attributeName="r" values="2.5;7;2.5" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <!-- 信号波纹 -->
+    <circle cx="90" cy="57" r="4" fill="none" stroke="#00b4d8" stroke-width="0.7" opacity="0">
+      <animate attributeName="r" values="4;12;4" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.35;0;0.35" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- 乳滴描边 -->
+  <path d="M64 28 C64 28,35 56,35 70 C35 85,48 100,64 100 C80 100,93 85,93 70 C93 56,64 28,64 28Z"
+        fill="none" stroke="#fff" stroke-width="0.8" opacity="0.1"/>
+</svg>

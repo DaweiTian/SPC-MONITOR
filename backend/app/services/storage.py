@@ -242,6 +242,19 @@ class OnlineStorage:
             )
             sync_count = cursor.fetchone()[0]
             
+            # Collection success stats
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM sync_log WHERE started_at LIKE ? AND status = 'success'",
+                (f"{today}%",),
+            )
+            collect_success = cursor.fetchone()[0]
+            
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM sync_log WHERE started_at LIKE ?",
+                (f"{today}%",),
+            )
+            collect_attempts = cursor.fetchone()[0]
+            
             return {
                 "date": today,
                 "data_count": data_count,
@@ -249,6 +262,8 @@ class OnlineStorage:
                 "alert_count": alert_count,
                 "pending_alerts": pending_alerts,
                 "sync_count": sync_count,
+                "collect_attempts": collect_attempts,
+                "collect_success": collect_success,
             }
         finally:
             conn.close()
@@ -266,5 +281,18 @@ class OnlineStorage:
                 (limit,),
             )
             return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+    
+    def log_collection(self, status: str, records_count: int = 0, error_message: str = None) -> None:
+        """Log a collection attempt to sync_log."""
+        conn = self._connect()
+        try:
+            conn.execute(
+                """INSERT INTO sync_log (source, sync_type, status, records_count, error_message, started_at)
+                   VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))""",
+                ("collector", "data", status, records_count, error_message),
+            )
+            conn.commit()
         finally:
             conn.close()

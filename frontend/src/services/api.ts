@@ -82,4 +82,12 @@ export const api = {
     http.put('/config/product-status', config).then(r => r.data),
   updateSingleProductStatus: (productCode: string, status: string) =>
     http.put(`/config/product-status/${productCode}`, { status }).then(r => r.data),
+  
+  // Spec limits configuration
+  getSpecLimits: (productCode?: string) =>
+    http.get<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>('/config/spec-limits', { params: productCode ? { product_code: productCode } : {} }).then(r => r.data),
+  updateSpecLimits: (config: Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>) =>
+    http.put('/config/spec-limits', config).then(r => r.data),
+  updateSingleSpecLimit: (indicatorCode: string, limits: { lsl?: number; usl?: number; target?: number; product_code?: string }) =>
+    http.put(`/config/spec-limits/${indicatorCode}`, limits).then(r => r.data),
 }

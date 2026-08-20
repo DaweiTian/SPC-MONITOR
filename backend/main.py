@@ -47,8 +47,15 @@ def collect_with_alert():
     result = collector.collect()
     all_new_alerts = []
     
+    # Log collection attempt
+    new_records = result.get('new_records', 0)
+    if result.get('error'):
+        storage.log_collection(status='failed', records_count=0, error_message=result.get('error'))
+    else:
+        storage.log_collection(status='success', records_count=new_records)
+    
     # Only check alerts if we have new data
-    if result.get('new_records', 0) > 0:
+    if new_records > 0:
         # Get products and indicators from collector
         products = collector.get_products()
         indicators = collector.get_indicators()
@@ -66,7 +73,7 @@ def collect_with_alert():
                 if len(product_data) >= 5:
                     values = [d['value'] for d in product_data]
                     timestamps = [datetime.fromisoformat(d['sample_time']) for d in product_data]
-                    spec_limits = collector.get_spec_limits().get(indicator['code'])
+                    spec_limits = collector.get_spec_limits(product_code=product['code']).get(indicator['code'])
                     
                     new_alerts = alert_engine.check_and_alert(
                         product_code=product['code'],

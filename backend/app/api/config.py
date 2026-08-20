@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from typing import Optional, Callable
 import json
 import os
@@ -573,6 +573,11 @@ PRODUCT_STATUS_FILE = "product_status.json"
 
 _default_product_status = {}  # { "product_code": "enabled" | "disabled" }
 
+SPEC_LIMITS_FILE = "spec_limits.json"
+
+# Format: { "product_code": { "indicator_code": { "lsl": float, "usl": float } } }
+_default_spec_limits = {}
+
 @router.get("/product-status")
 async def get_product_status():
     """获取品项状态配置"""
@@ -600,4 +605,86 @@ async def update_single_product_status(product_code: str, body: dict):
     success = _save_json_config(PRODUCT_STATUS_FILE, config)
     if success:
         return {"success": True, "message": f"品项状态已更新为{status}"}
+    return {"success": False, "message": "更新失败"}
+
+# ========== Spec Limits Configuration ==========
+
+def _get_merged_spec_limits(product_code: str = None) -> dict:
+    """Get spec limits for a product, falling back to global defaults."""
+    raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+    if not raw:
+        return {}
+    # Detect old flat format (keys are indicator codes, not product codes)
+    first_val = next(iter(raw.values()), None) if raw else None
+    is_flat = isinstance(first_val, dict) and ('lsl' in first_val or 'usl' in first_val)
+    if is_flat:
+        return raw  # old global format, return as-is
+    # New per-product format
+    if product_code and product_code in raw:
+        return raw[product_code]
+    return {}
+
+@router.get("/spec-limits")
+async def get_spec_limits(product_code: str = Query(None)):
+    """获取规格限配置。传 product_code 则返回该品项的规格限，否则返回完整品项结构。"""
+    raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+    if product_code:
+        return _get_merged_spec_limits(product_code)
+    return raw
+
+@router.put("/spec-limits")
+async def update_spec_limits(config: dict):
+    """更新规格限配置"""
+    success = _save_json_config(SPEC_LIMITS_FILE, config)
+    if success:
+        return {"success": True, "message": "规格限配置已保存"}
+    return {"success": False, "message": "保存失败"}
+
+@router.put("/spec-limits/{indicator_code}")
+async def update_single_spec_limit(indicator_code: str, body: dict):
+    """更新单个指标的规格限。传 product_code 则保存到该品项下，否则保存为全局默认。"""
+    lsl = body.get("lsl")
+    usl = body.get("usl")
+    target_val = body.get("target")
+    product_code = body.get("product_code")
+    raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+
+    if product_code:
+        # Per-product save
+        if product_code not in raw or not isinstance(raw.get(product_code), dict):
+            raw[product_code] = {}
+        if lsl is not None or usl is not None or target_val is not None:
+            raw[product_code][indicator_code] = {}
+            if lsl is not None:
+                raw[product_code][indicator_code]["lsl"] = float(lsl)
+            if usl is not None:
+                raw[product_code][indicator_code]["usl"] = float(usl)
+            if target_val is not None:
+                raw[product_code][indicator_code]["target"] = float(target_val)
+        else:
+            raw[product_code].pop(indicator_code, None)
+    else:
+        # Global save (backward compat)
+        first_val = next(iter(raw.values()), None) if raw else None
+        is_flat = isinstance(first_val, dict) and ('lsl' in first_val or 'usl' in first_val)
+        if not is_flat:
+            if "__global__" not in raw:
+                raw["__global__"] = {}
+            gtarget = raw["__global__"]
+        else:
+            gtarget = raw
+        if lsl is not None or usl is not None or target_val is not None:
+            gtarget[indicator_code] = {}
+            if lsl is not None:
+                gtarget[indicator_code]["lsl"] = float(lsl)
+            if usl is not None:
+                gtarget[indicator_code]["usl"] = float(usl)
+            if target_val is not None:
+                gtarget[indicator_code]["target"] = float(target_val)
+        else:
+            gtarget.pop(indicator_code, None)
+
+    success = _save_json_config(SPEC_LIMITS_FILE, raw)
+    if success:
+        return {"success": True, "message": "规格限已更新"}
     return {"success": False, "message": "更新失败"}

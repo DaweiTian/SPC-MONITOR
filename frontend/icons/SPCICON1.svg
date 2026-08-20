@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- 科技蓝渐变背景 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0052D4" />
+      <stop offset="100%" stop-color="#4364F7" />
+    </linearGradient>
+    
+    <!-- 牛奶白渐变 -->
+    <linearGradient id="milkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E0EFFF" />
+    </linearGradient>
+
+    <!-- 数据流底部渐变 -->
+    <linearGradient id="streamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00C6FB" />
+      <stop offset="100%" stop-color="#005BEA" />
+    </linearGradient>
+
+    <!-- 柔和阴影滤镜 -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- 背景圆角矩形 -->
+  <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="url(#bgGrad)" />
+
+  <!-- 主体：奶滴轮廓与实时数据折线图组合 -->
+  <g filter="url(#shadow)">
+    <!-- 奶滴外轮廓 -->
+    <path d="M128 40 C 128 40, 70 110, 70 160 C 70 195.34, 96.6 224, 128 224 C 159.4 224, 186 195.34, 186 160 C 186 110, 128 40, 128 40 Z" fill="url(#milkGrad)" />
+    
+    <!-- 内部数据折线图 (代表脂肪/蛋白/固体的实时SPC分析) -->
+    <polyline points="95,170 110,140 125,160 145,110 165,150" 
+              fill="none" 
+              stroke="#4364F7" 
+              stroke-width="8" 
+              stroke-linecap="round" 
+              stroke-linejoin="round" />
+              
+    <!-- 实时数据节点 (当前获取的最新结果) -->
+    <circle cx="165" cy="150" r="9" fill="#FF9F43" />
+    <circle cx="165" cy="150" r="4" fill="#FFFFFF" />
+  </g>
+
+  <!-- 底部数据流指示线 -->
+  <rect x="60" y="232" width="136" height="6" rx="3" ry="3" fill="url(#streamGrad)" opacity="0.9" />
+</svg>

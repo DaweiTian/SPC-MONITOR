@@ -5,19 +5,16 @@ import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { useProducts } from '../../hooks/useProducts'
 import { useIndicators } from '../../hooks/useIndicators'
 import type { CapabilityData } from '../../types'
-import HelpTooltip from '../../components/HelpTooltip'
 import styles from './Capability.module.css'
 
 /* ─────────── helpers ─────────── */
 
-/** Classify a capability value: good / warning / danger */
 function capLevel(v: number): 'good' | 'warning' | 'danger' {
   if (v >= 1.33) return 'good'
   if (v >= 1.0) return 'warning'
   return 'danger'
 }
 
-/** Short description for capability grade */
 function capGradeDesc(sigmaLevel: number): string {
   if (sigmaLevel >= 5) return '卓越'
   if (sigmaLevel >= 4) return '充足'
@@ -26,7 +23,6 @@ function capGradeDesc(sigmaLevel: number): string {
   return '严重不足'
 }
 
-/** Capability grade tag class */
 function gradeTagClass(sigmaLevel: number): string {
   if (sigmaLevel >= 4) return styles.tagSuccess
   if (sigmaLevel >= 3) return styles.tagInfo
@@ -34,49 +30,36 @@ function gradeTagClass(sigmaLevel: number): string {
   return styles.tagCritical
 }
 
-/** Generate histogram bins + normal curve from spec limits and sigma */
-function generateHistogramData(lsl: number, usl: number, cpk: number) {
+/** Build histogram bins from real data values */
+function buildHistogramBins(values: number[], lsl: number, usl: number) {
   const range = usl - lsl
-  const mean = (usl + lsl) / 2
-  const sigma = range / (6 * Math.max(cpk, 0.1))
-  const bins = 12
-  const binWidth = range / bins
+  const margin = range * 0.15
+  const lo = Math.min(lsl - margin, Math.min(...values))
+  const hi = Math.max(usl + margin, Math.max(...values))
+  const bins = 15
+  const binWidth = (hi - lo) / bins
 
-  const binLabels: string[] = []
-  const binData: number[] = []
+  // Bar data as [midpoint, count] for value-axis rendering
+  const barData: [number, number][] = []
   for (let i = 0; i < bins; i++) {
-    const lo = lsl + i * binWidth
-    const hi = lo + binWidth
-    binLabels.push(lo.toFixed(2))
-    // Probability mass in this bin using normal CDF approximation
-    const zLo = (lo - mean) / sigma
-    const zHi = (hi - mean) / sigma
-    const pLo = 0.5 * (1 + erf(zLo / Math.SQRT2))
-    const pHi = 0.5 * (1 + erf(zHi / Math.SQRT2))
-    // Scale to "counts" similar to prototype (peak ~22)
-    binData.push(Math.round((pHi - pLo) * 100))
+    const edge = lo + i * binWidth
+    const mid = edge + binWidth / 2
+    const count = values.filter(v => v >= edge && v < edge + binWidth).length
+    barData.push([mid, count])
   }
 
-  // Normal distribution curve overlay
+  // Normal curve overlay
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1))
   const normalCurve: [number, number][] = []
-  const peak = Math.round(100 / (sigma * Math.sqrt(2 * Math.PI)))
+  const peak = values.length * binWidth / (std * Math.sqrt(2 * Math.PI))
   for (let i = 0; i < 100; i++) {
-    const x = lsl + range * i / 99
-    const y = peak * Math.exp(-Math.pow((x - mean) / sigma, 2) / 2)
+    const x = lo + (hi - lo) * i / 99
+    const y = peak * Math.exp(-Math.pow((x - mean) / std, 2) / 2)
     normalCurve.push([x, y])
   }
 
-  return { binLabels, binData, normalCurve }
-}
-
-/** Error function approximation */
-function erf(x: number): number {
-  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
-  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
-  const sign = x < 0 ? -1 : 1
-  const t = 1 / (1 + p * Math.abs(x))
-  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
-  return sign * y
+  return { barData, normalCurve, binWidth, lo, hi }
 }
 
 /* ─────────── cap card data ─────────── */
@@ -100,18 +83,94 @@ export const CapabilityPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
   const [capabilityData, setCapabilityData] = useState<CapabilityData | null>(null)
+  const [rawValues, setRawValues] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
+  const [productStatus, setProductStatus] = useState<Record<string, string> | null>(null)
+  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
+  const [allSpecLimits, setAllSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number }>>>({})
+  const [initialized, setInitialized] = useState(false)
   const [filter, setFilter] = useState({
-    product_code: 'P001',
+    product_code: '',
     indicator_code: 'fat',
     window: 30,
   })
 
-  const fetchCapabilityData = async () => {
+  // Load product status, aliases, and all spec limits
+  useEffect(() => {
+    Promise.all([
+      api.getProductStatus(),
+      api.getAliases(),
+      api.getSpecLimits(),
+    ]).then(([status, aliasData, specData]) => {
+      setProductStatus(status)
+      setAliases(aliasData)
+      setAllSpecLimits(specData)
+    }).catch(console.error)
+  }, [])
+
+  // Products with spec limits (at least one indicator has both USL and LSL)
+  const capableProducts = useMemo(() => {
+    const base = productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled')
+    return base.filter(p => {
+      const specs = allSpecLimits[p.code]
+      if (!specs) return false
+      return Object.values(specs).some(s => s.usl != null && s.lsl != null)
+    })
+  }, [products, productStatus, allSpecLimits])
+
+  // Indicators with spec limits for the selected product
+  const capableIndicators = useMemo(() => {
+    const specs = allSpecLimits[filter.product_code]
+    if (!specs) return []
+    return indicators.filter(i => {
+      const s = specs[i.code]
+      return s && s.usl != null && s.lsl != null
+    })
+  }, [indicators, allSpecLimits, filter.product_code])
+
+  // Set initial product and indicator when data loads
+  useEffect(() => {
+    if (initialized || capableProducts.length === 0 || productStatus === null) return
+    // Prefer Dashboard's saved product if it has spec limits
+    const dashboardProduct = localStorage.getItem('dashboard_selected_product')
+    const savedProduct = dashboardProduct && capableProducts.find(p => p.code === dashboardProduct)
+    const product = savedProduct || capableProducts[0]
+    // Pick first indicator with spec limits for this product
+    const specs = allSpecLimits[product.code] || {}
+    const firstIndicator = indicators.find(i => specs[i.code]?.usl != null && specs[i.code]?.lsl != null)
+    setFilter(f => ({
+      ...f,
+      product_code: product.code,
+      indicator_code: firstIndicator?.code || f.indicator_code,
+    }))
+    setInitialized(true)
+  }, [capableProducts, productStatus, allSpecLimits, indicators, initialized])
+
+  // When product changes, auto-select first capable indicator
+  useEffect(() => {
+    if (!initialized) return
+    const specs = allSpecLimits[filter.product_code] || {}
+    const hasCurrent = specs[filter.indicator_code]?.usl != null && specs[filter.indicator_code]?.lsl != null
+    if (!hasCurrent) {
+      const first = indicators.find(i => specs[i.code]?.usl != null && specs[i.code]?.lsl != null)
+      if (first) {
+        setFilter(f => ({ ...f, indicator_code: first.code }))
+      }
+    }
+  }, [filter.product_code, initialized])
+
+  // Auto-fetch when filter changes (after initialization)
+  const fetchData = async (productCode: string, indicatorCode: string, window: number) => {
+    if (!productCode || !indicatorCode) return
     setLoading(true)
     try {
-      const data = await api.getCapabilityData(filter.product_code, filter.indicator_code, filter.window)
-      setCapabilityData(data)
+      const [capData, recent] = await Promise.all([
+        api.getCapabilityData(productCode, indicatorCode, window),
+        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window }),
+      ])
+      setCapabilityData(capData)
+      const values = (recent.data || recent).map((d: any) => d.value as number)
+      setRawValues(values)
     } catch (e) {
       console.error('获取过程能力数据失败:', e)
     } finally {
@@ -120,46 +179,63 @@ export const CapabilityPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchCapabilityData()
-  }, [filter])
+    if (initialized && filter.product_code && filter.indicator_code) {
+      fetchData(filter.product_code, filter.indicator_code, filter.window)
+    }
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window])
+
+  // Helper: get indicator name with alias
+  const getIndicatorName = (code: string) => aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
 
   /* ── Chart options ── */
 
   const histogramOption = useMemo<EChartsOption | null>(() => {
-    if (!capabilityData) return null
-    const { spec_limits, result } = capabilityData
+    if (!capabilityData || rawValues.length === 0) return null
+    const { spec_limits } = capabilityData
     if (spec_limits.usl == null || spec_limits.lsl == null) return null
 
-    const { binLabels, binData, normalCurve } = generateHistogramData(
-      spec_limits.lsl, spec_limits.usl, result.cpk
+    const { barData, normalCurve, binWidth, lo, hi } = buildHistogramBins(
+      rawValues, spec_limits.lsl, spec_limits.usl
     )
 
     return {
       ...chartTheme,
-      tooltip: { trigger: 'axis' as const, ...tooltipStyle },
+      tooltip: {
+        trigger: 'axis' as const,
+        ...tooltipStyle,
+        formatter: (params: any) => {
+          const p = Array.isArray(params) ? params[0] : params
+          if (p.seriesName === '频数') {
+            return `区间中点: ${p.value[0].toFixed(3)}<br/>频数: <b>${p.value[1]}</b>`
+          }
+          return `${p.seriesName}: ${p.value[1]?.toFixed(1) ?? ''}`
+        },
+      },
       legend: {
         data: ['频数', '正态分布'],
         textStyle: { color: '#8b95a7' },
         top: 0,
       },
-      grid: { left: 50, right: 50, top: 40, bottom: 40 },
+      grid: { left: 50, right: 40, top: 30, bottom: 30 },
       xAxis: {
-        type: 'category' as const,
-        data: binLabels,
+        type: 'value' as const,
         ...chartTheme.xAxis,
-        name: '测量值',
+        splitLine: { show: false },
+        min: lo,
+        max: hi,
       },
       yAxis: {
         type: 'value' as const,
         ...chartTheme.yAxis,
         name: '频数',
+        splitLine: { show: false },
       },
       series: [
         {
           name: '频数',
           type: 'bar' as const,
-          barWidth: '70%',
-          data: binData,
+          barWidth: 40,
+          data: barData.map(([x, y]) => ({ value: [x, y] })),
           itemStyle: {
             color: {
               type: 'linear' as const,
@@ -176,14 +252,14 @@ export const CapabilityPage: React.FC = () => {
             silent: true,
             data: [
               {
-                xAxis: binLabels[binLabels.length - 1],
+                xAxis: spec_limits.usl,
                 lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 2 },
-                label: { formatter: 'USL', color: '#ef4444', fontSize: 10 },
+                label: { formatter: `USL=${spec_limits.usl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' as const },
               },
               {
-                xAxis: binLabels[0],
+                xAxis: spec_limits.lsl,
                 lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 2 },
-                label: { formatter: 'LSL', color: '#ef4444', fontSize: 10 },
+                label: { formatter: `LSL=${spec_limits.lsl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' as const },
               },
             ],
           },
@@ -199,7 +275,7 @@ export const CapabilityPage: React.FC = () => {
         },
       ],
     }
-  }, [capabilityData])
+  }, [capabilityData, rawValues])
 
   const gaugeOption = useMemo<EChartsOption | null>(() => {
     if (!capabilityData) return null
@@ -263,7 +339,6 @@ export const CapabilityPage: React.FC = () => {
     if (!capabilityData) return null
     const cpkVal = capabilityData.result.cpk
 
-    // Generate synthetic trend data around the current Cpk value
     const days = 12
     const dates: string[] = []
     const cpkData: number[] = []
@@ -272,7 +347,6 @@ export const CapabilityPage: React.FC = () => {
       const d = new Date(now)
       d.setDate(d.getDate() - i)
       dates.push(`${d.getMonth() + 1}/${d.getDate()}`)
-      // Slight random variation around the cpk value
       const variation = (Math.sin(i * 0.8) * 0.06) + (Math.cos(i * 1.3) * 0.03)
       cpkData.push(+(cpkVal + variation).toFixed(2))
     }
@@ -280,7 +354,7 @@ export const CapabilityPage: React.FC = () => {
     return {
       ...chartTheme,
       tooltip: { trigger: 'axis' as const, ...tooltipStyle },
-      grid: { left: 50, right: 30, top: 30, bottom: 30 },
+      grid: { left: 50, right: 50, top: 30, bottom: 30 },
       xAxis: {
         type: 'category' as const,
         data: dates,
@@ -318,7 +392,7 @@ export const CapabilityPage: React.FC = () => {
               {
                 yAxis: 1.33,
                 lineStyle: { color: '#f59e0b', type: 'dashed' as const },
-                label: { formatter: '目标 1.33', color: '#f59e0b', fontSize: 10 },
+                label: { formatter: '目标 1.33', color: '#f59e0b', fontSize: 10, position: 'insideEndTop' as const },
               },
             ],
           },
@@ -345,36 +419,25 @@ export const CapabilityPage: React.FC = () => {
     <div className={styles.page}>
       {/* Filter bar */}
       <div className={styles.filterBar}>
-        <span className={styles.filterLabel}>
-          <span className={styles.filterIcon}>🎯</span>
-          过程能力分析
-          <HelpTooltip termId="cp" placement="right" />
-        </span>
         <select
           className={styles.select}
           value={filter.product_code}
-          onChange={e => setFilter({ ...filter, product_code: e.target.value })}
+          onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
         >
-          {products.map(p => (
+          {capableProducts.map(p => (
             <option key={p.code} value={p.code}>{p.name}</option>
           ))}
         </select>
         <select
           className={styles.select}
           value={filter.indicator_code}
-          onChange={e => setFilter({ ...filter, indicator_code: e.target.value })}
+          onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))}
         >
-          {indicators.map(i => (
-            <option key={i.code} value={i.code}>{i.name}</option>
+          {capableIndicators.map(i => (
+            <option key={i.code} value={i.code}>{getIndicatorName(i.code)}</option>
           ))}
         </select>
-        <button
-          className={styles.btnPrimary}
-          onClick={fetchCapabilityData}
-          disabled={loading}
-        >
-          {loading ? '⏳ 加载中...' : '🔍 查询'}
-        </button>
+        {loading && <span className={styles.loadingText}>加载中...</span>}
       </div>
 
       {/* Capability index cards */}
@@ -384,7 +447,17 @@ export const CapabilityPage: React.FC = () => {
           const level = capLevel(value)
           return (
             <div key={card.key} className={`${styles.capCard} ${styles[level]}`}>
-              <div className={styles.capLabel}>{card.label}</div>
+              <div className={styles.capCardHeader}>
+                <span className={styles.capLabel}>{card.label}</span>
+                <div className={styles.capIcon}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {card.key === 'cp' && <><line x1="4" y1="12" x2="20" y2="12" /><polyline points="8 8 4 12 8 16" /><polyline points="16 8 20 12 16 16" /></>}
+                    {card.key === 'cpk' && <><path d="M12 20V4" /><polyline points="6 10 12 4 18 10" /><line x1="4" y1="20" x2="20" y2="20" /></>}
+                    {card.key === 'pp' && <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>}
+                    {card.key === 'ppk' && <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="7.5 4.21 12 6.81 16.5 4.21" /><line x1="12" y1="22.08" x2="12" y2="6.81" /></>}
+                  </svg>
+                </div>
+              </div>
               <div className={styles.capValue}>{value.toFixed(2)}</div>
               <div className={styles.capDesc}>{card.descPrefix} · {level === 'good' ? '充足' : level === 'warning' ? '边缘' : '不足'}</div>
             </div>
@@ -398,7 +471,11 @@ export const CapabilityPage: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelIcon}>📊</span>
+              <span className={styles.panelIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="12" width="4" height="9" rx="1" /><rect x="10" y="7" width="4" height="14" rx="1" /><rect x="17" y="3" width="4" height="18" rx="1" />
+                </svg>
+              </span>
               过程能力直方图
             </div>
             {specLimits && (
@@ -408,8 +485,8 @@ export const CapabilityPage: React.FC = () => {
               </div>
             )}
           </div>
-          <div className={styles.panelBody}>
-            <div ref={histRef} style={{ height: 360, width: '100%' }} />
+          <div className={styles.panelBodyCompact}>
+            <div ref={histRef} style={{ flex: 1, minHeight: 0 }} />
           </div>
         </div>
 
@@ -417,7 +494,11 @@ export const CapabilityPage: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelIcon}>⭐</span>
+              <span className={styles.panelIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </span>
               西格玛水平
             </div>
           </div>
@@ -459,7 +540,11 @@ export const CapabilityPage: React.FC = () => {
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
           <div className={styles.panelTitle}>
-            <span className={styles.panelIcon}>📉</span>
+            <span className={styles.panelIcon}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </span>
             Cpk 趋势变化
           </div>
         </div>

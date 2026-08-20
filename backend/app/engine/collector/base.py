@@ -23,7 +23,7 @@ class BaseCollector(ABC):
         pass
     
     @abstractmethod
-    def get_spec_limits(self) -> Dict[str, Dict[str, float]]:
+    def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
         """获取规格限配置"""
         pass
     

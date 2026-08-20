@@ -11,17 +11,26 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null)
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentProduct, setCurrentProductState] = useState('自动轮换')
-  const [currentProductCode, setCurrentProductCode] = useState('')
-  const [collectionFrequency, setCollectionFrequencyState] = useState('L0 · 5min')
+  const [currentProduct, setCurrentProductState] = useState(() => {
+    return localStorage.getItem('app_current_product') || '自动轮换'
+  })
+  const [currentProductCode, setCurrentProductCode] = useState(() => {
+    return localStorage.getItem('app_current_product_code') || ''
+  })
+  const [collectionFrequency, setCollectionFrequencyState] = useState(() => {
+    return localStorage.getItem('app_collection_frequency') || 'L0 · 5min'
+  })
 
   const setCurrentProduct = useCallback((name: string, code: string) => {
     setCurrentProductState(name)
     setCurrentProductCode(code)
+    localStorage.setItem('app_current_product', name)
+    localStorage.setItem('app_current_product_code', code)
   }, [])
 
   const setCollectionFrequency = useCallback((freq: string) => {
     setCollectionFrequencyState(freq)
+    localStorage.setItem('app_collection_frequency', freq)
   }, [])
 
   return (

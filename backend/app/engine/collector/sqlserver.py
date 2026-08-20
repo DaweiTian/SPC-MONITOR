@@ -227,7 +227,7 @@ class SQLServerCollector(BaseCollector):
             for code in self.indicators.keys()
         ]
     
-    def get_spec_limits(self) -> Dict[str, Dict[str, float]]:
+    def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
         return {}
     
     def close(self):

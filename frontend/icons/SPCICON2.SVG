@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGradMini" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0052D4" />
+      <stop offset="100%" stop-color="#4364F7" />
+    </linearGradient>
+    <linearGradient id="milkGradMini" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E0EFFF" />
+    </linearGradient>
+  </defs>
+
+  <!-- 背景圆角矩形 -->
+  <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="url(#bgGradMini)" />
+
+  <!-- 极简奶滴 -->
+  <path d="M128 40 C 128 40, 70 110, 70 160 C 70 195.34, 96.6 224, 128 224 C 159.4 224, 186 195.34, 186 160 C 186 110, 128 40, 128 40 Z" fill="url(#milkGradMini)" />
+
+  <!-- 加粗的折线图，提升辨识度 -->
+  <polyline points="90,175 110,135 130,165 155,105 175,145" 
+            fill="none" 
+            stroke="#4364F7" 
+            stroke-width="12" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+            
+  <!-- 醒目的实时节点 -->
+  <circle cx="175" cy="145" r="12" fill="#FF9F43" />
+</svg>

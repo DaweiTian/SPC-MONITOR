@@ -38,6 +38,14 @@
   box-shadow: var(--glow-cyan);
 }
 
+.logoIconImg {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: var(--glow-cyan);
+}
+
 .logoText {
   font-size: 15px;
   font-weight: 600;
@@ -106,9 +114,17 @@
 
 .navIcon {
   width: 20px;
-  text-align: center;
-  font-size: 16px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: inherit;
+}
+
+.navIcon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .navBadge {
