@@ -540,6 +540,15 @@ export const ConfigPage: React.FC = () => {
       console.error('保存品项别名失败:', e)
     }
 
+    // Save enabled indicator codes for this product
+    const enabledCodes = indicatorSpecs.filter(s => s.enabled).map(s => s.indicator_code)
+    try {
+      await api.updateSavedIndicators(newProduct.code, enabledCodes)
+      setSavedIndicators(prev => ({ ...prev, [newProduct.code]: enabledCodes }))
+    } catch (e) {
+      console.error('保存品项指标失败:', e)
+    }
+
     // Persist spec limits to backend
     const enabledSpecs = indicatorSpecs
       .filter(s => s.enabled && (s.usl || s.lsl))

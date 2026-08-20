@@ -112,6 +112,19 @@ async def get_saved_indicators():
     from backend.app.api.config import _load_json_config
     return _load_json_config("product_indicators.json", {})
 
+@router.put("/products/saved-indicators/{product_code}")
+async def update_saved_indicators(product_code: str, body: dict):
+    """更新单个品项的指标编码列表"""
+    codes = body.get("codes", [])
+    from backend.app.api.config import _load_json_config, _save_json_config
+    mapping = _load_json_config("product_indicators.json", {})
+    if codes:
+        mapping[product_code] = codes
+    else:
+        mapping.pop(product_code, None)
+    _save_json_config("product_indicators.json", mapping)
+    return {"success": True}
+
 @router.get("/indicators")
 async def get_indicators():
     return {"indicators": collector.get_indicators() if collector else []}
