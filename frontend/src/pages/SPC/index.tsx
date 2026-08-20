@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { EChartsOption } from 'echarts'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { useProducts, useIndicators } from '../../hooks'
@@ -7,6 +8,7 @@ import type { SPCData } from '../../types'
 import styles from './SPC.module.css'
 
 export const SPCPage: React.FC = () => {
+  const [searchParams] = useSearchParams()
   const { products } = useProducts()
   const { indicators } = useIndicators()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
@@ -37,17 +39,23 @@ export const SPCPage: React.FC = () => {
     [products, productStatus]
   )
 
-  // Set initial product code once: prefer Dashboard's saved product, then first enabled
+  // Set initial product/indicator: URL params > Dashboard saved > first enabled
   useEffect(() => {
     if (initialized || enabledProducts.length === 0 || productStatus === null) return
+    const urlProduct = searchParams.get('product')
+    const urlIndicator = searchParams.get('indicator')
     const dashboardProduct = localStorage.getItem('dashboard_selected_product')
-    const saved = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
+    const productFromUrl = urlProduct && enabledProducts.find(p => p.code === urlProduct)
+    const productFromDash = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
+    const initProduct = productFromUrl ? productFromUrl.code : productFromDash ? productFromDash.code : enabledProducts[0].code
+    const indicatorFromUrl = urlIndicator && indicators.find(i => i.code === urlIndicator)
     setFilter(f => ({
       ...f,
-      product_code: saved ? saved.code : enabledProducts[0].code,
+      product_code: initProduct,
+      ...(indicatorFromUrl ? { indicator_code: indicatorFromUrl.code } : {}),
     }))
     setInitialized(true)
-  }, [enabledProducts, productStatus, initialized])
+  }, [enabledProducts, productStatus, indicators, initialized, searchParams])
 
   // Auto-fetch when product or indicator changes (only after initialization)
   const fetchSPCData = async (productCode: string, indicatorCode: string, window: number) => {

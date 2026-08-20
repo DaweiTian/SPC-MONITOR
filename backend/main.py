@@ -42,6 +42,26 @@ collector = MockCollector(storage=storage)
 # 初始化预警引擎
 alert_engine = AlertEngine(storage=storage)
 
+# 监控开始时间：首次启动时记录，后续重启沿用，不清除已有预警
+MONITOR_START_FILE = "monitor_start.json"
+if os.path.exists(MONITOR_START_FILE):
+    try:
+        with open(MONITOR_START_FILE, 'r') as f:
+            saved = json.load(f)
+        alert_engine.monitoring_start = datetime.fromisoformat(saved['started_at'])
+        logger.info(f"Monitoring resumed from {alert_engine.monitoring_start}")
+    except Exception:
+        alert_engine.monitoring_start = datetime.now()
+else:
+    alert_engine.monitoring_start = datetime.now()
+    # 首次启动：清除历史预警，只保留监控开始后的新预警
+    cleared = storage.clear_pending_alerts()
+    if cleared > 0:
+        logger.info(f"First start: cleared {cleared} historical alerts")
+    with open(MONITOR_START_FILE, 'w') as f:
+        json.dump({'started_at': alert_engine.monitoring_start.isoformat()}, f)
+    logger.info(f"Monitoring started at {alert_engine.monitoring_start}")
+
 # 初始化调度器
 def collect_with_alert():
     result = collector.collect()

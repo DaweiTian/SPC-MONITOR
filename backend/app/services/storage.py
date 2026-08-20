@@ -163,8 +163,11 @@ class OnlineStorage:
         self,
         severity: str | None = None,
         status: str | None = None,
+        product_code: str | None = None,
+        search: str | None = None,
         limit: int = 50,
-    ) -> list[dict[str, Any]]:
+        offset: int = 0,
+    ) -> dict[str, Any]:
         conn = self._connect()
         try:
             conditions: list[str] = []
@@ -175,22 +178,34 @@ class OnlineStorage:
             if status is not None:
                 conditions.append("status = ?")
                 params.append(status)
-            
+            if product_code is not None:
+                conditions.append("product_code = ?")
+                params.append(product_code)
+            if search is not None:
+                conditions.append("(product_code LIKE ? OR indicator_code LIKE ? OR message LIKE ? OR rule_desc LIKE ?)")
+                like = f"%{search}%"
+                params.extend([like, like, like, like])
+
             where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-            params.append(limit)
-            
+
+            # Count total
+            cursor = conn.execute(f"SELECT COUNT(*) FROM alerts {where}", params)
+            total = cursor.fetchone()[0]
+
+            # Fetch page
+            params.extend([limit, offset])
             cursor = conn.execute(
                 f"""SELECT * FROM alerts
                     {where}
                     ORDER BY created_at DESC
-                    LIMIT ?""",
+                    LIMIT ? OFFSET ?""",
                 params,
             )
-            return [dict(row) for row in cursor.fetchall()]
+            return {"alerts": [dict(row) for row in cursor.fetchall()], "total": total}
         finally:
             conn.close()
     
-    def resolve_alert(self, alert_id: int, resolved_by: str, note: str = "") -> bool:
+    def resolve_alert(self, alert_id: str, resolved_by: str, note: str = "") -> bool:
         conn = self._connect()
         try:
             cursor = conn.execute(
@@ -199,14 +214,50 @@ class OnlineStorage:
                        resolved_at = datetime('now', 'localtime'),
                        resolved_by = ?,
                        resolve_note = ?
-                   WHERE id = ? AND status = 'pending'""",
+                   WHERE alert_id = ? AND status = 'pending'""",
                 (resolved_by, note, alert_id),
             )
             conn.commit()
             return cursor.rowcount > 0
         finally:
             conn.close()
-    
+
+    def clear_pending_alerts(self) -> int:
+        conn = self._connect()
+        try:
+            cursor = conn.execute("DELETE FROM alerts WHERE status = 'pending'")
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
+    def count_pending_alerts(self) -> dict[str, Any]:
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT severity, COUNT(*) as cnt FROM alerts WHERE status = 'pending' GROUP BY severity"
+            )
+            counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0, "total": 0}
+            for row in cursor.fetchall():
+                sev = row["severity"]
+                cnt = row["cnt"]
+                if sev in counts:
+                    counts[sev] = cnt
+                counts["total"] += cnt
+            return counts
+        finally:
+            conn.close()
+
+    def get_distinct_alert_products(self) -> list[str]:
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT product_code FROM alerts WHERE product_code IS NOT NULL AND product_code != '' ORDER BY product_code"
+            )
+            return [row["product_code"] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
     def get_today_stats(self) -> dict[str, Any]:
         conn = self._connect()
         try:

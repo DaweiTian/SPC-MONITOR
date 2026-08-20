@@ -31,10 +31,16 @@ export const api = {
     http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window } }).then(r => r.data),
   getCapabilityData: (productCode: string, indicatorCode: string, window?: number) =>
     http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window } }).then(r => r.data),
-  getAlerts: (params?: { severity?: string; status?: string; limit?: number }) =>
-    http.get<{ alerts: Alert[] }>('/alerts', { params }).then(r => r.data),
+  getAlerts: (params?: { severity?: string; status?: string; product_code?: string; search?: string; page?: number; page_size?: number }) =>
+    http.get<{ alerts: Alert[]; total: number; page: number; page_size: number }>('/alerts', { params }).then(r => r.data),
+  getAlertCount: () =>
+    http.get<{ CRITICAL: number; WARNING: number; INFO: number; total: number }>('/alerts/count').then(r => r.data),
+  getAlertProducts: () =>
+    http.get<{ products: string[] }>('/alerts/products').then(r => r.data),
   resolveAlert: (alertId: string, resolvedBy?: string, note?: string) =>
-    http.post(`/alerts/${alertId}/resolve`, null, { params: { resolved_by: resolvedBy, note } }).then(r => r.data),
+    http.post(`/alerts/${alertId}/resolve`, { resolved_by: resolvedBy, note }).then(r => r.data),
+  batchResolveAlerts: (alertIds: string[], resolvedBy?: string, note?: string) =>
+    http.post('/alerts/batch-resolve', { alert_ids: alertIds, resolved_by: resolvedBy, note }).then(r => r.data),
   getConfig: () => http.get<Config>('/config').then(r => r.data),
   updateConfig: (config: Partial<Config>) => http.put('/config', config).then(r => r.data),
   getDBConfig: () => http.get<DBConfig>('/config/db').then(r => r.data),

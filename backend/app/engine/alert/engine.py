@@ -32,14 +32,15 @@ RULE_SEVERITY = {
 
 class AlertEngine:
     """预警生成引擎"""
-    
+
     def __init__(self, storage, config: Optional[Dict] = None):
         self.storage = storage
         self.config = config or {}
         self.nelson_rules = NelsonRules()
         self.imr_chart = IMRControlChart()
         self.capability = ProcessCapability()
-    
+        self.monitoring_start = datetime.now()
+
     def check_and_alert(
         self,
         product_code: str,
@@ -50,10 +51,24 @@ class AlertEngine:
         window_size: int = 30,
     ) -> List[Dict[str, Any]]:
         new_alerts = []
-        
+
         if len(values) < 2:
             return new_alerts
-        
+
+        # Filter: only analyze data collected after monitoring started
+        recent_values = []
+        recent_times = []
+        for v, t in zip(values, timestamps):
+            if t >= self.monitoring_start:
+                recent_values.append(v)
+                recent_times.append(t)
+
+        if len(recent_values) < 2:
+            return new_alerts
+
+        values = recent_values
+        timestamps = recent_times
+
         if len(values) > window_size:
             values = values[-window_size:]
             timestamps = timestamps[-window_size:]
@@ -172,14 +187,15 @@ class AlertEngine:
         return f"OM-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
     
     def _is_duplicate(self, alert: Dict[str, Any]) -> bool:
-        existing = self.storage.get_alerts(status='pending', limit=100)
+        result = self.storage.get_alerts(status='pending', limit=100)
+        existing = result.get('alerts', []) if isinstance(result, dict) else result
         cutoff = datetime.now() - timedelta(hours=24)
-        
+
         for e in existing:
             if (e['product_code'] == alert['product_code'] and
                 e['indicator_code'] == alert['indicator_code'] and
                 e['rule_type'] == alert['rule_type'] and
                 datetime.fromisoformat(e['created_at']) > cutoff):
                 return True
-        
+
         return False

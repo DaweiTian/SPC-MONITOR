@@ -115,11 +115,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   useEffect(() => {
     const fetchAlertsCount = async () => {
       try {
-        const dashboard = await api.getDashboard()
-        const total = (dashboard.pending_alerts?.CRITICAL || 0) + 
-                     (dashboard.pending_alerts?.WARNING || 0) + 
-                     (dashboard.pending_alerts?.INFO || 0)
-        setAlertsCount(total)
+        const counts = await api.getAlertCount()
+        setAlertsCount(counts.total || 0)
       } catch {
         setAlertsCount(0)
       }
