@@ -33,12 +33,15 @@
   padding: 0;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 212, 255, 0.2) transparent;
+  scrollbar-color: transparent transparent;
 }
+
+*:hover { scrollbar-color: rgba(0, 212, 255, 0.2) transparent; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+*:hover::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
 
 /* ========== Body ========== */
