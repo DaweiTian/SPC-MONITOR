@@ -1,0 +1,106 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.sectionTitle {
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sectionTitle:not(:first-child) {
+  margin-top: 24px;
+}
+
+.moduleList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.moduleItem {
+  padding: 6px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.moduleItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  opacity: 0.6;
+}
+
+.moduleTitle {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.archList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.archItem {
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.archItem::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.rulesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.rulesTable thead th {
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--accent-cyan);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rulesTable tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.rulesTable tbody tr:hover {
+  background: rgba(0, 212, 255, 0.04);
+}
+
+.rulesTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ruleName {
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
