@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import styles from './Help.module.css'
 
 const modules = [
@@ -22,50 +22,96 @@ const nelsonRules = [
   { rule: '规则8', desc: '连续8点无1点在1σ内', type: '数据过度分散' },
 ]
 
+type TabKey = 'overview' | 'glossary' | 'visual'
+
 export const HelpPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TabKey>('overview')
+
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'overview', label: '系统说明' },
+    { key: 'glossary', label: '数据分析名词手册' },
+    { key: 'visual', label: '名词可视化手册' },
+  ]
+
   return (
     <div className={styles.container}>
-      <h3 className={styles.sectionTitle}>系统简介</h3>
-      <p>
-        液奶过程监控系统是一套面向乳制品生产过程的实时SPC分析平台，集成FT1数据定时采集、统计过程控制（SPC）分析、过程能力评估、指标趋势预测和分级预警功能，帮助质量管理人员实时掌握生产过程稳定性。
-      </p>
-
-      <h3 className={styles.sectionTitle}>功能模块说明</h3>
-      <ul className={styles.moduleList}>
-        {modules.map((m) => (
-          <li key={m.title} className={styles.moduleItem}>
-            <span className={styles.moduleTitle}>{m.title}</span>{m.desc}
-          </li>
+      <div className={styles.tabBar}>
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            className={activeTab === tab.key ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
         ))}
-      </ul>
+      </div>
 
-      <h3 className={styles.sectionTitle}>技术架构</h3>
-      <ul className={styles.archList}>
-        <li className={styles.archItem}>前端：React + Element Plus + ECharts</li>
-        <li className={styles.archItem}>后端：Python (FastAPI + NumPy + SciPy + Statsmodels)</li>
-        <li className={styles.archItem}>启动器：Rust (进程管理 + 系统托盘)</li>
-        <li className={styles.archItem}>实时通信：WebSocket</li>
-      </ul>
+      {activeTab === 'overview' && (
+        <>
+          <h3 className={styles.sectionTitle}>系统简介</h3>
+          <p>
+            液奶过程监控系统是一套面向乳制品生产过程的实时SPC分析平台，集成FT1数据定时采集、统计过程控制（SPC）分析、过程能力评估、指标趋势预测和分级预警功能，帮助质量管理人员实时掌握生产过程稳定性。
+          </p>
 
-      <h3 className={styles.sectionTitle}>SPC判异规则（Nelson Rules）</h3>
-      <table className={styles.rulesTable}>
-        <thead>
-          <tr>
-            <th>规则</th>
-            <th>描述</th>
-            <th>异常类型</th>
-          </tr>
-        </thead>
-        <tbody>
-          {nelsonRules.map((r) => (
-            <tr key={r.rule}>
-              <td className={styles.ruleName}>{r.rule}</td>
-              <td>{r.desc}</td>
-              <td>{r.type}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <h3 className={styles.sectionTitle}>功能模块说明</h3>
+          <ul className={styles.moduleList}>
+            {modules.map((m) => (
+              <li key={m.title} className={styles.moduleItem}>
+                <span className={styles.moduleTitle}>{m.title}</span>{m.desc}
+              </li>
+            ))}
+          </ul>
+
+          <h3 className={styles.sectionTitle}>技术架构</h3>
+          <ul className={styles.archList}>
+            <li className={styles.archItem}>前端：React + Element Plus + ECharts</li>
+            <li className={styles.archItem}>后端：Python (FastAPI + NumPy + SciPy + Statsmodels)</li>
+            <li className={styles.archItem}>启动器：Rust (进程管理 + 系统托盘)</li>
+            <li className={styles.archItem}>实时通信：WebSocket</li>
+          </ul>
+
+          <h3 className={styles.sectionTitle}>SPC判异规则（Nelson Rules）</h3>
+          <table className={styles.rulesTable}>
+            <thead>
+              <tr>
+                <th>规则</th>
+                <th>描述</th>
+                <th>异常类型</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nelsonRules.map((r) => (
+                <tr key={r.rule}>
+                  <td className={styles.ruleName}>{r.rule}</td>
+                  <td>{r.desc}</td>
+                  <td>{r.type}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {activeTab === 'glossary' && (
+        <div className={styles.docFrame}>
+          <iframe
+            src="/docs/数据分析名词手册.html"
+            className={styles.docIframe}
+            title="数据分析名词手册"
+          />
+        </div>
+      )}
+
+      {activeTab === 'visual' && (
+        <div className={styles.docFrame}>
+          <iframe
+            src="/docs/数据分析名词可视化手册.html"
+            className={styles.docIframe}
+            title="数据分析名词可视化手册"
+          />
+        </div>
+      )}
     </div>
   )
 }
