@@ -639,21 +639,38 @@ export const ConfigPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 别名配置 ─────────────────────── */}
+      {/* ── 品项别名 ─────────────────────── */}
       <div className={styles.card} style={{ marginBottom: '20px' }}>
         <div className={styles.cardHeader}>
           <span className={styles.cardTitle}>
             <span className={styles.cardTitleDot} />
-            别名配置
+            品项别名
           </span>
         </div>
         <div className={styles.cardBody} style={{ padding: 0 }}>
           <AliasConfig
             products={products.map(p => ({ code: p.code, name: p.name }))}
             indicators={availableIndicators}
-            onUpdate={() => {
-              // 可以在这里添加更新后的回调
-            }}
+            onUpdate={() => {}}
+            mode="products"
+          />
+        </div>
+      </div>
+
+      {/* ── 检验项目别名 ─────────────────────── */}
+      <div className={styles.card} style={{ marginBottom: '20px' }}>
+        <div className={styles.cardHeader}>
+          <span className={styles.cardTitle}>
+            <span className={styles.cardTitleDot} />
+            检验项目别名
+          </span>
+        </div>
+        <div className={styles.cardBody} style={{ padding: 0 }}>
+          <AliasConfig
+            products={products.map(p => ({ code: p.code, name: p.name }))}
+            indicators={availableIndicators}
+            onUpdate={() => {}}
+            mode="indicators"
           />
         </div>
       </div>

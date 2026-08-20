@@ -6,9 +6,10 @@ interface AliasConfigProps {
   products: Array<{ code: string; name: string }>
   indicators: Array<{ code: string; name: string }>
   onUpdate: () => void
+  mode?: 'products' | 'indicators'
 }
 
-export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, onUpdate }) => {
+export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, onUpdate, mode }) => {
   const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
   const [loading, setLoading] = useState(false)
   const [editingProduct, setEditingProduct] = useState<string | null>(null)
@@ -97,12 +98,8 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
 
   return (
     <div className={styles.aliasConfig}>
-      <h3 className={styles.title}>别名配置</h3>
-      <p className={styles.description}>
-        为品项和指标配置别名，配置后将在界面上显示别名而非数据库中的原始名称。
-      </p>
-
       {/* 品项别名配置 */}
+      {mode !== 'indicators' && (
       <div className={styles.section}>
         <h4 className={styles.sectionTitle}>品项别名</h4>
         <div className={styles.tableWrapper}>
@@ -168,8 +165,10 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
           </table>
         </div>
       </div>
+      )}
 
       {/* 指标别名配置 */}
+      {mode !== 'products' && (
       <div className={styles.section}>
         <h4 className={styles.sectionTitle}>指标别名</h4>
         <div className={styles.tableWrapper}>
@@ -235,6 +234,7 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
           </table>
         </div>
       </div>
+      )}
     </div>
   )
 }
