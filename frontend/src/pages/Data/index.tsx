@@ -15,12 +15,25 @@ export const DataPage: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
+  const [productStatus, setProductStatus] = useState<Record<string, string>>({})
+  const [specLimits, setSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number }>>>({})
 
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
     date: today,
   })
+
+  // Load aliases, product status, and spec limits
+  useEffect(() => {
+    api.getAliases().then(setAliases).catch(() => {})
+    api.getProductStatus().then(setProductStatus).catch(() => {})
+    api.getSpecLimits().then(setSpecLimits).catch(() => {})
+  }, [])
+
+  // Filter out disabled products
+  const enabledProducts = products.filter(p => productStatus[p.code] !== 'disabled')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -77,7 +90,6 @@ export const DataPage: React.FC = () => {
     }
   }
 
-  // Build pagination buttons
   const renderPageButtons = () => {
     const buttons: React.ReactNode[] = []
     const maxVisible = 5
@@ -86,14 +98,9 @@ export const DataPage: React.FC = () => {
     if (end - start + 1 < maxVisible) {
       start = Math.max(1, end - maxVisible + 1)
     }
-
     for (let i = start; i <= end; i++) {
       buttons.push(
-        <button
-          key={i}
-          className={i === page ? styles.pageBtnActive : styles.pageBtn}
-          onClick={() => setPage(i)}
-        >
+        <button key={i} className={i === page ? styles.pageBtnActive : styles.pageBtn} onClick={() => setPage(i)}>
           {i}
         </button>
       )
@@ -101,23 +108,24 @@ export const DataPage: React.FC = () => {
     return buttons
   }
 
-  const productName = (code: string) =>
-    products.find(p => p.code === code)?.name || code
-  const indicatorName = (code: string) =>
-    indicators.find(i => i.code === code)?.name || code
+  // Display helpers with aliases
+  const displayProduct = (code: string) => aliases.products[code] || products.find(p => p.code === code)?.name || code
+  const displayIndicator = (code: string) => aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
+
+  // Get spec limits for a product/indicator from config
+  const getSpecLimit = (productCode: string, indicatorCode: string) => {
+    const productLimits = specLimits[productCode]
+    if (productLimits && productLimits[indicatorCode]) {
+      return productLimits[indicatorCode]
+    }
+    return null
+  }
 
   return (
     <div className={styles.page}>
       {/* Filter panel */}
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
-          <div className={styles.panelTitle}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-            </svg>
-            数据管理
-          </div>
           <div className={styles.panelActions}>
             <select
               className={styles.select}
@@ -125,8 +133,8 @@ export const DataPage: React.FC = () => {
               onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
             >
               <option value="">全部品项</option>
-              {products.map(p => (
-                <option key={p.code} value={p.code}>{p.name}</option>
+              {enabledProducts.map(p => (
+                <option key={p.code} value={p.code}>{aliases.products[p.code] || p.name}</option>
               ))}
             </select>
             <select
@@ -136,7 +144,7 @@ export const DataPage: React.FC = () => {
             >
               <option value="">全部指标</option>
               {indicators.map(i => (
-                <option key={i.code} value={i.code}>{i.name}</option>
+                <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>
               ))}
             </select>
             <input
@@ -166,7 +174,7 @@ export const DataPage: React.FC = () => {
             <thead>
               <tr>
                 <th>序号</th>
-                <th>采集时间</th>
+                <th>检测时间</th>
                 <th>品项</th>
                 <th>指标</th>
                 <th>检测值</th>
@@ -180,43 +188,36 @@ export const DataPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className={styles.loadingRow}>
-                    加载中...
-                  </td>
+                  <td colSpan={10} className={styles.loadingRow}>加载中...</td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className={styles.emptyRow}>
-                    暂无数据
-                  </td>
+                  <td colSpan={10} className={styles.emptyRow}>暂无数据</td>
                 </tr>
               ) : (
-                data.map((row, idx) => (
-                  <tr key={row.id}>
-                    <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                    <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
-                    <td>
-                      <span className={styles.tagBlue}>
-                        {row.product_name || productName(row.product_code)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.tagCyan}>
-                        {row.indicator_name || indicatorName(row.indicator_code)}
-                      </span>
-                    </td>
-                    <td>{row.value?.toFixed(4)}</td>
-                    <td>{row.unit || '-'}</td>
-                    <td>{row.upper_limit != null ? row.upper_limit.toFixed(4) : '-'}</td>
-                    <td>{row.lower_limit != null ? row.lower_limit.toFixed(4) : '-'}</td>
-                    <td>
-                      <span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>
-                        {row.is_qualified ? '正常' : '越限'}
-                      </span>
-                    </td>
-                    <td>系统采集</td>
-                  </tr>
-                ))
+                data.map((row, idx) => {
+                  const spec = getSpecLimit(row.product_code, row.indicator_code)
+                  const usl = spec?.usl ?? row.upper_limit
+                  const lsl = spec?.lsl ?? row.lower_limit
+                  return (
+                    <tr key={row.id}>
+                      <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
+                      <td><span className={styles.tagBlue}>{displayProduct(row.product_code)}</span></td>
+                      <td><span className={styles.tagCyan}>{displayIndicator(row.indicator_code)}</span></td>
+                      <td>{row.value?.toFixed(4)}</td>
+                      <td>{row.unit || '-'}</td>
+                      <td>{usl != null ? usl.toFixed(4) : '-'}</td>
+                      <td>{lsl != null ? lsl.toFixed(4) : '-'}</td>
+                      <td>
+                        <span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>
+                          {row.is_qualified ? '正常' : '越限'}
+                        </span>
+                      </td>
+                      <td>系统采集</td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -229,21 +230,9 @@ export const DataPage: React.FC = () => {
               显示 {startIdx} - {endIdx} 条，共 {total} 条
             </span>
             <div className={styles.paginationBtns}>
-              <button
-                className={styles.pageBtn}
-                disabled={page <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                ‹
-              </button>
+              <button className={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</button>
               {renderPageButtons()}
-              <button
-                className={styles.pageBtn}
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              >
-                ›
-              </button>
+              <button className={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>›</button>
             </div>
           </div>
         )}

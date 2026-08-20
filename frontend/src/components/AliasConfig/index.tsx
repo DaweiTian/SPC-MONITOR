@@ -101,7 +101,6 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
       {/* 品项别名配置 */}
       {mode !== 'indicators' && (
       <div className={styles.section}>
-        <h4 className={styles.sectionTitle}>品项别名</h4>
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
@@ -170,7 +169,6 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
       {/* 指标别名配置 */}
       {mode !== 'products' && (
       <div className={styles.section}>
-        <h4 className={styles.sectionTitle}>指标别名</h4>
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>

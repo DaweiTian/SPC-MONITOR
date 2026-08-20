@@ -1,7 +1,5 @@
 /* ========== Config Page ========== */
 .page {
-  max-width: 1280px;
-  margin: 0 auto;
   animation: fadeIn 0.4s ease-out;
 }
 
@@ -757,6 +755,105 @@
   gap: 12px;
   padding: 20px 24px;
   border-top: 1px solid var(--border-color);
+}
+
+/* ========== Frequency Ladder ========== */
+.freqBadge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  color: var(--accent-cyan);
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.freqLadder {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 8px 0;
+}
+
+.freqStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+  position: relative;
+}
+
+.freqStepDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  position: relative;
+  transition: all 0.3s;
+  z-index: 1;
+}
+
+.freqStepActive .freqStepDot {
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+}
+
+.freqStepPast .freqStepDot {
+  background: rgba(0, 212, 255, 0.3);
+  border-color: rgba(0, 212, 255, 0.4);
+}
+
+.freqStepPulse {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  animation: freqPulse 2s infinite;
+}
+
+.freqStepLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.freqStepActive .freqStepLabel {
+  color: var(--accent-cyan);
+}
+
+.freqStepValue {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+}
+
+.freqStepActive .freqStepValue {
+  color: var(--text-secondary);
+}
+
+.freqConnector {
+  flex: 1;
+  height: 2px;
+  background: var(--border-color);
+  min-width: 16px;
+  margin-bottom: 28px;
+  transition: background 0.3s;
+}
+
+.freqConnectorActive {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.4), rgba(0, 212, 255, 0.2));
+}
+
+@keyframes freqPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0; transform: scale(1.8); }
 }
 
 /* ========== Animation ========== */

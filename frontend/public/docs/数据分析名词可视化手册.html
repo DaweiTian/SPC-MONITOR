@@ -8,20 +8,20 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <style>
   :root {
-    --primary: #2563eb;
-    --primary-light: #dbeafe;
-    --success: #16a34a;
-    --warning: #d97706;
-    --danger: #dc2626;
+    --primary: #00d4ff;
+    --primary-light: rgba(0, 212, 255, 0.15);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
     --info: #0891b2;
-    --bg: #f8fafc;
-    --card-bg: #ffffff;
-    --border: #e2e8f0;
-    --text: #1e293b;
+    --bg: #0a0e17;
+    --card-bg: #141a2a;
+    --border: #1e293b;
+    --text: #e2e8f0;
     --text-light: #64748b;
-    --code-bg: #f1f5f9;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 25px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.05);
+    --code-bg: #1a2234;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.4), 0 4px 6px rgba(0,0,0,0.2);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -34,10 +34,11 @@
   /* ===== 顶部导航 ===== */
   .top-bar {
     position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    background: linear-gradient(135deg, #0a0e17 0%, #141a2a 100%);
     color: white; padding: 0 24px; height: 56px;
     display: flex; align-items: center; justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border-bottom: 1px solid #1e293b;
   }
   .top-bar .logo { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
   .top-bar .logo span { opacity: 0.7; font-weight: 400; font-size: 13px; margin-left: 8px; }

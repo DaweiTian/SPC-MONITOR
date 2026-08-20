@@ -168,6 +168,8 @@ export const ConfigPage: React.FC = () => {
   const [availableIndicators, setAvailableIndicators] = useState<Array<{ code: string; name: string }>>([])
   const [indicatorSpecs, setIndicatorSpecs] = useState<IndicatorSpec[]>([])
   const [newProduct, setNewProduct] = useState({ name: '', code: '', status: 'enabled' as 'enabled' | 'disabled' })
+  const [productAlias, setProductAlias] = useState('')
+  const [productAliases, setProductAliases] = useState<Record<string, string>>({})
   const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
   const [frequencyStatus, setFrequencyStatus] = useState<{
     current_level: number
@@ -214,16 +216,21 @@ export const ConfigPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult] = await Promise.all([
+      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult, aliasResult] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
         api.getProductStatus().catch(() => ({} as Record<string, string>)),
         api.getSpecLimits().catch(() => ({} as Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>)),
         api.getAlertRules().catch(() => null),
+        api.getAliases().catch(() => ({ products: {}, indicators: {} })),
       ])
 
       if (indicatorsResult?.indicators) {
         setAvailableIndicators(indicatorsResult.indicators)
+      }
+
+      if (aliasResult?.products) {
+        setProductAliases(aliasResult.products)
       }
 
       if (limitsResult) {
@@ -433,6 +440,7 @@ export const ConfigPage: React.FC = () => {
   const handleEditProduct = async (product: ProductItem) => {
     setEditingProduct(product)
     setNewProduct({ name: product.name, code: product.code, status: product.status })
+    setProductAlias(productAliases[product.code] || '')
 
     // Load per-product spec limits from backend
     let savedLimits: Record<string, { lsl?: number; usl?: number; target?: number }> = {}
@@ -442,13 +450,27 @@ export const ConfigPage: React.FC = () => {
       // use empty
     }
 
-    // Initialize indicator specs - all enabled by default, pre-fill from backend
+    // Fetch which indicators have actual data for this product
+    let indicatorsWithData = new Set<string>()
+    try {
+      const countResult = await api.getProductIndicatorCount(product.code)
+      // We need the actual indicator codes, not just the count
+      // Use the data list API to get a sample
+      const sampleData = await api.getDataList({ product_code: product.code, page_size: 500 })
+      if (sampleData?.data) {
+        sampleData.data.forEach((d: any) => indicatorsWithData.add(d.indicator_code))
+      }
+    } catch {}
+
+    // Initialize indicator specs - only enable indicators with data or saved limits
     setIndicatorSpecs(availableIndicators.map(ind => {
       const limits = savedLimits[ind.code]
+      const hasData = indicatorsWithData.has(ind.code)
+      const hasLimits = limits && (limits.usl !== undefined || limits.lsl !== undefined)
       return {
         indicator_code: ind.code,
         indicator_name: ind.name,
-        enabled: true,
+        enabled: hasData || hasLimits,
         usl: limits?.usl?.toString() || '',
         lsl: limits?.lsl?.toString() || '',
         target: limits?.target?.toString() || '',
@@ -496,6 +518,22 @@ export const ConfigPage: React.FC = () => {
       await api.updateSingleProductStatus(newProduct.code, newProduct.status)
     } catch (e) {
       console.error('保存品项状态失败:', e)
+    }
+
+    // Save product alias
+    try {
+      await api.updateProductAlias(newProduct.code, productAlias)
+      setProductAliases(prev => {
+        const next = { ...prev }
+        if (productAlias) {
+          next[newProduct.code] = productAlias
+        } else {
+          delete next[newProduct.code]
+        }
+        return next
+      })
+    } catch (e) {
+      console.error('保存品项别名失败:', e)
     }
 
     // Persist spec limits to backend
@@ -622,18 +660,11 @@ export const ConfigPage: React.FC = () => {
                       : <StatusTag label="停用" color="orange" />}
                   </td>
                   <td>
-                    <button 
+                    <button
                       className={styles.btnEdit}
                       onClick={() => handleEditProduct(p)}
                     >
                       编辑
-                    </button>
-                    <button 
-                      className={`${styles.btnEdit} ${styles.btnDanger}`}
-                      onClick={() => handleDeleteProduct(p.id)}
-                      style={{ marginLeft: '8px' }}
-                    >
-                      删除
                     </button>
                   </td>
                 </tr>
@@ -688,47 +719,42 @@ export const ConfigPage: React.FC = () => {
               <span className={styles.cardTitleDot} />
               采集频率配置
             </span>
+            {frequencyStatus && (
+              <span className={styles.freqBadge}>
+                L{frequencyStatus.current_level} · {frequencyStatus.current_interval_minutes}min
+              </span>
+            )}
           </div>
-          <div className={styles.cardBody} style={{ padding: '16px 20px' }}>
+          <div className={styles.cardBody} style={{ padding: '20px' }}>
             {frequencyStatus ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                      {frequencyStatus.current_interval_minutes} 分钟
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      当前采集频率 · L{frequencyStatus.current_level}
-                    </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    自适应降级阶梯
                   </div>
-                  <button
-                    className={`${styles.btn} ${styles.btnPrimary}`}
-                    onClick={async () => {
-                      await api.manualCollect()
-                      const status = await api.getStatus()
-                      setFrequencyStatus(status)
-                    }}
-                  >
-                    立即采集
-                  </button>
+                  <div className={styles.freqLadder}>
+                    {frequencyStatus.frequency_ladder.map((freq: number, idx: number) => {
+                      const isActive = idx === frequencyStatus.current_level
+                      const isPast = idx < frequencyStatus.current_level
+                      return (
+                        <React.Fragment key={idx}>
+                          {idx > 0 && (
+                            <div className={`${styles.freqConnector} ${isPast || isActive ? styles.freqConnectorActive : ''}`} />
+                          )}
+                          <div className={`${styles.freqStep} ${isActive ? styles.freqStepActive : ''} ${isPast ? styles.freqStepPast : ''}`}>
+                            <div className={styles.freqStepDot}>
+                              {isActive && <div className={styles.freqStepPulse} />}
+                            </div>
+                            <div className={styles.freqStepLabel}>L{idx}</div>
+                            <div className={styles.freqStepValue}>{freq}min</div>
+                          </div>
+                        </React.Fragment>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {frequencyStatus.frequency_ladder.map((freq: number, idx: number) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        background: idx === frequencyStatus.current_level ? 'rgba(0, 212, 255, 0.15)' : 'var(--bg-secondary)',
-                        border: `1px solid ${idx === frequencyStatus.current_level ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
-                        color: idx === frequencyStatus.current_level ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                        fontWeight: idx === frequencyStatus.current_level ? 600 : 400,
-                      }}
-                    >
-                      L{idx} · {freq}min
-                    </div>
-                  ))}
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                  无新数据时自动降级到下一频率，采集到数据后恢复至 L0 (5min)
                 </div>
               </>
             ) : (
@@ -1306,6 +1332,16 @@ export const ConfigPage: React.FC = () => {
                     <option value="enabled">启用</option>
                     <option value="disabled">停用</option>
                   </select>
+                </div>
+                <div className={styles.formGroup} style={{ marginTop: '12px' }}>
+                  <label className={styles.formLabel}>品项别名</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    value={productAlias}
+                    onChange={e => setProductAlias(e.target.value)}
+                    placeholder="可选，配置后界面上显示此别名"
+                  />
                 </div>
               </div>
 
