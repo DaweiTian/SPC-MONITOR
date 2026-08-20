@@ -1,179 +1,242 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Table, Select, Button, Statistic, Row, Col, Tag, Typography } from 'antd'
-import { DatabaseOutlined, ReloadOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
-import type { MonitorData, Product, Indicator } from '../../types'
+import { useProducts, useIndicators } from '../../hooks'
+import type { MonitorData } from '../../types'
+import styles from './Data.module.css'
 
-const { Title } = Typography
+const PAGE_SIZE = 20
 
 export const DataPage: React.FC = () => {
+  const { products } = useProducts()
+  const { indicators } = useIndicators()
+
   const [data, setData] = useState<MonitorData[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [indicators, setIndicators] = useState<Indicator[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
-    limit: 100,
+    date: '',
   })
 
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const [prodData, indData] = await Promise.all([
-          api.getProducts(),
-          api.getIndicators(),
-        ])
-        setProducts(prodData.products)
-        setIndicators(indData.indicators)
-        if (prodData.products.length > 0) {
-          setFilter(prev => ({ ...prev, product_code: prodData.products[0].code }))
-        }
-        if (indData.indicators.length > 0) {
-          setFilter(prev => ({ ...prev, indicator_code: indData.indicators[0].code }))
-        }
-      } catch (e) {
-        console.error('获取选项失败:', e)
-      }
-    }
-    fetchOptions()
-  }, [])
-
-  const fetchData = async () => {
-    if (!filter.product_code || !filter.indicator_code) return
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const result = await api.getRecentData({
         product_code: filter.product_code,
         indicator_code: filter.indicator_code,
-        limit: filter.limit,
+        limit: 500,
       })
-      setData(Array.isArray(result) ? result : result.data || [])
+      const rows = Array.isArray(result) ? result : result.data || []
+      setData(rows)
+      setPage(1)
     } catch (e) {
       console.error('获取数据失败:', e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter.product_code, filter.indicator_code])
 
+  // Auto-fetch when product or indicator changes
   useEffect(() => {
     if (filter.product_code && filter.indicator_code) {
       fetchData()
     }
-  }, [filter.product_code, filter.indicator_code, filter.limit])
+  }, [fetchData, filter.product_code, filter.indicator_code])
 
-  const uniqueProducts = new Set(data.map(d => d.product_code)).size
-  const uniqueIndicators = new Set(data.map(d => d.indicator_code)).size
-  const latestTime = data.length > 0
-    ? new Date(data[0].sample_time).toLocaleString('zh-CN')
-    : '-'
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE))
+  const pagedData = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const startIdx = data.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const endIdx = Math.min(page * PAGE_SIZE, data.length)
 
-  const columns = [
-    {
-      title: '时间',
-      dataIndex: 'sample_time',
-      key: 'sample_time',
-      render: (time: string) => new Date(time).toLocaleString('zh-CN'),
-    },
-    {
-      title: '产品代码',
-      dataIndex: 'product_code',
-      key: 'product_code',
-      render: (code: string) => <Tag color="blue">{code}</Tag>,
-    },
-    {
-      title: '指标代码',
-      dataIndex: 'indicator_code',
-      key: 'indicator_code',
-      render: (code: string) => <Tag color="green">{code}</Tag>,
-    },
-    {
-      title: '检测值',
-      dataIndex: 'value',
-      key: 'value',
-      render: (value: number) => value?.toFixed(4),
-    },
-  ]
+  // Export
+  const handleExport = async (format: 'csv' | 'excel') => {
+    try {
+      const blob = await api.exportData({
+        format,
+        product: filter.product_code || undefined,
+        indicator: filter.indicator_code || undefined,
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `data_export.${format === 'csv' ? 'csv' : 'xlsx'}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('导出失败:', e)
+    }
+  }
+
+  // Build pagination buttons
+  const renderPageButtons = () => {
+    const buttons: React.ReactNode[] = []
+    const maxVisible = 5
+    let start = Math.max(1, page - Math.floor(maxVisible / 2))
+    const end = Math.min(totalPages, start + maxVisible - 1)
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1)
+    }
+
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          className={i === page ? styles.pageBtnActive : styles.pageBtn}
+          onClick={() => setPage(i)}
+        >
+          {i}
+        </button>
+      )
+    }
+    return buttons
+  }
+
+  const productName = (code: string) =>
+    products.find(p => p.code === code)?.name || code
+  const indicatorName = (code: string) =>
+    indicators.find(i => i.code === code)?.name || code
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
-        <DatabaseOutlined style={{ marginRight: 8 }} />
-        数据管理
-      </Title>
+    <div className={styles.page}>
+      {/* Filter panel */}
+      <div className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div className={styles.panelTitle}>
+            <span className={styles.panelIcon}>💾</span>
+            FT1 数据管理
+          </div>
+          <div className={styles.panelActions}>
+            <select
+              className={styles.select}
+              value={filter.product_code}
+              onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
+            >
+              <option value="">全部品项</option>
+              {products.map(p => (
+                <option key={p.code} value={p.code}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={filter.indicator_code}
+              onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))}
+            >
+              <option value="">全部指标</option>
+              {indicators.map(i => (
+                <option key={i.code} value={i.code}>{i.name}</option>
+              ))}
+            </select>
+            <input
+              className={styles.dateInput}
+              type="date"
+              value={filter.date}
+              onChange={e => setFilter(f => ({ ...f, date: e.target.value }))}
+            />
+            <button className={styles.btnPrimary} onClick={fetchData}>
+              🔍 查询
+            </button>
+            <button className={styles.btnGhost} onClick={() => handleExport('csv')}>
+              📥 导出CSV
+            </button>
+            <button className={styles.btnGhost} onClick={() => handleExport('excel')}>
+              📊 导出Excel
+            </button>
+          </div>
+        </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="数据总量" value={data.length} prefix={<DatabaseOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="产品种类" value={uniqueProducts} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="指标种类" value={uniqueIndicators} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="最新数据" value={latestTime} valueStyle={{ fontSize: 16 }} />
-          </Card>
-        </Col>
-      </Row>
+        {/* Data table */}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>采集时间</th>
+                <th>品项</th>
+                <th>指标</th>
+                <th>检测值</th>
+                <th>单位</th>
+                <th>规格上限</th>
+                <th>规格下限</th>
+                <th>状态</th>
+                <th>数据来源</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={10} className={styles.loadingRow}>
+                    加载中...
+                  </td>
+                </tr>
+              ) : pagedData.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className={styles.emptyRow}>
+                    暂无数据
+                  </td>
+                </tr>
+              ) : (
+                pagedData.map((row, idx) => (
+                  <tr key={row.id}>
+                    <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
+                    <td>
+                      <span className={styles.tagBlue}>
+                        {row.product_name || productName(row.product_code)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={styles.tagCyan}>
+                        {row.indicator_name || indicatorName(row.indicator_code)}
+                      </span>
+                    </td>
+                    <td>{row.value?.toFixed(4)}</td>
+                    <td>{row.unit || '-'}</td>
+                    <td>{row.upper_limit != null ? row.upper_limit.toFixed(4) : '-'}</td>
+                    <td>{row.lower_limit != null ? row.lower_limit.toFixed(4) : '-'}</td>
+                    <td>
+                      <span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>
+                        {row.is_qualified ? '正常' : '越限'}
+                      </span>
+                    </td>
+                    <td>系统采集</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <Card style={{ marginBottom: 24 }}>
-        <Select
-          value={filter.product_code || undefined}
-          onChange={value => setFilter({ ...filter, product_code: value })}
-          style={{ width: 160, marginRight: 16 }}
-          placeholder="选择产品"
-        >
-          {products.map(p => (
-            <Select.Option key={p.code} value={p.code}>{p.name}</Select.Option>
-          ))}
-        </Select>
-        <Select
-          value={filter.indicator_code || undefined}
-          onChange={value => setFilter({ ...filter, indicator_code: value })}
-          style={{ width: 160, marginRight: 16 }}
-          placeholder="选择指标"
-        >
-          {indicators.map(i => (
-            <Select.Option key={i.code} value={i.code}>{i.name}</Select.Option>
-          ))}
-        </Select>
-        <Select
-          value={filter.limit}
-          onChange={value => setFilter({ ...filter, limit: value })}
-          style={{ width: 120, marginRight: 16 }}
-        >
-          <Select.Option value={50}>50 条</Select.Option>
-          <Select.Option value={100}>100 条</Select.Option>
-          <Select.Option value={200}>200 条</Select.Option>
-          <Select.Option value={500}>500 条</Select.Option>
-        </Select>
-        <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-          刷新
-        </Button>
-      </Card>
-
-      <Card title="数据列表">
-        <Table
-          dataSource={data}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条数据`,
-          }}
-        />
-      </Card>
+        {/* Pagination */}
+        {data.length > 0 && (
+          <div className={styles.pagination}>
+            <span className={styles.paginationInfo}>
+              显示 {startIdx} - {endIdx} 条，共 {data.length} 条
+            </span>
+            <div className={styles.paginationBtns}>
+              <button
+                className={styles.pageBtn}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                ‹
+              </button>
+              {renderPageButtons()}
+              <button
+                className={styles.pageBtn}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
