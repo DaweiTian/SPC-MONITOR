@@ -50,10 +50,14 @@ body {
 
 /* ===== 侧边栏 ===== */
 .sidebar {
-  position: fixed; top: 56px; left: 0; bottom: 0; width: 260px;
+  position: fixed; top: 56px; left: 0; bottom: 0; width: 240px;
   background: var(--card-bg); border-right: 1px solid var(--border);
-  overflow-y: auto; padding: 16px 0; z-index: 50;
+  overflow-y: auto; padding: 16px 0; z-index: 200;
+  transform: translateX(-240px);
+  transition: transform 0.3s ease;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.3);
 }
+.sidebar.open { transform: translateX(0); }
 .sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
@@ -176,16 +180,10 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
   .main { margin-left: 0; padding: 20px; }
   .toc-grid { grid-template-columns: 1fr; }
 }
-/* 嵌入iframe时隐藏顶栏，侧边栏可折叠 */
+/* 嵌入iframe时隐藏顶栏 */
 body.embedded .topbar { display: none; }
 body.embedded .main { margin-top: 0; padding: 20px 32px; }
-body.embedded .sidebar {
-  top: 0; width: 240px;
-  transform: translateX(-240px);
-  transition: transform 0.3s ease;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.3);
-  z-index: 200;
-}
+body.embedded .main { margin-left: 0; }
 body.embedded .sidebar.open { transform: translateX(0); }
 body.embedded .main { margin-left: 0; }
 
@@ -1689,6 +1687,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 if (window.self !== window.top) {
   document.body.classList.add('embedded');
+} else {
+  document.querySelector('.sidebar').classList.add('open');
 }
 function toggleSidebar() {
   var sidebar = document.querySelector('.sidebar');
