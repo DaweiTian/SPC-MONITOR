@@ -76,7 +76,7 @@
   .card {
     background: var(--card-bg); border-radius: 12px; padding: 28px;
     box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
-    width: 100%; box-sizing: border-box;
+    width: 100%; box-sizing: border-box; min-width: 0;
   }
 
   /* ===== 标题 ===== */
@@ -113,7 +113,7 @@
   .tag-stats { background: rgba(99,102,241,0.12); color: #818cf8; }
   .tag-quality { background: rgba(236,72,153,0.12); color: #ec4899; }
 
-  .concept-body { padding: 0 8px; }
+  .concept-body { padding: 0 8px; overflow-x: auto; }
   .concept-body p { margin-bottom: 10px; font-size: 14px; color: var(--text-muted); }
   .concept-body strong { color: var(--text); }
 
