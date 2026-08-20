@@ -9,6 +9,10 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   margin-bottom: 16px;
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panelHeader {
@@ -18,11 +22,9 @@
   border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap;
   gap: 12px;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   background: var(--bg-card);
-  z-index: 20;
-  border-radius: 12px 12px 0 0;
+  z-index: 10;
 }
 
 .panelTitle {
@@ -105,7 +107,10 @@
 /* ========== 表格 ========== */
 .tableWrap {
   padding: 0;
+  overflow-y: auto;
   overflow-x: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .table {
@@ -123,9 +128,9 @@
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
   position: sticky;
-  top: 56px;
+  top: 0;
   background: var(--bg-secondary);
-  z-index: 15;
+  z-index: 5;
 }
 
 .table td {
@@ -185,6 +190,8 @@
   border-top: 1px solid var(--border-color);
   font-size: 13px;
   color: var(--text-secondary);
+  flex-shrink: 0;
+  background: var(--bg-card);
 }
 
 .paginationInfo {
