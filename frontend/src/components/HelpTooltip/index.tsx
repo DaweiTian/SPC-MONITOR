@@ -1,7 +1,5 @@
-import React from 'react'
-import { Popover, Tag, Button } from 'antd'
-import { QuestionCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import type { PopoverProps } from 'antd'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import styles from './HelpTooltip.module.css'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -20,8 +18,8 @@ interface HelpData {
 interface HelpTooltipProps {
   /** Key into helpContentMap (e.g. "mean", "nelson-r1") */
   termId: string
-  /** Popover placement */
-  placement?: PopoverProps['placement']
+  /** @deprecated No longer used — kept for backward compatibility */
+  placement?: string
   /** Popover width in px */
   width?: number
   /** Icon size: small / middle / large */
@@ -320,15 +318,15 @@ const iconSizeMap: Record<string, number> = {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tag color mapping (string → Ant Design preset)                     */
+/*  Tag class mapping (color string → CSS module class)                */
 /* ------------------------------------------------------------------ */
 
-const tagColorMap: Record<string, string> = {
-  blue: 'blue',
-  green: 'green',
-  orange: 'orange',
-  red: 'red',
-  default: 'default',
+const tagClassMap: Record<string, string> = {
+  blue: styles.tagBlue,
+  green: styles.tagGreen,
+  orange: styles.tagOrange,
+  red: styles.tagRed,
+  default: styles.tagDefault,
 }
 
 /* ------------------------------------------------------------------ */
@@ -337,159 +335,118 @@ const tagColorMap: Record<string, string> = {
 
 const HelpTooltip: React.FC<HelpTooltipProps> = ({
   termId,
-  placement = 'top',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  placement: _placement,
   width = 360,
   size = 'middle',
 }) => {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const data = helpContentMap[termId]
+  const iconSize = iconSizeMap[size]
+
+  // Close on click outside
+  const handleClickOutside = useCallback(
+    (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [open, handleClickOutside])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open])
 
   // If termId is unknown, render a disabled icon
   if (!data) {
     return (
-      <QuestionCircleOutlined
-        style={{ color: 'var(--text-muted)', cursor: 'not-allowed', fontSize: iconSizeMap[size] }}
-      />
+      <span
+        className={styles.triggerDisabled}
+        style={{ fontSize: iconSize }}
+      >
+        {/* Question-circle SVG icon */}
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-6h2v2h-2v-2zm1.61-6.41c-.78-.59-1.57-.95-2.21-.95-1.04 0-1.84.84-1.84 1.9h-2c0-2.1 1.6-3.82 3.72-3.82 1.31 0 2.56.66 3.28 1.68.63.88 1.04 2.04 1.04 3.14h-2c0-.72-.28-1.5-.8-2.95z"/>
+        </svg>
+      </span>
     )
   }
 
-  const tagColor = tagColorMap[data.tagColor] || 'default'
-
-  /* ---------- Popover content ---------- */
-
-  const content = (
-    <div style={{ maxWidth: width - 32 }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 10,
-          paddingBottom: 8,
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            lineHeight: 1.4,
-          }}
-        >
-          {data.title}
-        </span>
-        <Tag
-          color={tagColor}
-          style={{ marginLeft: 'auto', flexShrink: 0, fontWeight: 500 }}
-        >
-          {data.tag}
-        </Tag>
-      </div>
-
-      {/* Description */}
-      <p
-        style={{
-          margin: '0 0 10px',
-          fontSize: 13,
-          lineHeight: 1.7,
-          color: 'var(--text-secondary)',
-        }}
-      >
-        {data.description}
-      </p>
-
-      {/* Formula */}
-      {data.formula && (
-        <div
-          style={{
-            padding: '8px 12px',
-            marginBottom: 10,
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--primary-bg)',
-            fontFamily: 'source-code-pro, Menlo, Monaco, Consolas, monospace',
-            fontSize: 13,
-            color: 'var(--primary-dark)',
-            lineHeight: 1.6,
-            wordBreak: 'break-all',
-          }}
-        >
-          {data.formula}
-        </div>
-      )}
-
-      {/* Example */}
-      {data.example && (
-        <div
-          style={{
-            padding: '8px 12px',
-            marginBottom: 10,
-            borderLeft: '3px solid var(--success)',
-            borderRadius: 'var(--radius-sm)',
-            background: '#f0faf4',
-            fontSize: 13,
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-          }}
-        >
-          {data.example}
-        </div>
-      )}
-
-      {/* Note */}
-      {data.note && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 6,
-            padding: '8px 12px',
-            borderRadius: 'var(--radius-sm)',
-            background: '#fef9e7',
-            fontSize: 12,
-            lineHeight: 1.6,
-            color: '#7d6608',
-          }}
-        >
-          <InfoCircleOutlined style={{ marginTop: 3, flexShrink: 0 }} />
-          <span>{data.note}</span>
-        </div>
-      )}
-    </div>
-  )
-
-  /* ---------- Popover trigger ---------- */
+  const tagClass = tagClassMap[data.tagColor] || styles.tagDefault
 
   return (
-    <Popover
-      content={content}
-      placement={placement}
-      overlayStyle={{ maxWidth: width }}
-      overlayInnerStyle={{ borderRadius: 'var(--radius-md)' }}
-    >
-      <Button
-        type="text"
-        size="small"
-        icon={
-          <QuestionCircleOutlined
-            style={{
-              color: 'var(--primary)',
-              fontSize: iconSizeMap[size],
-            }}
-          />
-        }
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: iconSizeMap[size] + 10,
-          height: iconSizeMap[size] + 10,
-          minWidth: 'auto',
-          padding: 0,
-        }}
-      />
-    </Popover>
+    <div className={styles.wrapper} ref={wrapperRef}>
+      {/* Trigger button */}
+      <button
+        type="button"
+        className={styles.trigger}
+        style={{ width: iconSize + 10, height: iconSize + 10 }}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={`Help: ${data.title}`}
+      >
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v-2c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5H7c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7zm0-4c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>
+        </svg>
+      </button>
+
+      {/* Popover */}
+      <div
+        className={`${styles.popover} ${open ? styles.open : ''}`}
+        style={{ maxWidth: width }}
+        role="tooltip"
+      >
+        {/* Header */}
+        <div className={styles.header}>
+          <span className={styles.title}>{data.title}</span>
+          <span className={`${styles.tag} ${tagClass}`}>{data.tag}</span>
+        </div>
+
+        {/* Description */}
+        <p className={styles.description}>{data.description}</p>
+
+        {/* Formula */}
+        {data.formula && (
+          <div className={styles.formula}>{data.formula}</div>
+        )}
+
+        {/* Example */}
+        {data.example && (
+          <div className={styles.example}>{data.example}</div>
+        )}
+
+        {/* Note */}
+        {data.note && (
+          <div className={styles.note}>
+            <svg
+              className={styles.noteIcon}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            <span>{data.note}</span>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 

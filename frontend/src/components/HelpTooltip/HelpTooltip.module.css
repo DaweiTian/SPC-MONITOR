@@ -1,0 +1,190 @@
+/* ========== HelpTooltip Custom Popover ========== */
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Trigger button ---- */
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary, #00d4ff);
+  border-radius: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.trigger:hover {
+  opacity: 0.8;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--primary, #00d4ff);
+  outline-offset: 2px;
+}
+
+.triggerDisabled {
+  color: var(--text-muted, #4a5568);
+  cursor: not-allowed;
+}
+
+/* ---- Popover container ---- */
+
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
+  background: var(--bg-card, #141a2e);
+  border: 1px solid var(--border-color, rgba(64, 159, 255, 0.12));
+  border-radius: 8px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(64, 159, 255, 0.06);
+  max-width: 400px;
+  width: max-content;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 80vh;
+  /* animation */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+}
+
+.popover.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* subtle arrow / pointer */
+.popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: var(--bg-card, #141a2e);
+  border-top: 1px solid var(--border-color, rgba(64, 159, 255, 0.12));
+  border-left: 1px solid var(--border-color, rgba(64, 159, 255, 0.12));
+}
+
+/* ---- Content sections ---- */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  line-height: 1.4;
+}
+
+.tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tagBlue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.tagGreen {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.tagOrange {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.tagRed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.tagDefault {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #8b95a7);
+}
+
+.description {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary, #8b95a7);
+}
+
+.formula {
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--primary, #00d4ff);
+  border-radius: 4px;
+  background: rgba(0, 212, 255, 0.06);
+  font-family: source-code-pro, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: var(--primary, #00d4ff);
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.example {
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--success, #10b981);
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.06);
+  font-size: 13px;
+  color: var(--text-secondary, #8b95a7);
+  line-height: 1.6;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.08);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fbbf24;
+}
+
+.noteIcon {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* ---- Backdrop (click outside to close) ---- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1049;
+}
