@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
 import { AliasConfig } from '../../components/AliasConfig'
-import { SpecLimitsConfig } from '../../components/SpecLimitsConfig'
 import styles from './Config.module.css'
 
 /* ── Mock data for initial display ───────────────────────────── */
@@ -571,12 +570,6 @@ export const ConfigPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* Page title */}
-      <h1 className={styles.pageTitle}>
-        <span className={styles.pageTitleIcon}>⚙</span>
-        系统配置
-      </h1>
-
       {/* ── 品项管理（合并品项管理 + 规格限配置）───────────── */}
       <div className={styles.card} style={{ marginBottom: '20px' }}>
         <div className={styles.cardHeader}>
@@ -584,12 +577,6 @@ export const ConfigPage: React.FC = () => {
             <span className={styles.cardTitleDot} />
             品项管理
           </span>
-          <button 
-            className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`}
-            onClick={handleAddProduct}
-          >
-            + 新增品项
-          </button>
         </div>
         <div className={styles.cardBody}>
           <table className={styles.table}>
@@ -663,19 +650,6 @@ export const ConfigPage: React.FC = () => {
               // 可以在这里添加更新后的回调
             }}
           />
-        </div>
-      </div>
-
-      {/* ── 规格限配置 ─────────────────────── */}
-      <div className={styles.card} style={{ marginBottom: '20px' }}>
-        <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>
-            <span className={styles.cardTitleDot} />
-            规格限配置
-          </span>
-        </div>
-        <div className={styles.cardBody}>
-          <SpecLimitsConfig indicators={availableIndicators} />
         </div>
       </div>
 

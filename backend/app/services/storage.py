@@ -158,7 +158,41 @@ class OnlineStorage:
             return [dict(row) for row in cursor.fetchall()]
         finally:
             conn.close()
-    
+
+    def get_all_data(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        date: str | None = None,
+        product_code: str | None = None,
+        indicator_code: str | None = None,
+    ) -> dict[str, Any]:
+        conn = self._connect()
+        try:
+            conditions: list[str] = []
+            params: list[Any] = []
+            if date:
+                conditions.append("sample_time LIKE ?")
+                params.append(f"{date}%")
+            if product_code:
+                conditions.append("product_code = ?")
+                params.append(product_code)
+            if indicator_code:
+                conditions.append("indicator_code = ?")
+                params.append(indicator_code)
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            cursor = conn.execute(f"SELECT COUNT(*) FROM monitor_data {where}", params)
+            total = cursor.fetchone()[0]
+            offset = (page - 1) * page_size
+            params.extend([page_size, offset])
+            cursor = conn.execute(
+                f"SELECT * FROM monitor_data {where} ORDER BY sample_time DESC LIMIT ? OFFSET ?",
+                params,
+            )
+            return {"data": [dict(row) for row in cursor.fetchall()], "total": total, "page": page, "page_size": page_size}
+        finally:
+            conn.close()
+
     def get_alerts(
         self,
         severity: str | None = None,

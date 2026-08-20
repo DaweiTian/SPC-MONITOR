@@ -7,6 +7,23 @@ router = APIRouter(prefix="/data", tags=["data"])
 storage = None
 
 
+@router.get("/list")
+def list_data(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    date: str = Query(None),
+    product_code: str = Query(None),
+    indicator_code: str = Query(None),
+):
+    return storage.get_all_data(
+        page=page,
+        page_size=page_size,
+        date=date,
+        product_code=product_code,
+        indicator_code=indicator_code,
+    )
+
+
 @router.get("/export")
 def export_data(
     format: str = Query("csv"),

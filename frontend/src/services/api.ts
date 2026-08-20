@@ -56,6 +56,8 @@ export const api = {
     http.post(`/config/source/switch`, { source }).then(r => r.data),
   getDataSourceStatus: () =>
     http.get(`/config/source/status`).then(r => r.data),
+  getDataList: (params: { page?: number; page_size?: number; date?: string; product_code?: string; indicator_code?: string }) =>
+    http.get('/data/list', { params }).then(r => r.data),
   exportData: (params: { format: string; product?: string; indicator?: string }) =>
     http.get(`/data/export`, { params, responseType: 'blob' }).then(r => r.data),
   
