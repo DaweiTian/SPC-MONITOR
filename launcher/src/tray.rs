@@ -1,3 +1,5 @@
+use crate::service::ServiceManager;
+use std::sync::Arc;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
 };
@@ -21,10 +23,13 @@ pub fn create_system_tray() -> SystemTray {
     SystemTray::new().with_menu(tray_menu)
 }
 
-pub fn handle_system_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) {
-    match event {
+pub fn create_tray_handler(
+    service_manager: Arc<ServiceManager>,
+) -> impl Fn(&tauri::AppHandle, SystemTrayEvent) {
+    move |app, event| match event {
         SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
             "quit" => {
+                service_manager.stop_server().ok();
                 std::process::exit(0);
             }
             "show" => {
@@ -33,10 +38,20 @@ pub fn handle_system_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) 
                     window.set_focus().unwrap();
                 }
             }
-            "start" => {}
-            "stop" => {}
+            "start" => {
+                if let Err(e) = service_manager.start_server() {
+                    eprintln!("启动服务失败: {}", e);
+                }
+            }
+            "stop" => {
+                if let Err(e) = service_manager.stop_server() {
+                    eprintln!("停止服务失败: {}", e);
+                }
+            }
             "open_browser" => {
-                open::that("http://localhost:8000").unwrap();
+                let port = service_manager.server_port();
+                let url = format!("http://localhost:{}", port);
+                open::that(&url).unwrap();
             }
             _ => {}
         },
