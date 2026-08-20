@@ -21,8 +21,7 @@ async def broadcast_data(data: dict):
     websocket_clients.difference_update(disconnected)
 
 async def broadcast_typed(msg_type: str, data: dict):
-    message = json.dumps({"type": msg_type, "data": data, "timestamp": datetime.now().isoformat()}, ensure_ascii=False)
-    await broadcast_data(message)
+    await broadcast_data({"type": msg_type, "data": data, "timestamp": datetime.now().isoformat()})
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
