@@ -88,6 +88,11 @@ async def get_products():
             break
     return {"products": unique}
 
+@router.get("/products/{product_code}/indicator-count")
+async def get_product_indicator_count(product_code: str):
+    count = storage.get_product_indicator_count(product_code)
+    return {"count": count}
+
 @router.get("/indicators")
 async def get_indicators():
     return {"indicators": collector.get_indicators() if collector else []}

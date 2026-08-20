@@ -27,6 +27,8 @@ export const api = {
   getIndicators: () => http.get<{ indicators: Indicator[] }>('/monitor/indicators').then(r => r.data),
   getRecentData: (params: { indicator_code: string; product_code: string; limit?: number }) =>
     http.get('/monitor/data/recent', { params }).then(r => r.data),
+  getProductIndicatorCount: (productCode: string) =>
+    http.get<{ count: number }>(`/monitor/products/${productCode}/indicator-count`).then(r => r.data),
   getSPCData: (productCode: string, indicatorCode: string, window?: number) =>
     http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window } }).then(r => r.data),
   getCapabilityData: (productCode: string, indicatorCode: string, window?: number) =>

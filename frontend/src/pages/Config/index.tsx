@@ -235,12 +235,17 @@ export const ConfigPage: React.FC = () => {
       }
 
       if (productsResult?.products) {
-        const indicatorCount = indicatorsResult?.indicators?.length || 0
+        // Fetch indicator counts per product from actual data
+        const countPromises = productsResult.products.map((p: any) =>
+          api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
+        )
+        const counts = await Promise.all(countPromises)
+
         const productList: ProductItem[] = productsResult.products.map((p: any, index: number) => ({
           id: String(index + 1),
           name: p.name,
           code: p.code,
-          indicatorCount: indicatorCount,
+          indicatorCount: counts[index]?.count || 0,
           status: (statusResult as Record<string, string>)[p.code] === 'disabled' ? 'disabled' : 'enabled'
         }))
         setProducts(productList)

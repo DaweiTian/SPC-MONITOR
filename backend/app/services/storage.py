@@ -193,6 +193,17 @@ class OnlineStorage:
         finally:
             conn.close()
 
+    def get_product_indicator_count(self, product_code: str) -> int:
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT COUNT(DISTINCT indicator_code) FROM monitor_data WHERE product_code = ?",
+                (product_code,),
+            )
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
     def get_alerts(
         self,
         severity: str | None = None,
