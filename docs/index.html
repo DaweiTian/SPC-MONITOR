@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液奶过程监控系统 - SPC实时分析平台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+/* ========== 全局变量 ========== */
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #0f1420;
+  --bg-card: #141a2e;
+  --bg-card-hover: #1a2138;
+  --bg-sidebar: #0d1120;
+  --border-color: rgba(64, 159, 255, 0.12);
+  --border-glow: rgba(0, 212, 255, 0.3);
+  --text-primary: #e2e8f0;
+  --text-secondary: #8b95a7;
+  --text-muted: #4a5568;
+  --accent-cyan: #00d4ff;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-green: #10b981;
+  --accent-orange: #f59e0b;
+  --accent-red: #ef4444;
+  --gradient-cyan: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+  --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+  --gradient-green: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-orange: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-red: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3);
+  --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+  --glow-orange: 0 0 20px rgba(245, 158, 11, 0.3);
+  --glow-red: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ========== 滚动条 ========== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
+
+/* ========== 主布局 ========== */
+.app { display: flex; height: 100vh; }
+
+/* ========== 侧边栏 ========== */
+.sidebar {
+  width: 220px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.sidebar-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--gradient-cyan);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: bold; color: #fff;
+  box-shadow: var(--glow-cyan);
+}
+
+.logo-text { font-size: 15px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.logo-text span { font-size: 11px; color: var(--accent-cyan); display: block; font-weight: 400; }
+
+.sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+
+.nav-group-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 12px 24px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 11px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 12px;
+  position: relative;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.nav-item:hover { background: rgba(0, 212, 255, 0.05); color: var(--text-primary); }
+
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.1) 0%, transparent 100%);
+  color: var(--accent-cyan);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.nav-icon { width: 20px; text-align: center; font-size: 16px; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sidebar-footer .status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+/* ========== 主区域 ========== */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ========== 顶部栏 ========== */
+.topbar {
+  height: 64px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.topbar-title { font-size: 18px; font-weight: 600; }
+.topbar-title span { color: var(--accent-cyan); }
+
+.topbar-spacer { flex: 1; }
+
+.topbar-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.topbar-info-item { display: flex; align-items: center; gap: 6px; }
+.topbar-info-item .label { color: var(--text-muted); }
+.topbar-info-item .value { color: var(--text-primary); font-weight: 500; }
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 6px;
+  color: var(--accent-green);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.topbar-status .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: pulse 2s infinite;
+}
+
+.topbar-clock {
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* ========== 内容区 ========== */
+.content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== KPI 卡片 ========== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.kpi-card:hover { border-color: var(--border-glow); transform: translateY(-2px); }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  opacity: 0.8;
+}
+
+.kpi-card.cyan::before { background: var(--gradient-cyan); }
+.kpi-card.green::before { background: var(--gradient-green); }
+.kpi-card.orange::before { background: var(--gradient-orange); }
+.kpi-card.red::before { background: var(--gradient-red); }
+.kpi-card.purple::before { background: var(--gradient-purple); }
+
+.kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+
+.kpi-label { font-size: 13px; color: var(--text-secondary); }
+
+.kpi-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+
+.kpi-card.cyan .kpi-icon { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+.kpi-card.green .kpi-icon { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
+.kpi-card.orange .kpi-icon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+.kpi-card.red .kpi-icon { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+.kpi-card.purple .kpi-icon { background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); }
+
+.kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  line-height: 1.2;
+}
+
+.kpi-card.cyan .kpi-value { color: var(--accent-cyan); }
+.kpi-card.green .kpi-value { color: var(--accent-green); }
+.kpi-card.orange .kpi-value { color: var(--accent-orange); }
+.kpi-card.red .kpi-value { color: var(--accent-red); }
+.kpi-card.purple .kpi-value { color: var(--accent-purple); }
+
+.kpi-unit { font-size: 14px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
+
+.kpi-trend { font-size: 12px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+.kpi-trend.up { color: var(--accent-green); }
+.kpi-trend.down { color: var(--accent-red); }
+.kpi-trend.flat { color: var(--text-muted); }
+
+.kpi-sparkline { margin-top: 8px; height: 30px; }
+
+/* ========== 面板 ========== */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.panel-title .icon { color: var(--accent-cyan); }
+
+.panel-body { padding: 20px; }
+
+.panel-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ========== 网格布局 ========== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px; }
+
+/* ========== 表单控件 ========== */
+.form-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+
+.form-label { font-size: 12px; color: var(--text-secondary); }
+
+.select, .input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.select:focus, .input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1); }
+
+.btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: var(--gradient-cyan);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
+}
+.btn-primary:hover { box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4); transform: translateY(-1px); }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.btn-ghost:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+/* ========== 图表容器 ========== */
+.chart-container { width: 100%; }
+
+/* ========== 表格 ========== */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.data-table th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(64, 159, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.data-table tbody tr:hover { background: rgba(0, 212, 255, 0.03); }
+
+/* ========== 标签 ========== */
+.tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.tag-critical { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+.tag-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); border: 1px solid rgba(245, 158, 11, 0.3); }
+.tag-info { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+.tag-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+/* ========== 能力指数卡片 ========== */
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cap-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cap-card .cap-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+.cap-card .cap-value {
+  font-size: 42px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  line-height: 1.2;
+}
+.cap-card .cap-desc { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+.cap-card.good { border-color: rgba(16, 185, 129, 0.3); }
+.cap-card.good .cap-value { color: var(--accent-green); }
+.cap-card.warning { border-color: rgba(245, 158, 11, 0.3); }
+.cap-card.warning .cap-value { color: var(--accent-orange); }
+.cap-card.danger { border-color: rgba(239, 68, 68, 0.3); }
+.cap-card.danger .cap-value { color: var(--accent-red); }
+
+/* ========== 预警统计 ========== */
+.alert-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+
+.alert-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.alert-stat-card .stat-icon {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.alert-stat-card.critical { border-color: rgba(239, 68, 68, 0.2); }
+.alert-stat-card.critical .stat-icon { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+.alert-stat-card.warning { border-color: rgba(245, 158, 11, 0.2); }
+.alert-stat-card.warning .stat-icon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+.alert-stat-card.info { border-color: rgba(59, 130, 246, 0.2); }
+.alert-stat-card.info .stat-icon { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+
+.alert-stat-card .stat-info { flex: 1; }
+.alert-stat-card .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.alert-stat-card .stat-value { font-size: 28px; font-weight: 700; font-family: 'DIN Alternate', monospace; }
+.alert-stat-card.critical .stat-value { color: var(--accent-red); }
+.alert-stat-card.warning .stat-value { color: var(--accent-orange); }
+.alert-stat-card.info .stat-value { color: var(--accent-blue); }
+
+/* ========== 采集状态面板 ========== */
+.collect-status {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.collect-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(64, 159, 255, 0.06);
+}
+
+.collect-status-item:last-child { border-bottom: none; }
+.collect-status-item .label { font-size: 13px; color: var(--text-secondary); }
+.collect-status-item .value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.collect-status-item .value.green { color: var(--accent-green); }
+.collect-status-item .value.cyan { color: var(--accent-cyan); }
+
+/* ========== 仪表盘 ========== */
+.gauge-container { display: flex; justify-content: center; align-items: center; }
+
+/* ========== 品项状态矩阵 ========== */
+.product-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.product-matrix-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.product-matrix-item:hover { border-color: var(--border-glow); }
+
+.product-matrix-item .pm-name { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.product-matrix-item .pm-cpk { font-size: 20px; font-weight: 700; font-family: 'DIN Alternate', monospace; }
+.product-matrix-item .pm-status { font-size: 10px; margin-top: 4px; }
+
+.pm-status.good { color: var(--accent-green); }
+.pm-status.warn { color: var(--accent-orange); }
+.pm-status.bad { color: var(--accent-red); }
+
+/* ========== 空状态 ========== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state .text { font-size: 14px; }
+
+/* ========== 实时指示器 ========== */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
+.live-indicator::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  animation: pulse 1.5s infinite;
+}
+
+/* ========== 预测置信区间 ========== */
+.prediction-info {
+  display: flex;
+  gap: 20px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.prediction-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prediction-info-item .label { font-size: 11px; color: var(--text-muted); }
+.prediction-info-item .value { font-size: 16px; font-weight: 600; color: var(--accent-cyan); font-family: 'DIN Alternate', monospace; }
+
+/* ========== 响应式 ========== */
+@media (max-width: 1400px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .capability-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2-1, .grid-1-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== 侧边栏 ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">S</div>
+      <div class="logo-text">液奶过程监控<span>SPC实时分析平台</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">监控中心</div>
+      <div class="nav-item active" onclick="switchPage('dashboard', this)">
+        <span class="nav-icon">📊</span> 实时看板
+      </div>
+      <div class="nav-item" onclick="switchPage('spc', this)">
+        <span class="nav-icon">📈</span> SPC控制图
+      </div>
+      <div class="nav-item" onclick="switchPage('capability', this)">
+        <span class="nav-icon">🎯</span> 过程能力
+      </div>
+      <div class="nav-item" onclick="switchPage('prediction', this)">
+        <span class="nav-icon">🔮</span> 指标预测
+      </div>
+      <div class="nav-item" onclick="switchPage('alerts', this)">
+        <span class="nav-icon">🚨</span> 预警中心
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-group-title">数据管理</div>
+      <div class="nav-item" onclick="switchPage('data', this)">
+        <span class="nav-icon">💾</span> 数据管理
+      </div>
+      <div class="nav-item" onclick="switchPage('config', this)">
+        <span class="nav-icon">⚙️</span> 配置管理
+      </div>
+      <div class="nav-group-title">其他</div>
+      <div class="nav-item" onclick="switchPage('help', this)">
+        <span class="nav-icon">❓</span> 帮助说明
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div><span class="status-dot"></span> 采集服务运行中</div>
+      <div style="margin-top: 4px;">FT1 连接正常 · v1.0.0</div>
+    </div>
+  </aside>
+
+  <!-- ===== 主区域 ===== -->
+  <div class="main">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="topbar-title" id="pageTitle">实时看板 <span>Dashboard</span></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-info">
+        <div class="topbar-info-item">
+          <span class="label">采集频率:</span>
+          <span class="value">L0 · 5min</span>
+        </div>
+        <div class="topbar-info-item">
+          <span class="label">监测品项:</span>
+          <span class="value">砖纯牛奶</span>
+        </div>
+        <div class="topbar-status">
+          <span class="dot"></span> 系统正常
+        </div>
+        <div class="topbar-clock" id="clock">08:36:19</div>
+      </div>
+    </header>
+
+    <!-- 内容区 -->
+    <div class="content">
+
+      <!-- ==================== 实时看板 ==================== -->
+      <div class="page active" id="page-dashboard">
+        <!-- KPI 卡片 -->
+        <div class="kpi-grid">
+          <div class="kpi-card cyan">
+            <div class="kpi-header">
+              <span class="kpi-label">今日检测</span>
+              <div class="kpi-icon">📋</div>
+            </div>
+            <div class="kpi-value" id="kpiToday">288<span class="kpi-unit">次</span></div>
+            <div class="kpi-trend up">↑ 12.5% vs 昨日</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-header">
+              <span class="kpi-label">待处理预警</span>
+              <div class="kpi-icon">⚠️</div>
+            </div>
+            <div class="kpi-value">3<span class="kpi-unit">条</span></div>
+            <div class="kpi-trend down">↑ 2条新增</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-header">
+              <span class="kpi-label">今日采集</span>
+              <div class="kpi-icon">🔄</div>
+            </div>
+            <div class="kpi-value">288<span class="kpi-unit">条</span></div>
+            <div class="kpi-trend up">成功率 99.3%</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-header">
+              <span class="kpi-label">平均Cpk</span>
+              <div class="kpi-icon">🎯</div>
+            </div>
+            <div class="kpi-value">1.42<span class="kpi-unit"></span></div>
+            <div class="kpi-trend flat">→ 能力充足</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-header">
+              <span class="kpi-label">采集频率</span>
+              <div class="kpi-icon">⏱️</div>
+            </div>
+            <div class="kpi-value">5<span class="kpi-unit">分钟</span></div>
+            <div class="kpi-trend flat">L0 常规模式</div>
+          </div>
+        </div>
+
+        <!-- 实时趋势 + 采集状态 -->
+        <div class="grid-2-1">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📈</span> 实时数据趋势 <span class="live-indicator">LIVE</span></div>
+              <div class="panel-actions">
+                <select class="select" style="min-width: 120px;" onchange="updateTrendChart(this.value)">
+                  <option value="fat">脂肪</option>
+                  <option value="protein">蛋白质</option>
+                  <option value="solid">干物质</option>
+                </select>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-trend" class="chart-container" style="height: 320px;"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">⚡</span> 采集状态</div>
+            </div>
+            <div class="panel-body">
+              <div class="collect-status">
+                <div class="collect-status-item">
+                  <span class="label">当前频率</span>
+                  <span class="value cyan">L0 · 5分钟</span>
+                </div>
+                <div class="collect-status-item">
+                  <span class="label">运行状态</span>
+                  <span class="value green">● 正常运行</span>
+                </div>
+                <div class="collect-status-item">
+                  <span class="label">上次采集</span>
+                  <span class="value">08:35:12</span>
+                </div>
+                <div class="collect-status-item">
+                  <span class="label">下次采集</span>
+                  <span class="value">08:40:12</span>
+                </div>
+                <div class="collect-status-item">
+                  <span class="label">今日成功率</span>
+                  <span class="value green">99.3%</span>
+                </div>
+                <div class="collect-status-item">
+                  <span class="label">FT1连接</span>
+                  <span class="value green">● 已连接</span>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 8px; justify-content: center;" onclick="triggerCollect()">
+                  🔄 立即采集
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 品项Cpk矩阵 + 最新预警 -->
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">🏭</span> 品项过程能力概览</div>
+            </div>
+            <div class="panel-body">
+              <div class="product-matrix">
+                <div class="product-matrix-item" style="border-color: rgba(16,185,129,0.3);">
+                  <div class="pm-name">砖纯牛奶-脂肪</div>
+                  <div class="pm-cpk" style="color: var(--accent-green);">1.52</div>
+                  <div class="pm-status good">能力充足</div>
+                </div>
+                <div class="product-matrix-item" style="border-color: rgba(16,185,129,0.3);">
+                  <div class="pm-name">砖纯牛奶-蛋白质</div>
+                  <div class="pm-cpk" style="color: var(--accent-green);">1.38</div>
+                  <div class="pm-status good">能力充足</div>
+                </div>
+                <div class="product-matrix-item" style="border-color: rgba(245,158,11,0.3);">
+                  <div class="pm-name">枕纯牛奶-脂肪</div>
+                  <div class="pm-cpk" style="color: var(--accent-orange);">1.12</div>
+                  <div class="pm-status warn">能力勉强</div>
+                </div>
+                <div class="product-matrix-item" style="border-color: rgba(16,185,129,0.3);">
+                  <div class="pm-name">枕纯牛奶-蛋白质</div>
+                  <div class="pm-cpk" style="color: var(--accent-green);">1.67</div>
+                  <div class="pm-status good">能力充分</div>
+                </div>
+                <div class="product-matrix-item" style="border-color: rgba(239,68,68,0.3);">
+                  <div class="pm-name">瓶酸乳-酸度</div>
+                  <div class="pm-cpk" style="color: var(--accent-red);">0.85</div>
+                  <div class="pm-status bad">能力不足</div>
+                </div>
+                <div class="product-matrix-item" style="border-color: rgba(16,185,129,0.3);">
+                  <div class="pm-name">瓶酸乳-黏度</div>
+                  <div class="pm-cpk" style="color: var(--accent-green);">1.45</div>
+                  <div class="pm-status good">能力充足</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">🚨</span> 最新预警</div>
+              <button class="btn btn-ghost" style="padding: 4px 12px; font-size: 12px;" onclick="switchPage('alerts', document.querySelectorAll('.nav-item')[4])">查看全部 →</button>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>级别</th>
+                    <th>描述</th>
+                    <th>时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="tag tag-critical">CRITICAL</span></td>
+                    <td>瓶酸乳-酸度 超出规格上限 (72.5 > 70.0)</td>
+                    <td>08:32:15</td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag tag-warning">WARNING</span></td>
+                    <td>枕纯牛奶-脂肪 连续6点递增趋势</td>
+                    <td>08:28:42</td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag tag-warning">WARNING</span></td>
+                    <td>枕纯牛奶-脂肪 Cpk降至1.12</td>
+                    <td>08:25:03</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== SPC控制图 ==================== -->
+      <div class="page" id="page-spc">
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">📈</span> SPC控制图分析</div>
+            <div class="panel-actions">
+              <div class="form-group">
+                <select class="select" id="spcProduct">
+                  <option>砖纯牛奶</option>
+                  <option>枕纯牛奶</option>
+                  <option>瓶酸乳</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <select class="select" id="spcMetric">
+                  <option>脂肪</option>
+                  <option>蛋白质</option>
+                  <option>干物质</option>
+                  <option>酸度</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <select class="select" id="spcChartType">
+                  <option value="imr">I-MR 控制图</option>
+                  <option value="xbar">X-bar R 控制图</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <input class="input" type="number" value="30" style="width: 80px;" placeholder="窗口">
+              </div>
+              <button class="btn btn-primary" onclick="renderSPCChart()">🔍 查询</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi-card cyan">
+            <div class="kpi-header"><span class="kpi-label">均值 (X̄)</span><div class="kpi-icon">📊</div></div>
+            <div class="kpi-value">3.52<span class="kpi-unit">g/100g</span></div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-header"><span class="kpi-label">标准差 (σ)</span><div class="kpi-icon">📐</div></div>
+            <div class="kpi-value">0.085<span class="kpi-unit"></span></div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-header"><span class="kpi-label">违规点数</span><div class="kpi-icon">⚠️</div></div>
+            <div class="kpi-value">2<span class="kpi-unit">/ 30</span></div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-header"><span class="kpi-label">过程状态</span><div class="kpi-icon">✅</div></div>
+            <div class="kpi-value" style="font-size: 20px; margin-top: 8px;">基本受控</div>
+          </div>
+        </div>
+
+        <!-- I图 -->
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">📉</span> 单值控制图 (I Chart)</div>
+            <div class="panel-actions">
+              <span class="tag tag-success">UCL: 3.75</span>
+              <span class="tag tag-info">CL: 3.52</span>
+              <span class="tag tag-success">LCL: 3.29</span>
+              <span class="tag tag-critical">USL: 3.80</span>
+              <span class="tag tag-critical">LSL: 3.25</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="chart-spc-i" class="chart-container" style="height: 340px;"></div>
+          </div>
+        </div>
+
+        <!-- MR图 -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">📉</span> 移动极差控制图 (MR Chart)</div>
+            <div class="panel-actions">
+              <span class="tag tag-success">UCL: 0.226</span>
+              <span class="tag tag-info">CL: 0.085</span>
+              <span class="tag tag-success">LCL: 0</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="chart-spc-mr" class="chart-container" style="height: 240px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 过程能力 ==================== -->
+      <div class="page" id="page-capability">
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">🎯</span> 过程能力分析</div>
+            <div class="panel-actions">
+              <select class="select"><option>砖纯牛奶</option><option>枕纯牛奶</option></select>
+              <select class="select"><option>脂肪</option><option>蛋白质</option></select>
+              <button class="btn btn-primary">🔍 查询</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 能力指数卡片 -->
+        <div class="capability-grid">
+          <div class="cap-card good">
+            <div class="cap-label">Cp (过程能力指数)</div>
+            <div class="cap-value">1.52</div>
+            <div class="cap-desc">短期能力 · 充足</div>
+          </div>
+          <div class="cap-card good">
+            <div class="cap-label">Cpk (修正能力指数)</div>
+            <div class="cap-value">1.42</div>
+            <div class="cap-desc">短期修正 · 充足</div>
+          </div>
+          <div class="cap-card good">
+            <div class="cap-label">Pp (过程性能指数)</div>
+            <div class="cap-value">1.48</div>
+            <div class="cap-desc">长期性能 · 充足</div>
+          </div>
+          <div class="cap-card warning">
+            <div class="cap-label">Ppk (修正性能指数)</div>
+            <div class="cap-value">1.35</div>
+            <div class="cap-desc">长期修正 · 充足</div>
+          </div>
+        </div>
+
+        <!-- 直方图 + 仪表盘 -->
+        <div class="grid-2-1">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📊</span> 过程能力直方图</div>
+              <div class="panel-actions">
+                <span class="tag tag-critical">USL: 3.80</span>
+                <span class="tag tag-critical">LSL: 3.25</span>
+                <span class="tag tag-info">目标: 3.50</span>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-histogram" class="chart-container" style="height: 360px;"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">⭐</span> 西格玛水平</div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-gauge-sigma" class="chart-container" style="height: 220px;"></div>
+              <div style="text-align: center; margin-top: 8px;">
+                <div style="font-size: 28px; font-weight: 700; color: var(--accent-green); font-family: 'DIN Alternate', monospace;">4.26 σ</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">相当于 Cpk × 3</div>
+              </div>
+              <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">不合格率 (PPM)</span>
+                  <span style="font-size: 14px; font-weight: 600; color: var(--accent-green); font-family: 'DIN Alternate', monospace;">3.4</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">合格率</span>
+                  <span style="font-size: 14px; font-weight: 600; color: var(--accent-green);">99.9997%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">偏移系数 (Ca)</span>
+                  <span style="font-size: 14px; font-weight: 600; color: var(--accent-cyan);">0.04</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">能力等级</span>
+                  <span class="tag tag-success">一级 · 充足</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cpk趋势 -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">📉</span> Cpk 趋势变化</div>
+          </div>
+          <div class="panel-body">
+            <div id="chart-cpk-trend" class="chart-container" style="height: 280px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 指标预测 ==================== -->
+      <div class="page" id="page-prediction">
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">🔮</span> 指标预测分析</div>
+            <div class="panel-actions">
+              <select class="select"><option>砖纯牛奶</option><option>枕纯牛奶</option></select>
+              <select class="select"><option>脂肪</option><option>蛋白质</option></select>
+              <select class="select">
+                <option>指数平滑 (ETS)</option>
+                <option>移动平均 (MA)</option>
+                <option>ARIMA</option>
+              </select>
+              <select class="select">
+                <option>预测1小时</option>
+                <option>预测2小时</option>
+                <option>预测1班次</option>
+              </select>
+              <button class="btn btn-primary">🔮 开始预测</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预测摘要 -->
+        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi-card cyan">
+            <div class="kpi-header"><span class="kpi-label">预测均值</span><div class="kpi-icon">📊</div></div>
+            <div class="kpi-value">3.54<span class="kpi-unit">g/100g</span></div>
+            <div class="kpi-trend up">↑ 0.02 vs 当前</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-header"><span class="kpi-label">预测越限时间</span><div class="kpi-icon">⏰</div></div>
+            <div class="kpi-value" style="font-size: 24px;">暂无越限风险</div>
+            <div class="kpi-trend flat">1小时内安全</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-header"><span class="kpi-label">MAPE</span><div class="kpi-icon">📐</div></div>
+            <div class="kpi-value">1.85<span class="kpi-unit">%</span></div>
+            <div class="kpi-trend up">准确度良好</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-header"><span class="kpi-label">预测置信度</span><div class="kpi-icon">✅</div></div>
+            <div class="kpi-value">95<span class="kpi-unit">%</span></div>
+            <div class="kpi-trend flat">置信区间可靠</div>
+          </div>
+        </div>
+
+        <!-- 预测图表 -->
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">📈</span> 预测趋势图 <span class="live-indicator">LIVE</span></div>
+            <div class="panel-actions">
+              <span class="tag tag-info">历史数据</span>
+              <span class="tag tag-success">预测曲线</span>
+              <span class="tag" style="background: rgba(139,92,246,0.15); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.3);">95% 置信区间</span>
+              <span class="tag tag-critical">规格限</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="chart-prediction" class="chart-container" style="height: 380px;"></div>
+          </div>
+        </div>
+
+        <!-- 残差分析 -->
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📊</span> 预测残差分析</div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-residual" class="chart-container" style="height: 260px;"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📋</span> 预测模型评估</div>
+            </div>
+            <div class="panel-body">
+              <table class="data-table">
+                <tbody>
+                  <tr>
+                    <td style="color: var(--text-secondary);">预测模型</td>
+                    <td style="text-align: right; font-weight: 600;">指数平滑 (ETS)</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">MAPE (平均绝对百分比误差)</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-green);">1.85%</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">RMSE (均方根误差)</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-cyan);">0.023</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">MAE (平均绝对误差)</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-cyan);">0.018</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">R² (决定系数)</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-green);">0.92</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">预测步长</td>
+                    <td style="text-align: right; font-weight: 600;">12 步 (1小时)</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">历史窗口</td>
+                    <td style="text-align: right; font-weight: 600;">最近 60 个数据点</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--text-secondary);">越限风险评估</td>
+                    <td style="text-align: right;"><span class="tag tag-success">低风险</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 预警中心 ==================== -->
+      <div class="page" id="page-alerts">
+        <!-- 预警统计 -->
+        <div class="alert-stats">
+          <div class="alert-stat-card critical">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-info">
+              <div class="stat-label">CRITICAL (严重)</div>
+              <div class="stat-value">1</div>
+            </div>
+          </div>
+          <div class="alert-stat-card warning">
+            <div class="stat-icon">🟠</div>
+            <div class="stat-info">
+              <div class="stat-label">WARNING (警告)</div>
+              <div class="stat-value">2</div>
+            </div>
+          </div>
+          <div class="alert-stat-card info">
+            <div class="stat-icon">🔵</div>
+            <div class="stat-info">
+              <div class="stat-label">INFO (提示)</div>
+              <div class="stat-value">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预警趋势 -->
+        <div class="grid-2" style="margin-bottom: 16px;">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📊</span> 预警趋势 (近7天)</div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-alert-trend" class="chart-container" style="height: 240px;"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">🔀</span> 预警规则分布</div>
+            </div>
+            <div class="panel-body">
+              <div id="chart-alert-rule" class="chart-container" style="height: 240px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预警列表 -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">🚨</span> 预警记录</div>
+            <div class="panel-actions">
+              <select class="select" style="min-width: 120px;">
+                <option>全部级别</option>
+                <option>CRITICAL</option>
+                <option>WARNING</option>
+                <option>INFO</option>
+              </select>
+              <select class="select" style="min-width: 120px;">
+                <option>全部状态</option>
+                <option>待处理</option>
+                <option>已确认</option>
+                <option>已关闭</option>
+              </select>
+              <button class="btn btn-ghost">重置</button>
+            </div>
+          </div>
+          <div class="panel-body" style="padding: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>预警编号</th>
+                  <th>严重程度</th>
+                  <th>规则类型</th>
+                  <th>描述</th>
+                  <th>检测值</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ALT-20260820-001</td>
+                  <td><span class="tag tag-critical">CRITICAL</span></td>
+                  <td>规格限越限</td>
+                  <td>瓶酸乳-酸度 超出规格上限</td>
+                  <td style="color: var(--accent-red); font-weight: 600;">72.5</td>
+                  <td>08:32:15</td>
+                  <td><span class="tag tag-warning">待处理</span></td>
+                  <td><button class="btn btn-ghost" style="padding: 2px 10px; font-size: 12px;">确认</button></td>
+                </tr>
+                <tr>
+                  <td>ALT-20260820-002</td>
+                  <td><span class="tag tag-warning">WARNING</span></td>
+                  <td>Nelson规则3</td>
+                  <td>枕纯牛奶-脂肪 连续6点递增</td>
+                  <td style="color: var(--accent-orange);">3.61</td>
+                  <td>08:28:42</td>
+                  <td><span class="tag tag-warning">待处理</span></td>
+                  <td><button class="btn btn-ghost" style="padding: 2px 10px; font-size: 12px;">确认</button></td>
+                </tr>
+                <tr>
+                  <td>ALT-20260820-003</td>
+                  <td><span class="tag tag-warning">WARNING</span></td>
+                  <td>能力退化</td>
+                  <td>枕纯牛奶-脂肪 Cpk降至1.12</td>
+                  <td style="color: var(--accent-orange);">1.12</td>
+                  <td>08:25:03</td>
+                  <td><span class="tag tag-warning">待处理</span></td>
+                  <td><button class="btn btn-ghost" style="padding: 2px 10px; font-size: 12px;">确认</button></td>
+                </tr>
+                <tr>
+                  <td>ALT-20260820-004</td>
+                  <td><span class="tag tag-info">INFO</span></td>
+                  <td>预测提示</td>
+                  <td>砖纯牛奶-蛋白质 趋势平稳</td>
+                  <td style="color: var(--accent-blue);">3.38</td>
+                  <td>08:15:00</td>
+                  <td><span class="tag tag-success">已关闭</span></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td>ALT-20260819-018</td>
+                  <td><span class="tag tag-warning">WARNING</span></td>
+                  <td>Nelson规则1</td>
+                  <td>枕纯牛奶-脂肪 1点超出2σ</td>
+                  <td style="color: var(--accent-orange);">3.72</td>
+                  <td>昨日 22:15:00</td>
+                  <td><span class="tag tag-success">已关闭</span></td>
+                  <td>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 数据管理 ==================== -->
+      <div class="page" id="page-data">
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">💾</span> FT1 数据管理</div>
+            <div class="panel-actions">
+              <select class="select"><option>全部品项</option><option>砖纯牛奶</option><option>枕纯牛奶</option></select>
+              <select class="select"><option>全部指标</option><option>脂肪</option><option>蛋白质</option></select>
+              <input class="input" type="date" value="2026-08-20">
+              <button class="btn btn-primary">🔍 查询</button>
+              <button class="btn btn-ghost">📥 导出CSV</button>
+              <button class="btn btn-ghost">📊 导出Excel</button>
+            </div>
+          </div>
+          <div class="panel-body" style="padding: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th>采集时间</th>
+                  <th>品项</th>
+                  <th>指标</th>
+                  <th>检测值</th>
+                  <th>单位</th>
+                  <th>规格上限</th>
+                  <th>规格下限</th>
+                  <th>状态</th>
+                  <th>数据来源</th>
+                </tr>
+              </thead>
+              <tbody id="dataTbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 配置管理 ==================== -->
+      <div class="page" id="page-config">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">🏭</span> 品项管理</div>
+              <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;">+ 新增品项</button>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+              <table class="data-table">
+                <thead><tr><th>品项名称</th><th>编码</th><th>监测指标数</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td>砖纯牛奶</td><td>BRICK-MILK-001</td><td>4</td><td><span class="tag tag-success">启用</span></td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                  <tr><td>枕纯牛奶</td><td>PILLOW-MILK-002</td><td>4</td><td><span class="tag tag-success">启用</span></td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                  <tr><td>瓶酸乳</td><td>BOTTLE-YOGURT-003</td><td>3</td><td><span class="tag tag-success">启用</span></td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">📏</span> 规格限配置</div>
+              <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;">+ 新增配置</button>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+              <table class="data-table">
+                <thead><tr><th>品项</th><th>指标</th><th>USL</th><th>LSL</th><th>目标值</th><th>单位</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td>砖纯牛奶</td><td>脂肪</td><td>3.80</td><td>3.25</td><td>3.50</td><td>g/100g</td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                  <tr><td>砖纯牛奶</td><td>蛋白质</td><td>3.50</td><td>2.90</td><td>3.20</td><td>g/100g</td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                  <tr><td>枕纯牛奶</td><td>脂肪</td><td>3.80</td><td>3.25</td><td>3.50</td><td>g/100g</td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                  <tr><td>瓶酸乳</td><td>酸度</td><td>70.0</td><td>60.0</td><td>65.0</td><td>°T</td><td><button class="btn btn-ghost" style="padding:2px 8px;font-size:12px;">编辑</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">⏱️</span> 采集频率配置</div>
+            </div>
+            <div class="panel-body">
+              <table class="data-table">
+                <thead><tr><th>级别</th><th>频率</th><th>触发条件</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td>L0 常规</td><td>5 分钟</td><td>默认采集频率</td><td><span class="tag tag-success">当前</span></td></tr>
+                  <tr><td>L1 加密</td><td>1 分钟</td><td>触发WARNING预警时</td><td><span class="tag tag-info">待命</span></td></tr>
+                  <tr><td>L2 高频</td><td>30 秒</td><td>触发CRITICAL预警时</td><td><span class="tag tag-info">待命</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><span class="icon">🔔</span> 预警规则配置</div>
+            </div>
+            <div class="panel-body">
+              <table class="data-table">
+                <thead><tr><th>规则</th><th>描述</th><th>级别</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td>Nelson 1</td><td>1点超出3σ</td><td><span class="tag tag-critical">严重</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                  <tr><td>Nelson 2</td><td>连续9点同侧</td><td><span class="tag tag-warning">警告</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                  <tr><td>Nelson 3</td><td>连续6点递增/递减</td><td><span class="tag tag-warning">警告</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                  <tr><td>Nelson 5</td><td>连续3点中2点在2σ外</td><td><span class="tag tag-warning">警告</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                  <tr><td>规格限</td><td>超出USL/LSL</td><td><span class="tag tag-critical">严重</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                  <tr><td>能力退化</td><td>Cpk < 1.0</td><td><span class="tag tag-warning">警告</span></td><td><span class="tag tag-success">启用</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 帮助说明 ==================== -->
+      <div class="page" id="page-help">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon">❓</span> 系统帮助</div>
+          </div>
+          <div class="panel-body">
+            <div style="max-width: 800px; line-height: 1.8; color: var(--text-secondary); font-size: 14px;">
+              <h3 style="color: var(--accent-cyan); margin-bottom: 12px;">系统简介</h3>
+              <p>液奶过程监控系统是一套面向乳制品生产过程的实时SPC分析平台，集成FT1数据定时采集、统计过程控制（SPC）分析、过程能力评估、指标趋势预测和分级预警功能，帮助质量管理人员实时掌握生产过程稳定性。</p>
+              
+              <h3 style="color: var(--accent-cyan); margin: 24px 0 12px;">功能模块说明</h3>
+              <ul style="padding-left: 20px;">
+                <li><strong style="color: var(--text-primary);">实时看板</strong>：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势</li>
+                <li><strong style="color: var(--text-primary);">SPC控制图</strong>：支持I-MR和X-bar R控制图，自动计算控制限，标注Nelson判异规则违规点</li>
+                <li><strong style="color: var(--text-primary);">过程能力</strong>：计算Cp/Cpk/Pp/Ppk，直方图+正态分布曲线，西格玛水平和PPM不合格率</li>
+                <li><strong style="color: var(--text-primary);">指标预测</strong>：基于历史数据的趋势预测，支持移动平均、指数平滑、ARIMA模型</li>
+                <li><strong style="color: var(--text-primary);">预警中心</strong>：分级预警管理，支持确认、处理、关闭全流程，预警趋势分析</li>
+                <li><strong style="color: var(--text-primary);">数据管理</strong>：FT1原始数据浏览、筛选、导出</li>
+                <li><strong style="color: var(--text-primary);">配置管理</strong>：品项、指标、规格限、采集频率、预警规则的可视化配置</li>
+              </ul>
+
+              <h3 style="color: var(--accent-cyan); margin: 24px 0 12px;">技术架构</h3>
+              <ul style="padding-left: 20px;">
+                <li>前端：React + Element Plus + ECharts</li>
+                <li>后端：Python (FastAPI + NumPy + SciPy + Statsmodels)</li>
+                <li>启动器：Rust (进程管理 + 系统托盘)</li>
+                <li>实时通信：WebSocket</li>
+              </ul>
+
+              <h3 style="color: var(--accent-cyan); margin: 24px 0 12px;">SPC判异规则（Nelson Rules）</h3>
+              <table class="data-table" style="margin-top: 8px;">
+                <thead><tr><th>规则</th><th>描述</th><th>异常类型</th></tr></thead>
+                <tbody>
+                  <tr><td>规则1</td><td>1点超出3σ控制限</td><td>突发异常</td></tr>
+                  <tr><td>规则2</td><td>连续9点在中心线同侧</td><td>均值偏移</td></tr>
+                  <tr><td>规则3</td><td>连续6点递增或递减</td><td>趋势异常</td></tr>
+                  <tr><td>规则4</td><td>连续14点交替上下</td><td>数据分层</td></tr>
+                  <tr><td>规则5</td><td>连续3点中2点在2σ外</td><td>中等偏移</td></tr>
+                  <tr><td>规则6</td><td>连续5点中4点在1σ外</td><td>小偏移</td></tr>
+                  <tr><td>规则7</td><td>连续15点在1σ内</td><td>数据异常集中</td></tr>
+                  <tr><td>规则8</td><td>连续8点无1点在1σ内</td><td>数据过度分散</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 页面切换 ==========
+const pageTitles = {
+  dashboard: '实时看板 <span>Dashboard</span>',
+  spc: 'SPC控制图 <span>Statistical Process Control</span>',
+  capability: '过程能力 <span>Process Capability</span>',
+  prediction: '指标预测 <span>Prediction & Forecast</span>',
+  alerts: '预警中心 <span>Alert Center</span>',
+  data: '数据管理 <span>Data Management</span>',
+  config: '配置管理 <span>Configuration</span>',
+  help: '帮助说明 <span>Help</span>'
+};
+
+let chartsInitialized = {};
+
+function switchPage(name, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('pageTitle').innerHTML = pageTitles[name] || name;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+
+  // 延迟初始化图表
+  setTimeout(() => {
+    if (name === 'dashboard' && !chartsInitialized.trend) { initTrendChart(); chartsInitialized.trend = true; }
+    if (name === 'spc' && !chartsInitialized.spc) { initSPCCharts(); chartsInitialized.spc = true; }
+    if (name === 'capability' && !chartsInitialized.cap) { initCapabilityCharts(); chartsInitialized.cap = true; }
+    if (name === 'prediction' && !chartsInitialized.pred) { initPredictionCharts(); chartsInitialized.pred = true; }
+    if (name === 'alerts' && !chartsInitialized.alerts) { initAlertCharts(); chartsInitialized.alerts = true; }
+    if (name === 'data' && !chartsInitialized.data) { initDataTable(); chartsInitialized.data = true; }
+  }, 100);
+}
+
+// ========== 时钟 ==========
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ========== ECharts 通用主题 ==========
+const chartTheme = {
+  backgroundColor: 'transparent',
+  textStyle: { color: '#8b95a7', fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif' },
+  grid: { left: 60, right: 30, top: 30, bottom: 40 },
+  xAxis: { axisLine: { lineStyle: { color: 'rgba(64,159,255,0.15)' } }, axisLabel: { color: '#8b95a7', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(64,159,255,0.05)' } } },
+  yAxis: { axisLine: { lineStyle: { color: 'rgba(64,159,255,0.15)' } }, axisLabel: { color: '#8b95a7', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(64,159,255,0.06)' } } },
+};
+
+// ========== 实时趋势图 ==========
+function initTrendChart() {
+  const chart = echarts.init(document.getElementById('chart-trend'));
+  const data = generateTrendData('fat');
+  renderTrendChart(chart, data, '脂肪');
+  window._trendChart = chart;
+  window._trendData = data;
+}
+
+function generateTrendData(metric) {
+  const points = 60;
+  const base = metric === 'fat' ? 3.52 : metric === 'protein' ? 3.25 : 11.8;
+  const range = metric === 'fat' ? 0.3 : metric === 'protein' ? 0.25 : 0.5;
+  const data = [];
+  const now = new Date();
+  for (let i = points - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 5 * 60000);
+    const val = base + (Math.random() - 0.5) * range + Math.sin(i / 10) * 0.05;
+    data.push({ time: `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`, value: parseFloat(val.toFixed(3)) });
+  }
+  return data;
+}
+
+function renderTrendChart(chart, data, name) {
+  const usl = name === '脂肪' ? 3.80 : name === '蛋白质' ? 3.50 : 12.2;
+  const lsl = name === '脂肪' ? 3.25 : name === '蛋白质' ? 2.90 : 11.4;
+  chart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    legend: { data: [name, 'USL', 'LSL'], textStyle: { color: '#8b95a7' }, top: 0, right: 10 },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: data.map(d => d.time), ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+    series: [
+      {
+        name: name, type: 'line', smooth: true, symbol: 'circle', symbolSize: 5,
+        data: data.map(d => d.value),
+        lineStyle: { color: '#00d4ff', width: 2 },
+        itemStyle: { color: '#00d4ff', borderColor: '#0a0e1a', borderWidth: 1 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(0,212,255,0.25)' }, { offset: 1, color: 'rgba(0,212,255,0)' }] } },
+        markLine: {
+          symbol: 'none', silent: true,
+          data: [
+            { yAxis: usl, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: 'USL', color: '#ef4444', fontSize: 10 } },
+            { yAxis: lsl, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: 'LSL', color: '#ef4444', fontSize: 10 } },
+          ]
+        }
+      }
+    ]
+  });
+}
+
+function updateTrendChart(metric) {
+  const names = { fat: '脂肪', protein: '蛋白质', solid: '干物质' };
+  const data = generateTrendData(metric);
+  renderTrendChart(window._trendChart, data, names[metric]);
+}
+
+// ========== SPC 控制图 ==========
+function initSPCCharts() {
+  renderSPCChart();
+}
+
+function renderSPCChart() {
+  const chartI = echarts.init(document.getElementById('chart-spc-i'));
+  const chartMR = echarts.init(document.getElementById('chart-spc-mr'));
+
+  // 生成30个数据点
+  const n = 30;
+  const base = 3.52;
+  const data = [];
+  for (let i = 0; i < n; i++) {
+    let val = base + (Math.random() - 0.5) * 0.2 + Math.sin(i / 8) * 0.04;
+    if (i === 12) val = 3.76; // 模拟一个接近UCL的点
+    if (i === 18) val = 3.28; // 模拟一个接近LCL的点
+    data.push(parseFloat(val.toFixed(3)));
+  }
+
+  // 计算统计量
+  const mean = data.reduce((a, b) => a + b, 0) / n;
+  const mrs = [];
+  for (let i = 1; i < n; i++) mrs.push(Math.abs(data[i] - data[i - 1]));
+  const mrBar = mrs.reduce((a, b) => a + b, 0) / mrs.length;
+  const ucl = mean + 2.66 * mrBar;
+  const lcl = mean - 2.66 * mrBar;
+  const mrUcl = 3.267 * mrBar;
+  const usl = 3.80, lsl = 3.25;
+
+  // I图
+  const xLabels = data.map((_, i) => `#${i + 1}`);
+  chartI.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    grid: { left: 50, right: 20, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: xLabels, ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, scale: true, min: 3.2, max: 3.85 },
+    series: [{
+      name: '单值', type: 'line', symbol: 'circle', symbolSize: 7,
+      data: data.map((v, i) => ({
+        value: v,
+        itemStyle: (v > ucl || v < lcl || v > usl || v < lsl) ? { color: '#ef4444' } : { color: '#00d4ff' }
+      })),
+      lineStyle: { color: '#00d4ff', width: 2 },
+      markLine: {
+        symbol: 'none', silent: true,
+        data: [
+          { yAxis: ucl, lineStyle: { color: '#f59e0b', type: 'dashed' }, label: { formatter: `UCL=${ucl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' } },
+          { yAxis: mean, lineStyle: { color: '#94a3b8', type: 'solid', width: 1 }, label: { formatter: `CL=${mean.toFixed(3)}`, color: '#94a3b8', fontSize: 10, position: 'end' } },
+          { yAxis: lcl, lineStyle: { color: '#f59e0b', type: 'dashed' }, label: { formatter: `LCL=${lcl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' } },
+          { yAxis: usl, lineStyle: { color: '#ef4444', type: 'dotted', width: 1.5 }, label: { formatter: `USL=${usl}`, color: '#ef4444', fontSize: 10, position: 'start' } },
+          { yAxis: lsl, lineStyle: { color: '#ef4444', type: 'dotted', width: 1.5 }, label: { formatter: `LSL=${lsl}`, color: '#ef4444', fontSize: 10, position: 'start' } },
+        ]
+      }
+    }]
+  });
+
+  // MR图
+  chartMR.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    xAxis: { type: 'category', data: xLabels.slice(1), ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+    series: [{
+      name: '移动极差', type: 'line', symbol: 'circle', symbolSize: 6,
+      data: mrs.map(v => ({
+        value: parseFloat(v.toFixed(3)),
+        itemStyle: v > mrUcl ? { color: '#ef4444' } : { color: '#8b5cf6' }
+      })),
+      lineStyle: { color: '#8b5cf6', width: 2 },
+      markLine: {
+        symbol: 'none', silent: true,
+        data: [
+          { yAxis: mrUcl, lineStyle: { color: '#f59e0b', type: 'dashed' }, label: { formatter: `UCL=${mrUcl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' } },
+          { yAxis: mrBar, lineStyle: { color: '#94a3b8', type: 'solid', width: 1 }, label: { formatter: `CL=${mrBar.toFixed(3)}`, color: '#94a3b8', fontSize: 10, position: 'end' } },
+        ]
+      }
+    }]
+  });
+}
+
+// ========== 过程能力图 ==========
+function initCapabilityCharts() {
+  // 直方图
+  const histChart = echarts.init(document.getElementById('chart-histogram'));
+  const bins = 12;
+  const binData = [1, 2, 4, 7, 12, 18, 22, 19, 10, 4, 1, 0];
+  const binLabels = ['3.25', '3.30', '3.35', '3.40', '3.45', '3.50', '3.55', '3.60', '3.65', '3.70', '3.75', '3.80'];
+
+  // 正态分布曲线
+  const normalCurve = [];
+  for (let i = 0; i < 100; i++) {
+    const x = 3.25 + (3.80 - 3.25) * i / 99;
+    const y = 22 * Math.exp(-Math.pow((x - 3.52) / 0.085, 2) / 2);
+    normalCurve.push([x, y]);
+  }
+
+  histChart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    legend: { data: ['频数', '正态分布'], textStyle: { color: '#8b95a7' }, top: 0 },
+    grid: { left: 50, right: 50, top: 40, bottom: 40 },
+    xAxis: [{ type: 'category', data: binLabels, ...chartTheme.xAxis, name: '脂肪含量' }],
+    yAxis: [{ type: 'value', ...chartTheme.yAxis, name: '频数' }],
+    series: [
+      {
+        name: '频数', type: 'bar', barWidth: '70%',
+        data: binData,
+        itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(0,212,255,0.6)' }, { offset: 1, color: 'rgba(0,212,255,0.1)' }] }, borderRadius: [4, 4, 0, 0] },
+        markLine: {
+          symbol: 'none', silent: true,
+          data: [
+            { xAxis: 11, lineStyle: { color: '#ef4444', type: 'dotted', width: 2 }, label: { formatter: 'USL', color: '#ef4444', fontSize: 10 } },
+            { xAxis: 0, lineStyle: { color: '#ef4444', type: 'dotted', width: 2 }, label: { formatter: 'LSL', color: '#ef4444', fontSize: 10 } },
+          ]
+        }
+      },
+      {
+        name: '正态分布', type: 'line', smooth: true, symbol: 'none',
+        data: normalCurve,
+        xAxisIndex: 0,
+        lineStyle: { color: '#8b5cf6', width: 2 },
+        itemStyle: { color: '#8b5cf6' },
+      }
+    ]
+  });
+
+  // 西格玛仪表盘
+  const gaugeChart = echarts.init(document.getElementById('chart-gauge-sigma'));
+  gaugeChart.setOption({
+    series: [{
+      type: 'gauge', radius: '90%', startAngle: 200, endAngle: -20,
+      min: 0, max: 6, splitNumber: 6,
+      axisLine: { lineStyle: { width: 12, color: [[0.33, '#ef4444'], [0.5, '#f59e0b'], [0.67, '#10b981'], [1, '#00d4ff']] } },
+      pointer: { width: 4, length: '60%', itemStyle: { color: '#00d4ff' } },
+      axisTick: { distance: -12, length: 4, lineStyle: { color: 'rgba(255,255,255,0.3)' } },
+      splitLine: { distance: -12, length: 8, lineStyle: { color: 'rgba(255,255,255,0.4)' } },
+      axisLabel: { color: '#8b95a7', distance: -28, fontSize: 10 },
+      detail: { valueAnimation: true, formatter: '{value}σ', color: '#10b981', fontSize: 20, offsetCenter: [0, '30%'] },
+      data: [{ value: 4.26 }]
+    }]
+  });
+
+  // Cpk趋势
+  const cpkChart = echarts.init(document.getElementById('chart-cpk-trend'));
+  const cpkData = [1.35, 1.40, 1.38, 1.42, 1.45, 1.48, 1.50, 1.52, 1.49, 1.46, 1.44, 1.42];
+  const dates = ['8/9', '8/10', '8/11', '8/12', '8/13', '8/14', '8/15', '8/16', '8/17', '8/18', '8/19', '8/20'];
+  cpkChart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    grid: { left: 50, right: 30, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: dates, ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, min: 1.0, max: 1.7 },
+    series: [{
+      type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
+      data: cpkData,
+      lineStyle: { color: '#10b981', width: 2 },
+      itemStyle: { color: '#10b981', borderColor: '#0a0e1a', borderWidth: 1 },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(16,185,129,0.25)' }, { offset: 1, color: 'rgba(16,185,129,0)' }] } },
+      markLine: { symbol: 'none', silent: true, data: [{ yAxis: 1.33, lineStyle: { color: '#f59e0b', type: 'dashed' }, label: { formatter: '目标 1.33', color: '#f59e0b', fontSize: 10 } }] }
+    }]
+  });
+}
+
+// ========== 预测图 ==========
+function initPredictionCharts() {
+  const chart = echarts.init(document.getElementById('chart-prediction'));
+  const histN = 40, predN = 12;
+  const base = 3.52;
+  const histData = [], predData = [], upperBand = [], lowerBand = [];
+  const allLabels = [];
+
+  for (let i = 0; i < histN; i++) {
+    const val = base + (Math.random() - 0.5) * 0.15 + Math.sin(i / 10) * 0.03;
+    histData.push(parseFloat(val.toFixed(3)));
+    predData.push(null);
+    upperBand.push(null);
+    lowerBand.push(null);
+    const t = new Date(Date.now() - (histN - i) * 5 * 60000);
+    allLabels.push(`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`);
+  }
+
+  // 预测部分
+  const lastVal = histData[histData.length - 1];
+  for (let i = 0; i < predN; i++) {
+    const val = lastVal + 0.002 * (i + 1) + (Math.random() - 0.5) * 0.02;
+    histData.push(null);
+    predData.push(parseFloat(val.toFixed(3)));
+    upperBand.push(parseFloat((val + 0.03 + i * 0.005).toFixed(3)));
+    lowerBand.push(parseFloat((val - 0.03 - i * 0.005).toFixed(3)));
+    const t = new Date(Date.now() + (i + 1) * 5 * 60000);
+    allLabels.push(`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`);
+  }
+
+  // 连接点
+  predData[histN - 1] = histData[histN - 1];
+
+  chart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    legend: { data: ['历史数据', '预测曲线', '95%置信区间'], textStyle: { color: '#8b95a7' }, top: 0 },
+    grid: { left: 50, right: 30, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: allLabels, ...chartTheme.xAxis, axisLabel: { ...chartTheme.xAxis.axisLabel, interval: 4 } },
+    yAxis: { type: 'value', ...chartTheme.yAxis, scale: true, min: 3.3, max: 3.8 },
+    series: [
+      {
+        name: '95%置信区间', type: 'line', symbol: 'none',
+        data: upperBand, lineStyle: { opacity: 0 },
+        stack: 'band', areaStyle: { color: 'rgba(139,92,246,0.08)' },
+        silent: true,
+      },
+      {
+        name: '95%置信区间', type: 'line', symbol: 'none',
+        data: lowerBand.map(v => v === null ? null : 0), lineStyle: { opacity: 0 },
+        stack: 'band2',
+        silent: true,
+      },
+      {
+        name: '历史数据', type: 'line', smooth: true, symbol: 'none',
+        data: histData,
+        lineStyle: { color: '#00d4ff', width: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(0,212,255,0.15)' }, { offset: 1, color: 'rgba(0,212,255,0)' }] } },
+      },
+      {
+        name: '预测曲线', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5,
+        data: predData,
+        lineStyle: { color: '#10b981', width: 2, type: 'dashed' },
+        itemStyle: { color: '#10b981' },
+        markLine: { symbol: 'none', silent: true, data: [
+          { yAxis: 3.80, lineStyle: { color: '#ef4444', type: 'dotted' }, label: { formatter: 'USL', color: '#ef4444', fontSize: 10 } },
+          { yAxis: 3.25, lineStyle: { color: '#ef4444', type: 'dotted' }, label: { formatter: 'LSL', color: '#ef4444', fontSize: 10 } },
+        ] }
+      }
+    ]
+  });
+
+  // 残差图
+  const resChart = echarts.init(document.getElementById('chart-residual'));
+  const residuals = [];
+  for (let i = 0; i < 30; i++) {
+    residuals.push(parseFloat(((Math.random() - 0.5) * 0.04).toFixed(4)));
+  }
+  resChart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    xAxis: { type: 'category', data: residuals.map((_, i) => `#${i+1}`), ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, name: '残差' },
+    series: [{
+      type: 'bar', barWidth: '60%',
+      data: residuals.map(v => ({ value: v, itemStyle: { color: v >= 0 ? 'rgba(0,212,255,0.6)' : 'rgba(239,68,68,0.6)' } })),
+      markLine: { symbol: 'none', silent: true, data: [{ yAxis: 0, lineStyle: { color: '#94a3b8', width: 1 } }] }
+    }]
+  });
+}
+
+// ========== 预警图表 ==========
+function initAlertCharts() {
+  // 预警趋势
+  const trendChart = echarts.init(document.getElementById('chart-alert-trend'));
+  trendChart.setOption({
+    ...chartTheme,
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    legend: { data: ['严重', '警告', '提示'], textStyle: { color: '#8b95a7' }, top: 0 },
+    grid: { left: 40, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: ['8/14', '8/15', '8/16', '8/17', '8/18', '8/19', '8/20'], ...chartTheme.xAxis },
+    yAxis: { type: 'value', ...chartTheme.yAxis, minInterval: 1 },
+    series: [
+      { name: '严重', type: 'bar', stack: 'total', data: [0, 1, 0, 2, 1, 0, 1], itemStyle: { color: '#ef4444' }, barWidth: '40%' },
+      { name: '警告', type: 'bar', stack: 'total', data: [3, 2, 4, 3, 5, 2, 2], itemStyle: { color: '#f59e0b' }, barWidth: '40%' },
+      { name: '提示', type: 'bar', stack: 'total', data: [5, 3, 6, 4, 7, 3, 0], itemStyle: { color: '#3b82f6' }, barWidth: '40%' },
+    ]
+  });
+
+  // 预警规则分布
+  const ruleChart = echarts.init(document.getElementById('chart-alert-rule'));
+  ruleChart.setOption({
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(20,26,46,0.95)', borderColor: 'rgba(0,212,255,0.3)', textStyle: { color: '#e2e8f0' } },
+    legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#8b95a7', fontSize: 11 } },
+    series: [{
+      type: 'pie', radius: ['40%', '65%'], center: ['35%', '50%'],
+      label: { color: '#8b95a7', fontSize: 11 },
+      data: [
+        { value: 8, name: 'Nelson规则1', itemStyle: { color: '#ef4444' } },
+        { value: 12, name: 'Nelson规则3', itemStyle: { color: '#f59e0b' } },
+        { value: 5, name: '规格限越限', itemStyle: { color: '#8b5cf6' } },
+        { value: 6, name: '能力退化', itemStyle: { color: '#3b82f6' } },
+        { value: 4, name: '预测提示', itemStyle: { color: '#10b981' } },
+      ]
+    }]
+  });
+}
+
+// ========== 数据管理表格 ==========
+function initDataTable() {
+  const tbody = document.getElementById('dataTbody');
+  const products = ['砖纯牛奶', '砖纯牛奶', '枕纯牛奶', '枕纯牛奶', '瓶酸乳'];
+  const metrics = ['脂肪', '蛋白质', '脂肪', '蛋白质', '酸度'];
+  const units = ['g/100g', 'g/100g', 'g/100g', 'g/100g', '°T'];
+  const usls = [3.80, 3.50, 3.80, 3.50, 70.0];
+  const lsls = [3.25, 2.90, 3.25, 2.90, 60.0];
+  
+  let html = '';
+  for (let i = 0; i < 20; i++) {
+    const pi = i % 5;
+    const val = (usls[pi] + lsls[pi]) / 2 + (Math.random() - 0.5) * (usls[pi] - lsls[pi]) * 0.6;
+    const status = (val > usls[pi] || val < lsls[pi]) ? '<span class="tag tag-critical">越限</span>' : '<span class="tag tag-success">正常</span>';
+    const t = new Date(Date.now() - i * 5 * 60000);
+    const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+    html += `<tr>
+      <td>${i + 1}</td>
+      <td>${time}</td>
+      <td>${products[pi]}</td>
+      <td>${metrics[pi]}</td>
+      <td style="font-weight: 600; color: var(--accent-cyan);">${val.toFixed(3)}</td>
+      <td>${units[pi]}</td>
+      <td>${usls[pi]}</td>
+      <td>${lsls[pi]}</td>
+      <td>${status}</td>
+      <td>FT1自动</td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+}
+
+// ========== 手动采集 ==========
+function triggerCollect() {
+  const btn = event.target;
+  btn.textContent = '⏳ 采集中...';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = '✅ 采集成功';
+    setTimeout(() => {
+      btn.textContent = '🔄 立即采集';
+      btn.disabled = false;
+    }, 1500);
+  }, 2000);
+}
+
+// ========== 初始化 ==========
+window.addEventListener('load', () => {
+  initTrendChart();
+  chartsInitialized.trend = true;
+});
+
+// 窗口resize
+window.addEventListener('resize', () => {
+  document.querySelectorAll('[_echarts_instance_]').forEach(el => {
+    echarts.getInstanceByDom(el)?.resize();
+  });
+});
+</script>
+</body>
+</html>

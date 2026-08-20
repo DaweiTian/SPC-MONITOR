@@ -81,6 +81,8 @@
   padding: 0;
   flex: 1;
   overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .cardFooter {
@@ -237,6 +239,17 @@
   background: rgba(0, 212, 255, 0.06);
 }
 
+.btnDanger {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.btnDanger:hover {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .btnSmall {
   padding: 4px 10px;
   font-size: 12px;
@@ -376,6 +389,375 @@
 .severityCritical { color: var(--accent-red); }
 .severityWarning { color: var(--accent-orange); }
 .severityInfo { color: var(--accent-blue); }
+
+/* ========== DB Config Section ========== */
+.dbConfigSection {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.dbConfigHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dbConfigTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dbConfigForm {
+  padding: 20px;
+}
+
+/* ========== Form Elements ========== */
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.formRequired {
+  color: var(--accent-red);
+  font-size: 14px;
+}
+
+.formInput,
+.formSelect {
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.formInput::placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.formSelect {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.formHint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ========== Form Actions ========== */
+.formActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* ========== Form Messages ========== */
+.formMessage {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.formMessageSuccess {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.formMessageError {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ========== Instrument Grid ========== */
+.instrumentGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .instrumentGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.instrumentBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+}
+
+.instrumentBtn:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.instrumentBtnActive {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
+.instrumentBtnActive:hover {
+  background: rgba(0, 212, 255, 0.15);
+}
+
+.instrumentBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.instrumentIcon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.instrumentName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.instrumentType {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ========== Confirmation Dialog ========== */
+.confirmOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.confirmDialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.confirmHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.confirmHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.confirmClose {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.confirmClose:hover {
+  color: var(--text-primary);
+}
+
+.confirmBody {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.confirmSection {
+  margin-bottom: 24px;
+}
+
+.confirmSection:last-child {
+  margin-bottom: 0;
+}
+
+.confirmSection h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.confirmInfo {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.confirmInfo p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.confirmInfo strong {
+  color: var(--text-primary);
+}
+
+.confirmWarning {
+  color: var(--accent-orange);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.confirmStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.confirmStat {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.confirmStatValue {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.confirmStatLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.confirmTableWrapper {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.confirmTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.confirmTable th {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: left;
+  padding: 10px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.confirmTable td {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(64, 159, 255, 0.06);
+}
+
+.confirmTable tr:hover td {
+  background: var(--bg-card-hover);
+}
+
+.confirmFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color);
+}
 
 /* ========== Animation ========== */
 @keyframes fadeIn {

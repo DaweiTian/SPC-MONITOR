@@ -386,8 +386,129 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+/* ========== 品项选择器 ========== */
+.productSelector {
+  margin-left: 16px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.productSelect {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.productSelect:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+/* ========== 指标指示器 ========== */
+.indicatorDots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.indicatorDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color);
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.indicatorDotActive {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+}
+
+.indicatorDot:hover {
+  background: var(--accent-cyan);
+  opacity: 0.7;
+}
+
+/* ========== 当前指标名称 ========== */
+.currentIndicator {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(0, 212, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ========== 品项信息 ========== */
+.productInfo {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.autoLabel {
+  font-size: 11px;
+  color: var(--accent-orange);
+  margin-left: 8px;
+}
+
+.indicatorLabel {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  margin-left: 8px;
+}
+
+/* ========== 品项标签 ========== */
+.productBadge {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
 /* ========== 响应式 ========== */
 @media (max-width: 1400px) {
   .kpiGrid { grid-template-columns: repeat(3, 1fr); }
   .grid21, .grid2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1200px) {
+  .kpiGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .kpiGrid { grid-template-columns: 1fr; }
+  .panelHeader {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .panelActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .productSelector {
+    margin-left: 0;
+    width: 100%;
+  }
+  .productSelect {
+    width: 100%;
+  }
 }

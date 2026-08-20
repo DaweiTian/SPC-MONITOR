@@ -11,7 +11,8 @@ collector = None
 
 @router.get("/dashboard")
 async def get_dashboard():
-    scheduler.start() if scheduler else None
+    if scheduler and not scheduler.scheduler.running:
+        scheduler.start()
     
     today_stats = storage.get_today_stats()
     pending_alerts = storage.get_alerts(status='pending', limit=100)
@@ -26,6 +27,7 @@ async def get_dashboard():
     return {
         "today_data_count": today_stats['data_count'],
         "today_sync_count": today_stats['sync_count'],
+        "today_unqualified_count": today_stats['unqualified_count'],
         "pending_alerts": alerts_by_severity,
         "recent_alerts": recent_alerts,
     }
@@ -41,7 +43,42 @@ async def manual_collect():
 
 @router.get("/products")
 async def get_products():
-    return {"products": collector.get_products() if collector else []}
+    if not collector:
+        return {"products": []}
+    
+    # Get products from collector
+    all_products = collector.get_products()
+    
+    # If MDB collector, limit to products that have data in database
+    if hasattr(collector, 'mdb_path'):  # MDB collector
+        try:
+            # Get products that have data in database
+            db_products = storage.get_products_with_data(limit=100)
+            if db_products:
+                # Filter collector products to only include those with data
+                db_product_codes = {p['product_code'] for p in db_products}
+                seen = set()
+                filtered = []
+                for p in all_products:
+                    if p['code'] in db_product_codes and p['code'] not in seen:
+                        seen.add(p['code'])
+                        filtered.append(p)
+                    if len(filtered) >= 50:
+                        break
+                return {"products": filtered}
+        except Exception:
+            pass
+    
+    # Deduplicate and limit
+    seen = set()
+    unique = []
+    for p in all_products:
+        if p['code'] not in seen:
+            seen.add(p['code'])
+            unique.append(p)
+        if len(unique) >= 50:
+            break
+    return {"products": unique}
 
 @router.get("/indicators")
 async def get_indicators():

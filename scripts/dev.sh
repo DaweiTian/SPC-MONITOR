@@ -6,17 +6,17 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+LOG_DIR="$PROJECT_DIR/logs"
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
 
 echo "=========================================="
 echo "  液奶过程监控系统 - 开发模式"
 echo "=========================================="
 echo ""
-
-# 颜色定义
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
 
 # 检查 Python
 if ! command -v python3 &> /dev/null; then
@@ -44,34 +44,45 @@ else
     echo "  前端依赖已存在，跳过安装"
 fi
 
-# 创建数据目录
+# 创建数据目录和日志目录
 mkdir -p "$PROJECT_DIR/data"
+mkdir -p "$LOG_DIR"
 
 echo ""
 echo -e "${GREEN}[3/4] 启动后端服务 (端口 8000)...${NC}"
 cd "$PROJECT_DIR"
-python3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload &
+nohup python3 -m uvicorn backend.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --reload \
+    --log-level warning \
+    > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
+echo "  后端 PID: $BACKEND_PID"
 
 echo -e "${GREEN}[4/4] 启动前端服务 (端口 5173)...${NC}"
 cd "$PROJECT_DIR/frontend"
-npm run dev &
+nohup npm run dev > "$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
+echo "  前端 PID: $FRONTEND_PID"
+
+# 保存 PID 供 stop.sh 使用
+echo "$BACKEND_PID" > "$LOG_DIR/backend.pid"
+echo "$FRONTEND_PID" > "$LOG_DIR/frontend.pid"
 
 echo ""
 echo "=========================================="
-echo -e "${GREEN}  开发服务已启动${NC}"
+echo -e "${GREEN}  开发服务已在后台启动${NC}"
 echo "=========================================="
 echo ""
 echo "  前端: http://localhost:5173"
 echo "  后端: http://localhost:8000"
 echo "  API 文档: http://localhost:8000/docs"
 echo ""
-echo "  按 Ctrl+C 停止所有服务"
+echo "  日志文件:"
+echo "    后端: $LOG_DIR/backend.log"
+echo "    前端: $LOG_DIR/frontend.log"
 echo ""
-
-# 捕获退出信号
-trap "echo ''; echo '正在停止服务...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
-
-# 等待子进程
-wait
+echo "  查看日志: tail -f $LOG_DIR/backend.log"
+echo "  停止服务: ./scripts/stop.sh"
+echo ""

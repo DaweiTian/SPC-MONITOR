@@ -119,7 +119,7 @@ class OnlineStorage:
         conn = self._connect()
         try:
             cursor = conn.execute(
-                """INSERT INTO alerts
+                """INSERT OR IGNORE INTO alerts
                    (alert_id, alert_type, severity, indicator_code, product_code,
                     rule_type, rule_desc, test_value, control_limit, message, detail, status)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -250,5 +250,21 @@ class OnlineStorage:
                 "pending_alerts": pending_alerts,
                 "sync_count": sync_count,
             }
+        finally:
+            conn.close()
+    
+    def get_products_with_data(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Get products that have data in the database."""
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                """SELECT product_code, product_name, COUNT(*) as data_count
+                   FROM monitor_data
+                   GROUP BY product_code
+                   ORDER BY data_count DESC
+                   LIMIT ?""",
+                (limit,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
         finally:
             conn.close()

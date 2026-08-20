@@ -136,3 +136,24 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Logs directory
+logs/
+
+# Node modules
+frontend/node_modules/
+
+# Database files
+*.db
+*.db-journal
+
+# Config files with sensitive data
+db_config.json
+mdb_config.json
+mdb_breakpoint.json
+instrument_config.json
+alias_config.json
+product_status.json
+
+# Data directory
+data/

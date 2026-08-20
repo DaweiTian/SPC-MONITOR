@@ -101,7 +101,7 @@ class NelsonRules:
             segment = values[i-13:i+1]
             alternating = all(
                 (segment[j] - segment[j-1]) * (segment[j+1] - segment[j]) < 0
-                for j in range(1, 14)
+                for j in range(1, 13)
             )
             if alternating:
                 violation_points.extend(range(i-13, i+1))

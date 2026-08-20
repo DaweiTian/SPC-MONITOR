@@ -10,6 +10,8 @@ import type {
   DBConfig,
   FieldMapping,
   Alert,
+  MDBConfig,
+  InstrumentConfig,
 } from '../types'
 
 const http = axios.create({
@@ -50,4 +52,34 @@ export const api = {
     http.get(`/config/source/status`).then(r => r.data),
   exportData: (params: { format: string; product?: string; indicator?: string }) =>
     http.get(`/data/export`, { params, responseType: 'blob' }).then(r => r.data),
+  
+  // Instrument configuration
+  getInstrumentConfig: () => http.get<InstrumentConfig>('/config/instrument').then(r => r.data),
+  updateInstrumentConfig: (config: InstrumentConfig) => http.put('/config/instrument', config).then(r => r.data),
+  switchInstrument: (instrumentId: string) =>
+    http.post('/config/instrument/switch', { instrument_id: instrumentId }).then(r => r.data),
+  
+  // MDB configuration
+  getMDBConfig: () => http.get<MDBConfig>('/config/mdb').then(r => r.data),
+  updateMDBConfig: (config: MDBConfig) => http.put('/config/mdb', config).then(r => r.data),
+  testMDBConnection: (config: MDBConfig) => http.post('/config/mdb/test', config).then(r => r.data),
+  exploreMDBStructure: (config: MDBConfig) => http.post('/config/mdb/explore', config).then(r => r.data),
+  getMDBTableColumns: (tableName: string) => http.get(`/config/mdb/table/${tableName}/columns`).then(r => r.data),
+  getMDBInitStatus: () => http.get('/config/mdb/init-status').then(r => r.data),
+  
+  // Alias configuration
+  getAliases: () => http.get<{ products: Record<string, string>; indicators: Record<string, string> }>('/config/aliases').then(r => r.data),
+  updateAliases: (config: { products: Record<string, string>; indicators: Record<string, string> }) =>
+    http.put('/config/aliases', config).then(r => r.data),
+  updateProductAlias: (productCode: string, alias: string) =>
+    http.put(`/config/aliases/product/${productCode}`, { alias }).then(r => r.data),
+  updateIndicatorAlias: (indicatorCode: string, alias: string) =>
+    http.put(`/config/aliases/indicator/${indicatorCode}`, { alias }).then(r => r.data),
+  
+  // Product status configuration
+  getProductStatus: () => http.get<Record<string, string>>('/config/product-status').then(r => r.data),
+  updateProductStatus: (config: Record<string, string>) =>
+    http.put('/config/product-status', config).then(r => r.data),
+  updateSingleProductStatus: (productCode: string, status: string) =>
+    http.put(`/config/product-status/${productCode}`, { status }).then(r => r.data),
 }

@@ -36,6 +36,7 @@ export interface Alert {
 export interface DashboardData {
   today_data_count: number
   today_sync_count: number
+  today_unqualified_count: number
   pending_alerts: {
     CRITICAL: number
     WARNING: number
@@ -104,6 +105,7 @@ export interface SchedulerStatus {
   last_record_count: number
   next_collect_time?: string
   frequency_ladder: number[]
+  connected?: boolean
 }
 
 export interface Product {
@@ -165,4 +167,32 @@ export interface DataSourceConfig {
   source: 'mock' | 'sqlserver'
   connected: boolean
   last_switch: string
+}
+
+export interface MDBConfig {
+  enabled: boolean
+  mdb_path: string
+  sample_table: string
+  product_table: string
+  component_table: string
+  prediction_table: string
+  time_column: string
+  product_ref_column: string
+  product_name_column: string
+  component_ref_column: string
+  component_name_column: string
+  value_column: string
+  indicators: Record<string, string>
+}
+
+export interface InstrumentInfo {
+  id: string
+  name: string
+  type: 'mock' | 'sqlserver' | 'mdb'
+  enabled: boolean
+}
+
+export interface InstrumentConfig {
+  current_instrument: string
+  instruments: Record<string, InstrumentInfo>
 }

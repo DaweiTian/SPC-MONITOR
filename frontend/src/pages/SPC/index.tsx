@@ -1,41 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Card, Select, Button, Table, Tag, InputNumber, Form, Row, Col } from 'antd'
-import * as echarts from 'echarts'
+import React, { useState, useEffect, useMemo } from 'react'
+import type { EChartsOption } from 'echarts'
+import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
+import { useProducts, useIndicators } from '../../hooks'
 import { api } from '../../services'
-import type { SPCData, Product, Indicator } from '../../types'
-import HelpTooltip from '../../components/HelpTooltip'
+import type { SPCData } from '../../types'
+import styles from './SPC.module.css'
 
 export const SPCPage: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([])
-  const [indicators, setIndicators] = useState<Indicator[]>([])
+  const { products } = useProducts()
+  const { indicators } = useIndicators()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState({
     product_code: 'P001',
     indicator_code: 'fat',
+    chart_type: 'imr',
     window: 30,
   })
-  const chartRef = useRef<HTMLDivElement>(null)
-  const chartInstance = useRef<echarts.ECharts | null>(null)
-
-  useEffect(() => {
-    const fetchOptions = async () => {
-      const [prodData, indData] = await Promise.all([
-        api.getProducts(),
-        api.getIndicators(),
-      ])
-      setProducts(prodData.products)
-      setIndicators(indData.indicators)
-    }
-    fetchOptions()
-  }, [])
 
   const fetchSPCData = async () => {
     setLoading(true)
     try {
       const data = await api.getSPCData(filter.product_code, filter.indicator_code, filter.window)
       setSPCData(data)
-      renderChart(data)
     } catch (e) {
       console.error('获取SPC数据失败:', e)
     } finally {
@@ -43,153 +30,335 @@ export const SPCPage: React.FC = () => {
     }
   }
 
-  const renderChart = (data: SPCData) => {
-    if (!chartRef.current) return
-
-    if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current)
-    }
-
-    const { data_points, i_chart } = data
-    const times = data_points.map(p => new Date(p.time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }))
-    const values = data_points.map(p => p.value)
-    const violationIndices = data_points.reduce<number[]>((acc, p, idx) => {
-      if (p.is_violation) acc.push(idx)
-      return acc
-    }, [])
-
-    const option = {
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: times },
-      yAxis: { type: 'value' },
-      series: [
-        {
-          name: '检测值',
-          type: 'line',
-          data: values,
-          markLine: {
-            data: [
-              { yAxis: i_chart.cl, name: 'CL', lineStyle: { color: '#409eff' } },
-              { yAxis: i_chart.ucl, name: 'UCL', lineStyle: { color: '#f56c6c', type: 'dashed' } },
-              { yAxis: i_chart.lcl, name: 'LCL', lineStyle: { color: '#f56c6c', type: 'dashed' } },
-            ],
-          },
-          markPoint: {
-            data: violationIndices.map(idx => ({
-              coord: [idx, values[idx]],
-              itemStyle: { color: '#f56c6c' },
-            })),
-          },
-        },
-      ],
-    }
-
-    chartInstance.current.setOption(option, true)
-  }
-
   useEffect(() => {
     fetchSPCData()
-  }, [filter])
+  }, [])
 
-  const violationColumns = [
-    {
-      title: '规则',
-      dataIndex: 'rule_id',
-      key: 'rule_id',
-      render: (id: number) => <Tag color={id <= 2 ? 'red' : id <= 6 ? 'orange' : 'blue'}>R{id}</Tag>,
-    },
-    { title: '规则名称', dataIndex: 'rule_name', key: 'rule_name' },
-    { title: '描述', dataIndex: 'description', key: 'description' },
-    {
-      title: '严重程度',
-      dataIndex: 'severity',
-      key: 'severity',
-      render: (severity: string) => (
-        <Tag color={severity === 'CRITICAL' ? 'red' : severity === 'WARNING' ? 'orange' : 'blue'}>
-          {severity}
-        </Tag>
-      ),
-    },
-  ]
+  // Compute derived values
+  const stats = useMemo(() => {
+    if (!spcData) return null
+    const { data_points, spec_limits, violations, sigma } = spcData
+    const mean = spec_limits.mean
+    const std = spec_limits.std || sigma
+    const violationCount = data_points.filter(p => p.is_violation).length
+    const total = data_points.length
+    let status = '受控'
+    if (violations.length > 2) status = '失控'
+    else if (violations.length > 0) status = '基本受控'
+    return { mean, std, violationCount, total, status }
+  }, [spcData])
+
+  // Compute MR values from data points
+  const mrValues = useMemo(() => {
+    if (!spcData) return []
+    const { data_points } = spcData
+    const mrs: number[] = []
+    for (let i = 1; i < data_points.length; i++) {
+      mrs.push(Math.abs(data_points[i].value - data_points[i - 1].value))
+    }
+    return mrs
+  }, [spcData])
+
+  // I Chart option
+  const iChartOption = useMemo<EChartsOption | null>(() => {
+    if (!spcData) return null
+    const { data_points, i_chart, spec_limits } = spcData
+    const times = data_points.map((_, i) => `#${i + 1}`)
+    const values = data_points.map(p => p.value)
+    const { ucl, cl, lcl } = i_chart
+    const { usl, lsl } = spec_limits
+
+    return {
+      ...chartTheme,
+      tooltip: { trigger: 'axis', ...tooltipStyle },
+      grid: { left: 50, right: 20, top: 30, bottom: 30 },
+      xAxis: { type: 'category', data: times, ...chartTheme.xAxis },
+      yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+      series: [{
+        name: '单值',
+        type: 'line',
+        symbol: 'circle',
+        symbolSize: 7,
+        data: values.map((v) => ({
+          value: v,
+          itemStyle: (v > ucl || v < lcl || v > usl || v < lsl)
+            ? { color: '#ef4444' }
+            : { color: '#00d4ff' },
+        })),
+        lineStyle: { color: '#00d4ff', width: 2 },
+        markLine: {
+          symbol: 'none',
+          silent: true,
+          data: [
+            {
+              yAxis: ucl,
+              lineStyle: { color: '#f59e0b', type: 'dashed' },
+              label: { formatter: `UCL=${ucl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' },
+            },
+            {
+              yAxis: cl,
+              lineStyle: { color: '#94a3b8', type: 'solid', width: 1 },
+              label: { formatter: `CL=${cl.toFixed(3)}`, color: '#94a3b8', fontSize: 10, position: 'end' },
+            },
+            {
+              yAxis: lcl,
+              lineStyle: { color: '#f59e0b', type: 'dashed' },
+              label: { formatter: `LCL=${lcl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' },
+            },
+            ...(usl != null ? [{
+              yAxis: usl,
+              lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 1.5 },
+              label: { formatter: `USL=${usl}`, color: '#ef4444', fontSize: 10, position: 'start' as const },
+            }] : []),
+            ...(lsl != null ? [{
+              yAxis: lsl,
+              lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 1.5 },
+              label: { formatter: `LSL=${lsl}`, color: '#ef4444', fontSize: 10, position: 'start' as const },
+            }] : []),
+          ],
+        },
+      }],
+    }
+  }, [spcData])
+
+  // MR Chart option
+  const mrChartOption = useMemo<EChartsOption | null>(() => {
+    if (!spcData || mrValues.length === 0) return null
+    const { mr_chart } = spcData
+    const { ucl, cl } = mr_chart
+    const times = mrValues.map((_, i) => `#${i + 2}`)
+
+    return {
+      ...chartTheme,
+      tooltip: { trigger: 'axis', ...tooltipStyle },
+      grid: { left: 50, right: 20, top: 20, bottom: 30 },
+      xAxis: { type: 'category', data: times, ...chartTheme.xAxis },
+      yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+      series: [{
+        name: '移动极差',
+        type: 'line',
+        symbol: 'circle',
+        symbolSize: 6,
+        data: mrValues.map((v) => ({
+          value: parseFloat(v.toFixed(3)),
+          itemStyle: v > ucl ? { color: '#ef4444' } : { color: '#8b5cf6' },
+        })),
+        lineStyle: { color: '#8b5cf6', width: 2 },
+        markLine: {
+          symbol: 'none',
+          silent: true,
+          data: [
+            {
+              yAxis: ucl,
+              lineStyle: { color: '#f59e0b', type: 'dashed' },
+              label: { formatter: `UCL=${ucl.toFixed(3)}`, color: '#f59e0b', fontSize: 10, position: 'end' },
+            },
+            {
+              yAxis: cl,
+              lineStyle: { color: '#94a3b8', type: 'solid', width: 1 },
+              label: { formatter: `CL=${cl.toFixed(3)}`, color: '#94a3b8', fontSize: 10, position: 'end' },
+            },
+          ],
+        },
+      }],
+    }
+  }, [spcData, mrValues])
+
+  const { containerRef: iChartRef } = useChart(iChartOption)
+  const { containerRef: mrChartRef } = useChart(mrChartOption)
+
+  const handleQuery = () => {
+    fetchSPCData()
+  }
 
   return (
-    <div>
-      <h2 style={{ marginBottom: 24 }}>SPC 控制图 <HelpTooltip termId="spc-concept" placement="right" /></h2>
-      
-      <Card style={{ marginBottom: 24 }}>
-        <Form layout="inline">
-          <Form.Item label="品项">
-            <Select
-              value={filter.product_code}
-              onChange={value => setFilter({ ...filter, product_code: value })}
-              style={{ width: 160 }}
-            >
-              {products.map(p => (
-                <Select.Option key={p.code} value={p.code}>{p.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item label="指标">
-            <Select
-              value={filter.indicator_code}
-              onChange={value => setFilter({ ...filter, indicator_code: value })}
-              style={{ width: 160 }}
-            >
-              {indicators.map(i => (
-                <Select.Option key={i.code} value={i.code}>{i.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item label="窗口大小">
-            <InputNumber
-              value={filter.window}
-              onChange={value => setFilter({ ...filter, window: value || 30 })}
-              min={10}
-              max={100}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" onClick={fetchSPCData} loading={loading}>查询</Button>
-          </Form.Item>
-        </Form>
-      </Card>
+    <div className={styles.page}>
+      <div className={styles.pageTitle}>
+        <div className={styles.pageTitleIcon}>📈</div>
+        SPC控制图分析
+      </div>
 
-      <Card title="I-MR 控制图" style={{ marginBottom: 24 }}>
-        <div ref={chartRef} style={{ height: 450 }} />
-      </Card>
-
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card title="规格限">
-            <p>USL: {spcData?.spec_limits.usl?.toFixed(4) || '未配置'}</p>
-            <p>LSL: {spcData?.spec_limits.lsl?.toFixed(4) || '未配置'}</p>
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card title="控制限">
-            <p>UCL: {spcData?.i_chart.ucl?.toFixed(4) || '-'}</p>
-            <p>LCL: {spcData?.i_chart.lcl?.toFixed(4) || '-'}</p>
-            <p>CL: {spcData?.i_chart.cl?.toFixed(4) || '-'}</p>
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card title="违规统计">
-            <p>违规点数: {spcData?.violations.length || 0}</p>
-            <p>总数据点: {spcData?.data_points.length || 0}</p>
-          </Card>
-        </Col>
-      </Row>
-
-      {spcData?.violations && spcData.violations.length > 0 && (
-        <Card title="Nelson 规则违规">
-          <Table
-            dataSource={spcData.violations}
-            columns={violationColumns}
-            rowKey="rule_id"
-            pagination={false}
-            size="small"
+      {/* Filter Bar */}
+      <div className={styles.filterBar}>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>品项</span>
+          <select
+            className={styles.filterSelect}
+            value={filter.product_code}
+            onChange={e => setFilter({ ...filter, product_code: e.target.value })}
+          >
+            {products.map((p, index) => (
+              <option key={`${p.code}-${index}`} value={p.code}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>指标</span>
+          <select
+            className={styles.filterSelect}
+            value={filter.indicator_code}
+            onChange={e => setFilter({ ...filter, indicator_code: e.target.value })}
+          >
+            {indicators.map(i => (
+              <option key={i.code} value={i.code}>{i.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>图表类型</span>
+          <select
+            className={styles.filterSelect}
+            value={filter.chart_type}
+            onChange={e => setFilter({ ...filter, chart_type: e.target.value })}
+          >
+            <option value="imr">I-MR 控制图</option>
+            <option value="xbar">X-bar R 控制图</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>窗口</span>
+          <input
+            className={styles.filterInput}
+            type="number"
+            value={filter.window}
+            onChange={e => setFilter({ ...filter, window: parseInt(e.target.value) || 30 })}
+            min={10}
+            max={100}
           />
-        </Card>
+        </div>
+        <button className={styles.btnQuery} onClick={handleQuery} disabled={loading}>
+          🔍 查询
+        </button>
+      </div>
+
+      {/* KPI Stats Cards */}
+      <div className={styles.kpiGrid}>
+        <div className={`${styles.kpiCard} ${styles.kpiCardCyan}`}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>均值 (X̄)</span>
+            <div className={styles.kpiIcon}>📊</div>
+          </div>
+          <div className={styles.kpiValue}>
+            {stats?.mean.toFixed(2) || '-'}
+            <span className={styles.kpiUnit}>g/100g</span>
+          </div>
+        </div>
+        <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>标准差 (σ)</span>
+            <div className={styles.kpiIcon}>📐</div>
+          </div>
+          <div className={styles.kpiValue}>
+            {stats?.std.toFixed(3) || '-'}
+          </div>
+        </div>
+        <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>违规点数</span>
+            <div className={styles.kpiIcon}>⚠️</div>
+          </div>
+          <div className={styles.kpiValue}>
+            {stats?.violationCount ?? '-'}
+            <span className={styles.kpiUnit}>/ {stats?.total ?? '-'}</span>
+          </div>
+        </div>
+        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>过程状态</span>
+            <div className={styles.kpiIcon}>✅</div>
+          </div>
+          <div className={styles.kpiValue}>
+            <span className={styles.kpiStatusText}>{stats?.status || '-'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* I Chart */}
+      <div className={styles.chartPanel}>
+        <div className={styles.chartPanelHeader}>
+          <div className={styles.chartPanelTitle}>
+            <span className={styles.chartPanelTitleIcon}>📉</span>
+            单值控制图 (I Chart)
+          </div>
+          <div className={styles.chartPanelActions}>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.i_chart.ucl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.i_chart.cl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.i_chart.lcl.toFixed(3) || '-'}</span>
+            {spcData?.spec_limits.usl != null && (
+              <span className={`${styles.tag} ${styles.tagCritical}`}>USL: {spcData.spec_limits.usl}</span>
+            )}
+            {spcData?.spec_limits.lsl != null && (
+              <span className={`${styles.tag} ${styles.tagCritical}`}>LSL: {spcData.spec_limits.lsl}</span>
+            )}
+          </div>
+        </div>
+        <div className={styles.chartPanelBody}>
+          <div ref={iChartRef} style={{ height: 340 }} />
+        </div>
+      </div>
+
+      {/* MR Chart */}
+      <div className={styles.chartPanel}>
+        <div className={styles.chartPanelHeader}>
+          <div className={styles.chartPanelTitle}>
+            <span className={styles.chartPanelTitleIcon}>📉</span>
+            移动极差控制图 (MR Chart)
+          </div>
+          <div className={styles.chartPanelActions}>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.mr_chart.ucl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.mr_chart.cl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.mr_chart.lcl ?? 0}</span>
+          </div>
+        </div>
+        <div className={styles.chartPanelBody}>
+          <div ref={mrChartRef} style={{ height: 240 }} />
+        </div>
+      </div>
+
+      {/* Nelson Rules Violations */}
+      {spcData?.violations && spcData.violations.length > 0 && (
+        <div className={styles.violationsPanel}>
+          <div className={styles.violationsHeader}>
+            <div className={styles.violationsTitle}>
+              <span style={{ color: 'var(--accent-orange)' }}>⚡</span>
+              Nelson 规则违规
+            </div>
+          </div>
+          <div className={styles.violationsBody}>
+            <table className={styles.violationsTable}>
+              <thead>
+                <tr>
+                  <th>规则</th>
+                  <th>规则名称</th>
+                  <th>描述</th>
+                  <th>严重程度</th>
+                </tr>
+              </thead>
+              <tbody>
+                {spcData.violations.map(v => (
+                  <tr key={v.rule_id}>
+                    <td>
+                      <span className={`${styles.tag} ${
+                        v.severity === 'CRITICAL' ? styles.tagCritical
+                          : v.severity === 'WARNING' ? styles.tagWarning
+                            : styles.tagInfo
+                      }`}>R{v.rule_id}</span>
+                    </td>
+                    <td>{v.rule_name}</td>
+                    <td>{v.description}</td>
+                    <td>
+                      <span className={`${styles.tag} ${
+                        v.severity === 'CRITICAL' ? styles.tagCritical
+                          : v.severity === 'WARNING' ? styles.tagWarning
+                            : styles.tagInfo
+                      }`}>{v.severity}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   )

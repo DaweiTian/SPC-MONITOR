@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { EChartsOption } from 'echarts'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
+import { useAppContext } from '../../contexts/AppContext'
 import type { DashboardData, SchedulerStatus, Product, Indicator, MonitorData, CapabilityData } from '../../types'
 import styles from './Dashboard.module.css'
 
-/* ────────── 指标选项 ────────── */
-const METRICS = [
-  { key: 'fat', name: '脂肪' },
-  { key: 'protein', name: '蛋白质' },
-  { key: 'solid', name: '干物质' },
-] as const
+/* ────────── 品项模式 ────────── */
+type ProductMode = 'auto' | 'manual'
 
 /* ────────── Cpk 等级判定 ────────── */
 function cpkLevel(v: number): 'good' | 'warn' | 'bad' {
@@ -48,6 +45,9 @@ function fmtTime(iso?: string): string {
  *  Dashboard Page
  * ================================================================ */
 export const Dashboard: React.FC = () => {
+  /* ── 全局状态 ── */
+  const { setCurrentProduct, setCollectionFrequency } = useAppContext()
+  
   /* ── state ── */
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [status, setStatus] = useState<SchedulerStatus | null>(null)
@@ -55,8 +55,58 @@ export const Dashboard: React.FC = () => {
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [recentData, setRecentData] = useState<MonitorData[]>([])
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
-  const [selectedMetric, setSelectedMetric] = useState('fat')
   const [collecting, setCollecting] = useState(false)
+  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
+  
+  /* ── 品项选择状态 ── */
+  const [productMode, setProductMode] = useState<ProductMode>('auto')
+  const [selectedProduct, setSelectedProduct] = useState<string>('')
+  const [autoProducts, setAutoProducts] = useState<Product[]>([])
+  const [autoProductIndex, setAutoProductIndex] = useState(0)
+  
+  /* ── 指标跑马灯状态 ── */
+  const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([])
+  const [currentIndicatorIndex, setCurrentIndicatorIndex] = useState(0)
+  
+  /* ── 定时器引用 ── */
+  const productTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const indicatorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  /* ── 获取当前品项 ── */
+  const currentProduct = useMemo(() => {
+    if (productMode === 'manual' && selectedProduct) {
+      return products.find(p => p.code === selectedProduct)
+    }
+    if (productMode === 'auto' && autoProducts.length > 0) {
+      return autoProducts[autoProductIndex]
+    }
+    return products[0]
+  }, [productMode, selectedProduct, autoProducts, autoProductIndex, products])
+
+  /* ── 获取当前指标 ── */
+  const currentIndicator = useMemo(() => {
+    if (activeIndicators.length > 0) {
+      return activeIndicators[currentIndicatorIndex]
+    }
+    return null
+  }, [activeIndicators, currentIndicatorIndex])
+
+  /* ── 更新全局状态 ── */
+  useEffect(() => {
+    if (currentProduct) {
+      const displayName = productMode === 'auto' 
+        ? `🔄 ${currentProduct.name}`
+        : currentProduct.name
+      setCurrentProduct(displayName, currentProduct.code)
+    }
+  }, [currentProduct, productMode, setCurrentProduct])
+
+  useEffect(() => {
+    if (status) {
+      const freqLabel = `L${status.current_level} · ${status.current_interval_minutes}min`
+      setCollectionFrequency(freqLabel)
+    }
+  }, [status, setCollectionFrequency])
 
   /* ── data fetching ── */
   const fetchDashboard = useCallback(async () => {
@@ -71,37 +121,91 @@ export const Dashboard: React.FC = () => {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [p, i] = await Promise.all([api.getProducts(), api.getIndicators()])
-      setProducts(p.products)
+      const [p, i, a, status] = await Promise.all([
+        api.getProducts(), 
+        api.getIndicators(),
+        api.getAliases().catch(() => ({ products: {}, indicators: {} })),
+        api.getProductStatus().catch(() => ({} as Record<string, string>))
+      ])
+      
+      // 过滤掉停用的品项
+      const enabledProducts = p.products.filter((product: any) => 
+        (status as Record<string, string>)[product.code] !== 'disabled'
+      )
+      
+      setProducts(enabledProducts)
       setIndicators(i.indicators)
+      setAliases(a)
+      
+      // 自动模式时，取最近3个启用的品项
+      if (productMode === 'auto') {
+        const recentProducts = enabledProducts.slice(0, 3)
+        setAutoProducts(recentProducts)
+      }
     } catch (e) {
       console.error('获取元数据失败:', e)
     }
-  }, [])
+  }, [productMode])
 
+  /* ── 获取有数据的指标 ── */
+  const fetchActiveIndicators = useCallback(async () => {
+    if (!currentProduct || indicators.length === 0) {
+      setActiveIndicators([])
+      return
+    }
+
+    try {
+      // 检查每个指标是否有数据
+      const indicatorChecks = await Promise.all(
+        indicators.map(async (ind) => {
+          try {
+            const result = await api.getRecentData({
+              indicator_code: ind.code,
+              product_code: currentProduct.code,
+              limit: 1,
+            })
+            const data = Array.isArray(result) ? result : result.data || []
+            return data.length > 0 ? ind : null
+          } catch {
+            return null
+          }
+        })
+      )
+      
+      const active = indicatorChecks.filter(Boolean) as Indicator[]
+      setActiveIndicators(active)
+    } catch (e) {
+      console.error('获取活跃指标失败:', e)
+      setActiveIndicators(indicators) // fallback to all
+    }
+  }, [currentProduct, indicators])
+
+  /* ── 获取趋势数据（限制30条） ── */
   const fetchTrend = useCallback(async () => {
-    if (products.length === 0) return
+    if (!currentProduct || !currentIndicator) {
+      setRecentData([])
+      return
+    }
     try {
       const result = await api.getRecentData({
-        indicator_code: selectedMetric,
-        product_code: products[0].code,
-        limit: 60,
+        indicator_code: currentIndicator.code,
+        product_code: currentProduct.code,
+        limit: 30,
       })
       setRecentData(Array.isArray(result) ? result : result.data || [])
     } catch (e) {
       console.error('获取趋势数据失败:', e)
     }
-  }, [products, selectedMetric])
+  }, [currentProduct, currentIndicator])
 
+  /* ── 获取过程能力数据（只获取当前品项的） ── */
   const fetchCapMatrix = useCallback(async () => {
-    if (products.length === 0 || indicators.length === 0) return
+    if (!currentProduct || indicators.length === 0) {
+      setCapMatrix([])
+      return
+    }
     try {
-      const pairs: Array<[string, string]> = []
-      for (const p of products) {
-        for (const ind of indicators) {
-          pairs.push([p.code, ind.code])
-        }
-      }
+      const pairs: Array<[string, string]> = indicators.map(ind => [currentProduct.code, ind.code])
       const results = await Promise.all(
         pairs.map(([pc, ic]) => api.getCapabilityData(pc, ic).catch(() => null)),
       )
@@ -109,7 +213,37 @@ export const Dashboard: React.FC = () => {
     } catch (e) {
       console.error('获取过程能力数据失败:', e)
     }
-  }, [products, indicators])
+  }, [currentProduct, indicators])
+
+  /* ── 品项轮换定时器 ── */
+  useEffect(() => {
+    if (productMode === 'auto' && autoProducts.length > 1) {
+      productTimerRef.current = setInterval(() => {
+        setAutoProductIndex(prev => (prev + 1) % autoProducts.length)
+      }, 30000) // 30秒轮换一次品项
+      
+      return () => {
+        if (productTimerRef.current) {
+          clearInterval(productTimerRef.current)
+        }
+      }
+    }
+  }, [productMode, autoProducts])
+
+  /* ── 指标跑马灯定时器 ── */
+  useEffect(() => {
+    if (activeIndicators.length > 1) {
+      indicatorTimerRef.current = setInterval(() => {
+        setCurrentIndicatorIndex(prev => (prev + 1) % activeIndicators.length)
+      }, 10000) // 10秒轮换一次指标
+      
+      return () => {
+        if (indicatorTimerRef.current) {
+          clearInterval(indicatorTimerRef.current)
+        }
+      }
+    }
+  }, [activeIndicators])
 
   /* ── lifecycle ── */
   useEffect(() => {
@@ -130,8 +264,20 @@ export const Dashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { fetchTrend() }, [fetchTrend])
-  useEffect(() => { fetchCapMatrix() }, [fetchCapMatrix])
+  /* ── 品项变化时获取活跃指标 ── */
+  useEffect(() => {
+    fetchActiveIndicators()
+  }, [fetchActiveIndicators])
+
+  /* ── 指标变化时获取趋势数据 ── */
+  useEffect(() => {
+    fetchTrend()
+  }, [fetchTrend])
+
+  /* ── 品项变化时获取过程能力数据 ── */
+  useEffect(() => {
+    fetchCapMatrix()
+  }, [fetchCapMatrix])
 
   /* ── manual collect ── */
   const handleCollect = async () => {
@@ -139,6 +285,7 @@ export const Dashboard: React.FC = () => {
     try {
       await api.manualCollect()
       fetchDashboard()
+      fetchActiveIndicators() // 重新获取活跃指标
     } catch (e) {
       console.error('手动采集失败:', e)
     } finally {
@@ -158,10 +305,8 @@ export const Dashboard: React.FC = () => {
   }, [capMatrix])
 
   /* ── trend chart option ── */
-  const metricName = METRICS.find(m => m.key === selectedMetric)?.name || '脂肪'
-
   const chartOption: EChartsOption | null = useMemo(() => {
-    if (recentData.length === 0) return null
+    if (recentData.length === 0 || !currentIndicator) return null
 
     const sorted = [...recentData].sort(
       (a, b) => new Date(a.sample_time).getTime() - new Date(b.sample_time).getTime(),
@@ -196,7 +341,7 @@ export const Dashboard: React.FC = () => {
       ...chartTheme,
       tooltip: { trigger: 'axis', ...tooltipStyle },
       legend: {
-        data: [metricName, ...(usl !== null ? ['USL'] : []), ...(lsl !== null ? ['LSL'] : [])],
+        data: [currentIndicator.name, ...(usl !== null ? ['USL'] : []), ...(lsl !== null ? ['LSL'] : [])],
         textStyle: { color: '#8b95a7' },
         top: 0,
         right: 10,
@@ -210,7 +355,7 @@ export const Dashboard: React.FC = () => {
       yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
       series: [
         {
-          name: metricName,
+          name: currentIndicator.name,
           type: 'line',
           smooth: true,
           symbol: 'circle',
@@ -234,22 +379,26 @@ export const Dashboard: React.FC = () => {
         },
       ],
     }
-  }, [recentData, metricName])
+  }, [recentData, currentIndicator])
 
   const { containerRef } = useChart(chartOption)
 
-  /* ── product name lookup ── */
+  /* ── product name lookup (with alias support) ── */
   const productNameMap = useMemo(() => {
     const m: Record<string, string> = {}
-    products.forEach(p => { m[p.code] = p.name })
+    products.forEach(p => { 
+      m[p.code] = aliases.products[p.code] || p.name 
+    })
     return m
-  }, [products])
+  }, [products, aliases.products])
 
   const indicatorNameMap = useMemo(() => {
     const m: Record<string, string> = {}
-    indicators.forEach(i => { m[i.code] = i.name })
+    indicators.forEach(i => { 
+      m[i.code] = aliases.indicators[i.code] || i.name 
+    })
     return m
-  }, [indicators])
+  }, [indicators, aliases.indicators])
 
   /* ── status helpers ── */
   const freqLabel = status
@@ -298,10 +447,10 @@ export const Dashboard: React.FC = () => {
             <div className={styles.kpiIcon}>🔄</div>
           </div>
           <div className={styles.kpiValue}>
-            {dashboard?.today_sync_count ?? 0}<span className={styles.kpiUnit}>条</span>
+            {dashboard?.today_data_count ?? 0}<span className={styles.kpiUnit}>条</span>
           </div>
           <div className={`${styles.kpiTrend} ${styles.kpiTrendUp}`}>
-            成功率 {status ? ((1 - 0) * 100).toFixed(1) + '%' : '99.3%'}
+            {dashboard?.today_data_count ? `成功率 ${((1 - (dashboard?.today_unqualified_count ?? 0) / dashboard.today_data_count) * 100).toFixed(1)}%` : '-'}
           </div>
         </div>
 
@@ -343,21 +492,77 @@ export const Dashboard: React.FC = () => {
               <span className={styles.panelTitleIcon}>📈</span>
               实时数据趋势
               <span className={styles.liveIndicator}>LIVE</span>
+              {/* 品项选择器 */}
+              <div className={styles.productSelector}>
+                <select
+                  className={styles.productSelect}
+                  value={productMode === 'manual' ? selectedProduct : 'auto'}
+                  onChange={e => {
+                    const value = e.target.value
+                    if (value === 'auto') {
+                      setProductMode('auto')
+                      setAutoProductIndex(0)
+                    } else {
+                      setProductMode('manual')
+                      setSelectedProduct(value)
+                    }
+                  }}
+                >
+                  <option value="auto">🔄 自动轮换</option>
+                  {products.map(p => (
+                    <option key={p.code} value={p.code}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className={styles.panelActions}>
-              <select
-                className={styles.metricSelect}
-                value={selectedMetric}
-                onChange={e => setSelectedMetric(e.target.value)}
-              >
-                {METRICS.map(m => (
-                  <option key={m.key} value={m.key}>{m.name}</option>
-                ))}
-              </select>
+              {/* 指标指示器 */}
+              {activeIndicators.length > 1 && (
+                <div className={styles.indicatorDots}>
+                  {activeIndicators.map((ind, idx) => (
+                    <span
+                      key={ind.code}
+                      className={`${styles.indicatorDot} ${idx === currentIndicatorIndex ? styles.indicatorDotActive : ''}`}
+                      title={ind.name}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* 当前指标名称 */}
+              {currentIndicator && (
+                <span className={styles.currentIndicator}>
+                  {currentIndicator.name}
+                </span>
+              )}
             </div>
           </div>
           <div className={styles.panelBody}>
             <div ref={containerRef} className={styles.chartContainer} />
+            {/* 当前品项和指标信息 */}
+            <div className={styles.productInfo}>
+              {currentProduct && (
+                <>
+                  <span>
+                    监测品项: {productNameMap[currentProduct.code] || currentProduct.name}
+                    {productMode === 'auto' && (
+                      <span className={styles.autoLabel}>
+                        (自动 {autoProductIndex + 1}/{autoProducts.length})
+                      </span>
+                    )}
+                  </span>
+                  {currentIndicator && (
+                    <span>
+                      检验项目: {indicatorNameMap[currentIndicator.code] || currentIndicator.name}
+                      {activeIndicators.length > 1 && (
+                        <span className={styles.indicatorLabel}>
+                          ({currentIndicatorIndex + 1}/{activeIndicators.length})
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -391,11 +596,15 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className={styles.collectStatusItem}>
                 <span className={styles.collectLabel}>今日成功率</span>
-                <span className={`${styles.collectValue} ${styles.collectValueGreen}`}>99.3%</span>
+                <span className={`${styles.collectValue} ${dashboard?.today_data_count ? styles.collectValueGreen : ''}`}>
+                  {dashboard?.today_data_count ? `${((1 - (dashboard?.today_unqualified_count ?? 0) / dashboard.today_data_count) * 100).toFixed(1)}%` : '-'}
+                </span>
               </div>
               <div className={styles.collectStatusItem}>
-                <span className={styles.collectLabel}>FT1连接</span>
-                <span className={`${styles.collectValue} ${styles.collectValueGreen}`}>● 已连接</span>
+                <span className={styles.collectLabel}>数据源连接</span>
+                <span className={`${styles.collectValue} ${status?.connected ? styles.collectValueGreen : styles.collectValueRed}`}>
+                  {status?.connected ? '● 已连接' : '○ 未连接'}
+                </span>
               </div>
               <button
                 className={styles.btnPrimary}
@@ -417,6 +626,9 @@ export const Dashboard: React.FC = () => {
             <div className={styles.panelTitle}>
               <span className={styles.panelTitleIcon}>🏭</span>
               品项过程能力概览
+              {currentProduct && (
+                <span className={styles.productBadge}>{currentProduct.name}</span>
+              )}
             </div>
           </div>
           <div className={styles.panelBody}>
@@ -431,7 +643,6 @@ export const Dashboard: React.FC = () => {
                       style={{ borderColor: cpkBorderStyle(level) }}
                     >
                       <div className={styles.pmName}>
-                        {productNameMap[cap.product_code] || cap.product_code}-
                         {indicatorNameMap[cap.indicator_code] || cap.indicator_code}
                       </div>
                       <div

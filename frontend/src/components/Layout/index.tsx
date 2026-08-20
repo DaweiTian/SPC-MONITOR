@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { api } from '../../services'
+import { useAppContext } from '../../contexts/AppContext'
 import styles from './Layout.module.css'
 
 interface NavItem {
@@ -23,7 +25,7 @@ const navGroups: NavGroup[] = [
       { key: 'spc', path: '/spc', label: 'SPC控制图', icon: '📈' },
       { key: 'capability', path: '/capability', label: '过程能力', icon: '🎯' },
       { key: 'prediction', path: '/prediction', label: '指标预测', icon: '🔮' },
-      { key: 'alerts', path: '/alerts', label: '预警中心', icon: '🚨', badge: 3 },
+      { key: 'alerts', path: '/alerts', label: '预警中心', icon: '🚨' },
     ],
   },
   {
@@ -62,7 +64,9 @@ function formatTime(date: Date): string {
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { currentProduct, collectionFrequency } = useAppContext()
   const [clock, setClock] = useState(() => formatTime(new Date()))
+  const [alertsCount, setAlertsCount] = useState(0)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -71,7 +75,32 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     return () => clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    const fetchAlertsCount = async () => {
+      try {
+        const dashboard = await api.getDashboard()
+        const total = (dashboard.pending_alerts?.CRITICAL || 0) + 
+                     (dashboard.pending_alerts?.WARNING || 0) + 
+                     (dashboard.pending_alerts?.INFO || 0)
+        setAlertsCount(total)
+      } catch {
+        setAlertsCount(0)
+      }
+    }
+    fetchAlertsCount()
+    const interval = setInterval(fetchAlertsCount, 30000) // Refresh every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
   const currentPage = pageTitleMap[location.pathname] || { cn: '页面', en: 'Page' }
+
+  // Update alerts badge dynamically
+  const navGroupsWithBadge = navGroups.map(group => ({
+    ...group,
+    items: group.items.map(item => 
+      item.key === 'alerts' ? { ...item, badge: alertsCount > 0 ? alertsCount : undefined } : item
+    )
+  }))
 
   return (
     <div className={styles.app}>
@@ -85,7 +114,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
         </div>
         <nav className={styles.sidebarNav}>
-          {navGroups.map((group) => (
+          {navGroupsWithBadge.map((group) => (
             <React.Fragment key={group.title}>
               <div className={styles.navGroupTitle}>{group.title}</div>
               {group.items.map((item) => {
@@ -112,7 +141,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             <span className={styles.statusDot} />
             采集服务运行中
           </div>
-          <div className={styles.footerSub}>FT1 连接正常 · v1.0.0</div>
+          <div className={styles.footerSub}>v1.0.0</div>
         </div>
       </aside>
 
@@ -128,11 +157,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           <div className={styles.topbarInfo}>
             <div className={styles.topbarInfoItem}>
               <span className={styles.topbarInfoLabel}>采集频率:</span>
-              <span className={styles.topbarInfoValue}>L0 · 5min</span>
+              <span className={styles.topbarInfoValue}>{collectionFrequency}</span>
             </div>
             <div className={styles.topbarInfoItem}>
               <span className={styles.topbarInfoLabel}>监测品项:</span>
-              <span className={styles.topbarInfoValue}>砖纯牛奶</span>
+              <span className={styles.topbarInfoValue}>{currentProduct}</span>
             </div>
             <div className={styles.topbarStatus}>
               <span className={styles.topbarDot} /> 系统正常
