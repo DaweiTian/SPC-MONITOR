@@ -176,13 +176,51 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
   .main { margin-left: 0; padding: 20px; }
   .toc-grid { grid-template-columns: 1fr; }
 }
-/* 嵌入iframe时隐藏侧边栏和顶栏 */
-body.embedded .sidebar { display: none; }
+/* 嵌入iframe时隐藏顶栏，侧边栏可折叠 */
 body.embedded .topbar { display: none; }
-body.embedded .main { margin-left: 0; margin-top: 0; padding: 24px 32px; }
+body.embedded .main { margin-top: 0; padding: 20px 32px; }
+body.embedded .sidebar {
+  top: 0; width: 240px;
+  transform: translateX(-240px);
+  transition: transform 0.3s ease;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.3);
+  z-index: 200;
+}
+body.embedded .sidebar.open { transform: translateX(0); }
+body.embedded .main { margin-left: 0; }
+
+/* 目录切换按钮 */
+.toc-toggle {
+  display: none;
+  position: fixed; top: 12px; left: 12px; z-index: 300;
+  width: 36px; height: 36px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  color: var(--text);
+  font-size: 16px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.toc-toggle:hover { background: var(--primary-light); color: var(--primary); }
+body.embedded .toc-toggle { display: flex; }
+
+/* 遮罩层 */
+.toc-overlay {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 150;
+}
+body.embedded .toc-overlay.active { display: block; }
 </style>
 </head>
 <body>
+
+<!-- 目录切换按钮（仅嵌入时显示） -->
+<button class="toc-toggle" onclick="toggleSidebar()" title="目录">☰</button>
+<div class="toc-overlay" onclick="toggleSidebar()"></div>
 
 <!-- ===== 顶部导航 ===== -->
 <div class="topbar">
@@ -1651,6 +1689,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 if (window.self !== window.top) {
   document.body.classList.add('embedded');
+}
+function toggleSidebar() {
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.querySelector('.toc-overlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('active');
 }
 </script>
 
