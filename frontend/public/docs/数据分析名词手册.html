@@ -29,11 +29,13 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* 自定义滚动条 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.4); }
+
+  /* 自定义滚动条 */
+  * { scrollbar-width: thin; scrollbar-color: rgba(0,212,255,0.2) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.4); }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -141,6 +143,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 
 .chart-container { width: 100%; margin: 16px 0; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .chart-container .chart-title { background: var(--code-bg); padding: 8px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); }
+
 .chart-container .chart-body { padding: 12px; }
 
 .step-list { counter-reset: step; list-style: none; margin: 14px 0; }
