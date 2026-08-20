@@ -23,13 +23,6 @@ interface SpecLimit {
   unit: string
 }
 
-interface FrequencyRow {
-  level: string
-  frequency: string
-  trigger: string
-  status: 'current' | 'standby'
-}
-
 interface NelsonRule {
   id: number
   rule: string
@@ -91,12 +84,6 @@ const INITIAL_SPECS: SpecLimit[] = [
   { id: '2', product: 'FT1-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
   { id: '3', product: 'FT1-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
   { id: '4', product: 'FT1-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
-]
-
-const FREQUENCY_ROWS: FrequencyRow[] = [
-  { level: 'L0', frequency: '1 分钟', trigger: '产线运行时持续', status: 'current' },
-  { level: 'L1', frequency: '5 分钟', trigger: '常规监控', status: 'standby' },
-  { level: 'L2', frequency: '30 分钟', trigger: '待机/低负荷', status: 'standby' },
 ]
 
 const DEFAULT_DB_CONFIG: DBConfig = {
@@ -182,6 +169,13 @@ export const ConfigPage: React.FC = () => {
   const [indicatorSpecs, setIndicatorSpecs] = useState<IndicatorSpec[]>([])
   const [newProduct, setNewProduct] = useState({ name: '', code: '', status: 'enabled' as 'enabled' | 'disabled' })
   const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
+  const [frequencyStatus, setFrequencyStatus] = useState<{
+    current_level: number
+    current_interval_minutes: number
+    frequency_ladder: number[]
+    is_collecting: boolean
+    last_collect_time: string | null
+  } | null>(null)
 
   /* Fetch current instrument and configs on mount */
   useEffect(() => {
@@ -205,6 +199,17 @@ export const ConfigPage: React.FC = () => {
 
     // Fetch products from API
     fetchProducts()
+
+    // Fetch frequency status
+    const fetchFrequency = async () => {
+      try {
+        const status = await api.getStatus()
+        setFrequencyStatus(status)
+      } catch {}
+    }
+    fetchFrequency()
+    const freqInterval = setInterval(fetchFrequency, 15000)
+    return () => clearInterval(freqInterval)
   }, [])
 
   const fetchProducts = async () => {
@@ -684,31 +689,51 @@ export const ConfigPage: React.FC = () => {
               采集频率配置
             </span>
           </div>
-          <div className={styles.cardBody}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>级别</th>
-                  <th>频率</th>
-                  <th>触发条件</th>
-                  <th>状态</th>
-                </tr>
-              </thead>
-              <tbody>
-                {FREQUENCY_ROWS.map(f => (
-                  <tr key={f.level}>
-                    <td className={styles.tableCellPrimary}>{f.level}</td>
-                    <td className={styles.tableCellMono}>{f.frequency}</td>
-                    <td>{f.trigger}</td>
-                    <td>
-                      {f.status === 'current'
-                        ? <StatusTag label="当前" color="green" />
-                        : <StatusTag label="待命" color="blue" />}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className={styles.cardBody} style={{ padding: '16px 20px' }}>
+            {frequencyStatus ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                      {frequencyStatus.current_interval_minutes} 分钟
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      当前采集频率 · L{frequencyStatus.current_level}
+                    </div>
+                  </div>
+                  <button
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={async () => {
+                      await api.manualCollect()
+                      const status = await api.getStatus()
+                      setFrequencyStatus(status)
+                    }}
+                  >
+                    立即采集
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {frequencyStatus.frequency_ladder.map((freq: number, idx: number) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        background: idx === frequencyStatus.current_level ? 'rgba(0, 212, 255, 0.15)' : 'var(--bg-secondary)',
+                        border: `1px solid ${idx === frequencyStatus.current_level ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
+                        color: idx === frequencyStatus.current_level ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        fontWeight: idx === frequencyStatus.current_level ? 600 : 400,
+                      }}
+                    >
+                      L{idx} · {freq}min
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>加载中...</div>
+            )}
           </div>
         </div>
 
