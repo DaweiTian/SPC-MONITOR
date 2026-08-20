@@ -976,14 +976,34 @@ export const ConfigPage: React.FC = () => {
                   MDB 文件路径
                   <span className={styles.formRequired}>*</span>
                 </label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={mdbConfig.mdb_path}
-                  onChange={e => handleMdbConfigChange('mdb_path', e.target.value)}
-                  placeholder="例: /mnt/d/数据/ft120.mdb 或 C:\Data\ft120.mdb"
-                />
-                <span className={styles.formHint}>支持本地文件路径</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    style={{ flex: 1 }}
+                    value={mdbConfig.mdb_path}
+                    onChange={e => handleMdbConfigChange('mdb_path', e.target.value)}
+                    placeholder="例: /mnt/d/数据/ft120.mdb 或 C:\Data\ft120.mdb"
+                  />
+                  <label className={`${styles.btn} ${styles.btnSecondary}`} style={{ cursor: 'pointer', whiteSpace: 'nowrap', margin: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    浏览
+                    <input
+                      type="file"
+                      accept=".mdb,.accdb"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          handleMdbConfigChange('mdb_path', file.name)
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <span className={styles.formHint}>支持本地 .mdb 文件</span>
               </div>
             </div>
 
