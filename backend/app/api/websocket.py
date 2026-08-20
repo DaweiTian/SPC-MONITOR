@@ -20,6 +20,10 @@ async def broadcast_data(data: dict):
             disconnected.add(client)
     websocket_clients.difference_update(disconnected)
 
+async def broadcast_typed(msg_type: str, data: dict):
+    message = json.dumps({"type": msg_type, "data": data, "timestamp": datetime.now().isoformat()}, ensure_ascii=False)
+    await broadcast_data(message)
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
