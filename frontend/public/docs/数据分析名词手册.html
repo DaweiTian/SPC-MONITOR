@@ -176,6 +176,10 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
   .main { margin-left: 0; padding: 20px; }
   .toc-grid { grid-template-columns: 1fr; }
 }
+/* 嵌入iframe时隐藏侧边栏和顶栏 */
+body.embedded .sidebar { display: none; }
+body.embedded .topbar { display: none; }
+body.embedded .main { margin-left: 0; margin-top: 0; padding: 24px 32px; }
 </style>
 </head>
 <body>
@@ -246,27 +250,27 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 
   <div class="toc-grid">
     <a class="toc-card" href="#spc">
-      <div class="toc-icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📊</div>
+      <div class="toc-icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg></div>
       <div class="toc-text"><h3>SPC 统计过程控制</h3><p>控制图、控制限、Nelson规则、3σ原则</p></div>
     </a>
     <a class="toc-card" href="#cpk">
-      <div class="toc-icon" style="background:#dcfce7;color:#15803d;">🎯</div>
+      <div class="toc-icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
       <div class="toc-text"><h3>过程能力分析</h3><p>Cpk、Cp、Ppk、PPM缺陷率、规格限</p></div>
     </a>
     <a class="toc-card" href="#zscore">
-      <div class="toc-icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">🔍</div>
+      <div class="toc-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
       <div class="toc-text"><h3>异常检测</h3><p>Z-Score、IQR四分位距、EWMA指数加权</p></div>
     </a>
     <a class="toc-card" href="#arima">
-      <div class="toc-icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📈</div>
+      <div class="toc-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
       <div class="toc-text"><h3>趋势预测</h3><p>ARIMA模型、Mann-Kendall趋势检验</p></div>
     </a>
     <a class="toc-card" href="#mean-std">
-      <div class="toc-icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">📐</div>
+      <div class="toc-icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M6 8v8"/><path d="M10 10v4"/><path d="M14 8v8"/><path d="M18 10v4"/></svg></div>
       <div class="toc-text"><h3>基础统计概念</h3><p>均值、标准差、正态分布、置信区间</p></div>
     </a>
     <a class="toc-card" href="#sliding-window">
-      <div class="toc-icon" style="background:#e0e7ff;color:#4338ca;">🪟</div>
+      <div class="toc-icon" style="background:#e0e7ff;color:#4338ca;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
       <div class="toc-text"><h3>滑动窗口</h3><p>动态数据窗口、窗口大小策略</p></div>
     </a>
   </div>
@@ -276,7 +280,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="spc" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📊</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg></div>
       <h2>SPC（统计过程控制）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -311,7 +315,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="imr-chart" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📉</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
       <h2>I-MR 控制图（单值-移动极差图）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -372,7 +376,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="control-limits" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📏</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M6 8v8"/><path d="M10 10v4"/><path d="M14 8v8"/><path d="M18 10v4"/></svg></div>
       <h2>控制限（UCL / LCL / CL）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -413,7 +417,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="nelson" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📋</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
       <h2>Nelson 规则（8 条判异规则）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -450,7 +454,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="sigma" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">σ</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 4H6l6 8-6 8h12"/></svg></div>
       <h2>3σ 原则（经验法则）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -488,7 +492,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="cpk" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dcfce7;color:#15803d;">🎯</div>
+      <div class="icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
       <h2>Cpk / Cp / Ppk（过程能力指数）</h2>
       <span class="tag tag-capability">过程能力</span>
     </div>
@@ -561,7 +565,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="ppm" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dcfce7;color:#15803d;">🔬</div>
+      <div class="icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg></div>
       <h2>PPM（百万分之缺陷率）</h2>
       <span class="tag tag-capability">过程能力</span>
     </div>
@@ -602,7 +606,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="spec-limits" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dcfce7;color:#15803d;">📐</div>
+      <div class="icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M6 8v8"/><path d="M10 10v4"/><path d="M14 8v8"/><path d="M18 10v4"/></svg></div>
       <h2>规格限（USL / LSL / T）</h2>
       <span class="tag tag-capability">过程能力</span>
     </div>
@@ -629,7 +633,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="zscore" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">🔍</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
       <h2>Z-Score（标准分数）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -669,7 +673,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="iqr" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">📦</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
       <h2>IQR（四分位距）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -712,7 +716,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="ewma" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">📡</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><circle cx="12" cy="12" r="2"/></svg></div>
       <h2>EWMA（指数加权移动平均）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -759,7 +763,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="arima" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📈</div>
+      <div class="icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
       <h2>ARIMA 模型（自回归积分移动平均）</h2>
       <span class="tag tag-trend">趋势预测</span>
     </div>
@@ -810,7 +814,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="mann-kendall" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📉</div>
+      <div class="icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
       <h2>Mann-Kendall 趋势检验</h2>
       <span class="tag tag-trend">趋势预测</span>
     </div>
@@ -877,7 +881,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="mean-std" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">📐</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M6 8v8"/><path d="M10 10v4"/><path d="M14 8v8"/><path d="M18 10v4"/></svg></div>
       <h2>均值（μ / x̄）与标准差（σ / s）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
@@ -925,7 +929,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="normal-dist" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">🔔</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
       <h2>正态分布（高斯分布）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
@@ -971,7 +975,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="confidence-interval" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">🎯</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
       <h2>置信区间（CI）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
@@ -1000,7 +1004,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="sliding-window" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#e0e7ff;color:#4338ca;">🪟</div>
+      <div class="icon" style="background:#e0e7ff;color:#4338ca;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
       <h2>滑动窗口（Sliding Window）</h2>
       <span class="tag tag-quality">平台特有</span>
     </div>
@@ -1037,7 +1041,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="appendix" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:var(--code-bg);color:var(--text);">📚</div>
+      <div class="icon" style="background:var(--code-bg);color:var(--text);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
       <h2>附录：术语速查表</h2>
     </div>
 
@@ -1643,6 +1647,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+</script>
+<script>
+if (window.self !== window.top) {
+  document.body.classList.add('embedded');
+}
 </script>
 
 </body>
