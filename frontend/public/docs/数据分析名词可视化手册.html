@@ -70,13 +70,12 @@
   .nav-item.active .num { background: var(--primary); color: white; }
 
   /* ===== 主内容 ===== */
-  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: calc(100% - 260px); overflow-x: hidden; box-sizing: border-box; }
+  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: none; overflow-x: hidden; }
 
   /* ===== 卡片 ===== */
   .card {
     background: var(--card-bg); border-radius: 12px; padding: 28px;
     box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
-    width: 100%; box-sizing: border-box; min-width: 0;
   }
 
   /* ===== 标题 ===== */
@@ -225,7 +224,7 @@
   /* 嵌入iframe时隐藏顶栏，侧边栏可折叠 */
   body.embedded { overflow-x: hidden; }
   body.embedded .top-bar { display: none; }
-  body.embedded .main { margin-top: 0; padding: 20px 32px; }
+  body.embedded .main { margin-left: 0; margin-top: 0; padding: 20px 24px 80px; }
   body.embedded .sidebar {
     top: 0; width: 240px;
     transform: translateX(-240px);
@@ -234,7 +233,6 @@
     z-index: 200;
   }
   body.embedded .sidebar.open { transform: translateX(0); }
-  body.embedded .main { margin-left: 0; padding: 20px 24px 80px; max-width: 100%; }
 
   .toc-toggle {
     display: none;
@@ -1122,7 +1120,7 @@ PPM = (P_below + P_above) × 10⁶ ≈ <span class="number">0.11</span> PPM
 
   <div class="concept" id="mk-test">
     <div class="concept-title"><span class="tag tag-trend">核心</span> Mann-Kendall 检验</div>
-    <div="concept-body">
+    <div class="concept-body">
       <p>一种<strong>非参数</strong>统计检验方法，用于判断时间序列是否存在<strong>单调趋势</strong>（上升或下降）。不要求数据正态分布，不受异常值影响，适合检验液奶检测指标的趋势变化。</p>
       <div class="formula-box">
         <div class="label">步骤1：计算S统计量</div>
