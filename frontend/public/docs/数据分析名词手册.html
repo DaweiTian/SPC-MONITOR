@@ -77,6 +77,7 @@ body {
 .card {
   background: var(--card-bg); border-radius: 12px; padding: 28px;
   box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
+  overflow-x: auto;
 }
 .card-header {
   display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
@@ -122,7 +123,7 @@ body {
 }
 .warn-box::before { content: "⚠️ "; }
 
-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; table-layout: fixed; }
 th { background: var(--code-bg); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); }
 td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
 tr:hover td { background: var(--code-bg); }

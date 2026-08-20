@@ -70,12 +70,13 @@
   .nav-item.active .num { background: var(--primary); color: white; }
 
   /* ===== 主内容 ===== */
-  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: none; overflow-x: hidden; }
+  .main { margin-left: 260px; margin-top: 56px; padding: 32px 40px 80px; max-width: none; overflow-x: hidden; width: auto; }
 
   /* ===== 卡片 ===== */
   .card {
     background: var(--card-bg); border-radius: 12px; padding: 28px;
     box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border);
+    overflow-x: auto;
   }
 
   /* ===== 标题 ===== */
@@ -143,7 +144,7 @@
   }
 
   /* ===== 表格 ===== */
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; table-layout: fixed; }
   th { background: var(--code-bg); padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); }
   td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
   tr:hover td { background: var(--code-bg); }
@@ -155,8 +156,8 @@
     display: flex; gap: 10px; align-items: flex-start;
   }
   .tip-box .tip-icon { font-size: 16px; flex-shrink: 0; }
-  .tip-info { background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; }
-  .tip-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #92400e; }
+  .tip-info { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); color: #67e8f9; }
+  .tip-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #fbbf24; }
   .tip-danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #991b1b; }
   .tip-success { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981; }
 
