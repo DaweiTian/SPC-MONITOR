@@ -3,20 +3,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   margin-bottom: 16px;
   flex-wrap: wrap;
-}
-
-.filterLabel {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-right: 8px;
-  white-space: nowrap;
 }
 
 .filterSelect {
@@ -46,26 +38,11 @@
   box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
 }
 
-.predictBtn {
-  padding: 8px 20px;
-  background: var(--gradient-cyan);
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+.filterStatus {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
   white-space: nowrap;
-}
-
-.predictBtn:hover {
-  box-shadow: var(--glow-cyan);
-  transform: translateY(-1px);
-}
-
-.predictBtn:active {
-  transform: translateY(0);
 }
 
 /* ========== KPI Grid ========== */
@@ -127,7 +104,16 @@
 }
 
 .kpiIcon {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.kpiIcon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .kpiValue {
@@ -185,7 +171,16 @@
 }
 
 .panelTitleIcon {
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.panelTitleIcon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .liveIndicator {
@@ -302,6 +297,14 @@
 
 .valueCyan {
   color: var(--accent-cyan);
+}
+
+/* ========== Loading ========== */
+.loadingText {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px 0;
+  font-size: 13px;
 }
 
 /* ========== Animations ========== */

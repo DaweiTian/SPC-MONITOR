@@ -9,41 +9,85 @@ storage = None  # injected from main.py
 
 
 def _ets_forecast(values: np.ndarray, horizon: int):
-    """Exponential Smoothing (Holt-Winters additive trend)."""
-    model = ExponentialSmoothing(values, trend="add", seasonal=None, damped_trend=True)
-    fit = model.fit(optimized=True)
-    pred = fit.forecast(horizon)
+    """Exponential Smoothing — uses last 50 points to capture short-term dynamics."""
+    window = values[-50:] if len(values) > 50 else values
+    for cfg in [
+        {"trend": "add", "damped_trend": False, "initialization_method": "heuristic"},
+        {"trend": "add", "damped_trend": True, "initialization_method": "heuristic"},
+        {"trend": None, "damped_trend": False},
+    ]:
+        try:
+            model = ExponentialSmoothing(window, seasonal=None, **cfg)
+            fit = model.fit(optimized=True)
+            pred = fit.forecast(horizon)
+            residuals = fit.resid
+            sigma = float(np.std(residuals, ddof=1))
+            upper = (pred + 1.96 * sigma).tolist()
+            lower = (pred - 1.96 * sigma).tolist()
+            return pred.tolist(), upper, lower
+        except Exception:
+            continue
+    return _linear_forecast(values, horizon)
 
-    residuals = fit.resid
-    sigma = float(np.std(residuals, ddof=1))
-    upper = (pred + 1.96 * sigma).tolist()
-    lower = (pred - 1.96 * sigma).tolist()
-    return pred.tolist(), upper, lower
 
-
-def _ma_forecast(values: np.ndarray, horizon: int, window: int = 5):
-    """Simple Moving Average forecast."""
-    last_window = values[-window:]
+def _ma_forecast(values: np.ndarray, horizon: int, window: int = 10):
+    """Moving Average with linear trend extrapolation."""
+    w = min(window, len(values))
+    last_window = values[-w:]
     mean_val = float(np.mean(last_window))
     sigma = float(np.std(values, ddof=1))
 
-    predictions = [mean_val] * horizon
-    upper = [mean_val + 1.96 * sigma] * horizon
-    lower = [mean_val - 1.96 * sigma] * horizon
+    # Compute short-term linear trend from the window
+    if w >= 2:
+        x = np.arange(w, dtype=float)
+        coeffs = np.polyfit(x, last_window, 1)
+        slope = float(coeffs[0])
+        intercept = float(coeffs[1])
+    else:
+        slope = 0.0
+        intercept = mean_val
+
+    predictions = []
+    for i in range(horizon):
+        val = intercept + slope * (w + i)
+        predictions.append(val)
+
+    upper = [p + 1.96 * sigma for p in predictions]
+    lower = [p - 1.96 * sigma for p in predictions]
+    return predictions, upper, lower
+
+
+def _linear_forecast(values: np.ndarray, horizon: int):
+    """Simple linear regression forecast (fallback)."""
+    n = len(values)
+    x = np.arange(n, dtype=float)
+    coeffs = np.polyfit(x, values, 1)
+    slope, intercept = float(coeffs[0]), float(coeffs[1])
+    residuals = values - (slope * x + intercept)
+    sigma = float(np.std(residuals, ddof=1))
+
+    predictions = [intercept + slope * (n + i) for i in range(horizon)]
+    upper = [p + 1.96 * sigma for p in predictions]
+    lower = [p - 1.96 * sigma for p in predictions]
     return predictions, upper, lower
 
 
 def _arima_forecast(values: np.ndarray, horizon: int):
-    """ARIMA(1,1,1) forecast."""
-    model = ARIMA(values, order=(1, 1, 1))
-    fit = model.fit()
-    pred_result = fit.get_forecast(steps=horizon)
-    pred = pred_result.predicted_mean
-
-    conf = pred_result.conf_int(alpha=0.05)
-    upper = conf[:, 1].tolist()
-    lower = conf[:, 0].tolist()
-    return pred.tolist(), upper, lower
+    """ARIMA forecast — uses last 100 points; tries richer orders first."""
+    window = values[-100:] if len(values) > 100 else values
+    for order in [(2, 1, 2), (1, 1, 2), (2, 1, 1), (1, 1, 1)]:
+        try:
+            model = ARIMA(window, order=order)
+            fit = model.fit()
+            pred_result = fit.get_forecast(steps=horizon)
+            pred = pred_result.predicted_mean
+            conf = pred_result.conf_int(alpha=0.05)
+            upper = conf[:, 1].tolist()
+            lower = conf[:, 0].tolist()
+            return pred.tolist(), upper, lower
+        except Exception:
+            continue
+    return _linear_forecast(values, horizon)
 
 
 def _calc_accuracy(actual: np.ndarray, predicted: np.ndarray) -> dict:
