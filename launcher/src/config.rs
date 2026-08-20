@@ -20,12 +20,16 @@ impl Default for AppConfig {
     }
 }
 
-fn config_path() -> PathBuf {
+fn config_dir() -> PathBuf {
     let dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("ft1-monitor");
     std::fs::create_dir_all(&dir).ok();
-    dir.join("config.json")
+    dir
+}
+
+fn config_path() -> PathBuf {
+    config_dir().join("config.json")
 }
 
 impl AppConfig {
@@ -46,5 +50,11 @@ impl AppConfig {
         if let Ok(data) = serde_json::to_string_pretty(self) {
             std::fs::write(path, data).ok();
         }
+    }
+
+    pub fn log_dir() -> PathBuf {
+        let dir = config_dir().join("logs");
+        std::fs::create_dir_all(&dir).ok();
+        dir
     }
 }

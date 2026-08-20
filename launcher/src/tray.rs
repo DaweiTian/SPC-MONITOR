@@ -1,4 +1,5 @@
 use crate::service::ServiceManager;
+use log::error;
 use std::sync::Arc;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
@@ -30,35 +31,45 @@ pub fn create_tray_handler(
         SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
             "quit" => {
                 service_manager.stop_server().ok();
-                std::process::exit(0);
+                app.exit(0);
             }
             "show" => {
                 if let Some(window) = app.get_window("main") {
-                    window.show().unwrap();
-                    window.set_focus().unwrap();
+                    if let Err(e) = window.show() {
+                        error!("显示窗口失败: {}", e);
+                    }
+                    if let Err(e) = window.set_focus() {
+                        error!("窗口聚焦失败: {}", e);
+                    }
                 }
             }
             "start" => {
                 if let Err(e) = service_manager.start_server() {
-                    eprintln!("启动服务失败: {}", e);
+                    error!("启动服务失败: {}", e);
                 }
             }
             "stop" => {
                 if let Err(e) = service_manager.stop_server() {
-                    eprintln!("停止服务失败: {}", e);
+                    error!("停止服务失败: {}", e);
                 }
             }
             "open_browser" => {
                 let port = service_manager.server_port();
                 let url = format!("http://localhost:{}", port);
-                open::that(&url).unwrap();
+                if let Err(e) = open::that(&url) {
+                    error!("打开浏览器失败: {}", e);
+                }
             }
             _ => {}
         },
         SystemTrayEvent::LeftClick { .. } => {
             if let Some(window) = app.get_window("main") {
-                window.show().unwrap();
-                window.set_focus().unwrap();
+                if let Err(e) = window.show() {
+                    error!("显示窗口失败: {}", e);
+                }
+                if let Err(e) = window.set_focus() {
+                    error!("窗口聚焦失败: {}", e);
+                }
             }
         }
         _ => {}

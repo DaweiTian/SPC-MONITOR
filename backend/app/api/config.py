@@ -165,7 +165,7 @@ async def test_db_connection(config: dict):
 async def explore_db_structure(config: dict):
     try:
         conn_str = _build_connection_string(config)
-        
+
         try:
             from sqlalchemy import create_engine, inspect, text
         except ImportError:
@@ -173,10 +173,10 @@ async def explore_db_structure(config: dict):
                 "success": False,
                 "message": "缺少依赖包，请安装: pip install sqlalchemy pyodbc"
             }
-        
+
         engine = create_engine(conn_str)
         inspector = inspect(engine)
-        
+
         tables = []
         for table_name in inspector.get_table_names():
             try:
@@ -185,18 +185,63 @@ async def explore_db_structure(config: dict):
                     row_count = result.scalar()
             except:
                 row_count = 0
-            
+
             tables.append({
                 "name": table_name,
                 "row_count": row_count
             })
-        
+
         engine.dispose()
         tables.sort(key=lambda x: x["row_count"], reverse=True)
-        
+
         return {"success": True, "tables": tables}
     except Exception as e:
         return {"success": False, "message": f"探查失败: {str(e)}"}
+
+
+@router.post("/db/test-relational")
+async def test_relational_connection(config: dict):
+    """测试四表关联结构（与 MDB 一致的 Sample/Product/Component/Prediction）"""
+    db_config = config.get("db_config", {})
+    mapping_config = config.get("mapping_config", {})
+
+    try:
+        from backend.app.engine.collector.sqlserver import SQLServerCollector
+        collector = SQLServerCollector.from_config(
+            db_config=db_config,
+            mapping_config=mapping_config,
+        )
+
+        # Step 1: 测试连接
+        if not collector.test_connection():
+            return {"success": False, "message": "SQL Server 连接失败", "step": "connection"}
+
+        # Step 2: 测试四表结构
+        table_result = collector.test_tables()
+        if not table_result["success"]:
+            return {
+                "success": False,
+                "message": table_result["message"],
+                "step": "tables",
+                "tables": table_result["tables"],
+            }
+
+        # Step 3: 尝试查询产品和指标
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+
+        collector.close()
+
+        return {
+            "success": True,
+            "message": "四表关联结构测试通过",
+            "products_count": len(products),
+            "indicators_count": len(indicators),
+            "products": [p["name"] for p in products[:5]],
+            "indicators": [i["name"] for i in indicators[:5]],
+        }
+    except Exception as e:
+        return {"success": False, "message": f"测试失败: {str(e)}", "step": "error"}
 
 @router.get("/db/table/{table_name}/columns")
 async def get_table_columns(table_name: str):

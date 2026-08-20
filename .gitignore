@@ -163,3 +163,10 @@ data/
 
 # Spec limits config (runtime)
 spec_limits.json
+
+# Other runtime configs
+alert_rules.json
+product_indicators.json
+product_status.json
+sqlserver_breakpoint.json
+monitor_start.json

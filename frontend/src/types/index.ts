@@ -142,11 +142,23 @@ export interface DBConfig {
 }
 
 export interface FieldMapping {
+  mode?: 'flat' | 'relational'
   table_name: string
   time_column: string
   product_column: string
   sample_column: string
   indicators: Record<string, string>
+  // relational mode (MDB-style 4-table)
+  sample_table?: string
+  product_table?: string
+  component_table?: string
+  prediction_table?: string
+  product_ref_column?: string
+  product_name_column?: string
+  component_ref_column?: string
+  component_name_column?: string
+  value_column?: string
+  rep_no_ref?: number
 }
 
 export interface PredictionData {

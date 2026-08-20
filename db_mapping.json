@@ -1,0 +1,15 @@
+{
+  "mode": "relational",
+  "sample_table": "Sample",
+  "product_table": "Product",
+  "component_table": "Component",
+  "prediction_table": "Prediction",
+  "time_column": "DateTime",
+  "product_ref_column": "ProdRef",
+  "product_name_column": "Name",
+  "component_ref_column": "CompRef",
+  "component_name_column": "Name",
+  "value_column": "Value",
+  "rep_no_ref": 32000,
+  "indicators": {}
+}

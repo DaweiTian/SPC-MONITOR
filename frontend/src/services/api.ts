@@ -84,6 +84,10 @@ export const api = {
   exploreMDBStructure: (config: MDBConfig) => http.post('/config/mdb/explore', config).then(r => r.data),
   getMDBTableColumns: (tableName: string) => http.get(`/config/mdb/table/${tableName}/columns`).then(r => r.data),
   getMDBInitStatus: () => http.get('/config/mdb/init-status').then(r => r.data),
+
+  // SQL Server relational (4-table) test
+  testRelationalConnection: (dbConfig: DBConfig, mappingConfig: FieldMapping) =>
+    http.post('/config/db/test-relational', { db_config: dbConfig, mapping_config: mappingConfig }).then(r => r.data),
   
   // Alias configuration
   getAliases: () => http.get<{ products: Record<string, string>; indicators: Record<string, string> }>('/config/aliases').then(r => r.data),

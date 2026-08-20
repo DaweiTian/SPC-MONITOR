@@ -8,16 +8,32 @@ mod service;
 mod tray;
 
 use config::AppConfig;
+use log::error;
 use service::ServiceManager;
+use simplelog::{CombinedLogger, Config, WriteLogger};
+use std::fs::File;
 use std::sync::Arc;
 
+fn init_logging() {
+    let log_path = AppConfig::log_dir().join("launcher.log");
+    if let Ok(log_file) = File::create(&log_path) {
+        let _ = CombinedLogger::init(vec![WriteLogger::new(
+            log::LevelFilter::Info,
+            Config::default(),
+            log_file,
+        )]);
+    }
+}
+
 fn main() {
+    init_logging();
+
     let config = AppConfig::load();
     let service_manager = Arc::new(ServiceManager::new(&config));
 
     if config.auto_start {
         if let Err(e) = service_manager.start_server() {
-            eprintln!("自动启动服务失败: {}", e);
+            error!("自动启动服务失败: {}", e);
         }
     }
 
@@ -33,8 +49,7 @@ fn main() {
             stop_server,
             is_server_running,
         ])
-        .setup(move |app| {
-            let handle = app.handle();
+        .setup(move |_app| {
             std::thread::spawn(move || {
                 let mut failures = 0u32;
                 loop {
@@ -42,12 +57,10 @@ fn main() {
                     if sm_for_timer.is_running() {
                         if !sm_for_timer.health_check() {
                             failures += 1;
-                            eprintln!("健康检查失败 ({}/3)", failures);
                             if failures >= 3 {
-                                eprintln!("连续 3 次健康检查失败，尝试自动重启...");
                                 sm_for_timer.stop_server().ok();
                                 if let Err(e) = sm_for_timer.start_server() {
-                                    eprintln!("自动重启失败: {}", e);
+                                    error!("自动重启失败: {}", e);
                                 } else {
                                     failures = 0;
                                 }
