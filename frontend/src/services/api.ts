@@ -42,4 +42,12 @@ export const api = {
   getTableColumns: (tableName: string) => http.get(`/config/db/table/${tableName}/columns`).then(r => r.data),
   updateFieldMapping: (mapping: FieldMapping) => http.put('/config/db/mapping', mapping).then(r => r.data),
   getFieldMapping: () => http.get<FieldMapping>('/config/db/mapping').then(r => r.data),
+  getPrediction: (product: string, indicator: string, model: string, horizon: number) =>
+    http.get(`/predict/forecast`, { params: { product, indicator, model, horizon } }).then(r => r.data),
+  switchDataSource: (source: 'mock' | 'sqlserver') =>
+    http.post(`/config/source/switch`, { source }).then(r => r.data),
+  getDataSourceStatus: () =>
+    http.get(`/config/source/status`).then(r => r.data),
+  exportData: (params: { format: string; product?: string; indicator?: string }) =>
+    http.get(`/data/export`, { params, responseType: 'blob' }).then(r => r.data),
 }

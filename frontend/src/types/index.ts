@@ -144,3 +144,25 @@ export interface FieldMapping {
   sample_column: string
   indicators: Record<string, string>
 }
+
+export interface PredictionData {
+  historical: { time: string; value: number }[]
+  predicted: { time: string; value: number }[]
+  confidence_upper: number[]
+  confidence_lower: number[]
+  metrics: {
+    mape: number
+    rmse: number
+    mae: number
+    r_squared: number
+  }
+  model: string
+  horizon: number
+  risk: string
+}
+
+export interface DataSourceConfig {
+  source: 'mock' | 'sqlserver'
+  connected: boolean
+  last_switch: string
+}

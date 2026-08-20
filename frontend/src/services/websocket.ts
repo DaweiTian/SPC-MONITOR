@@ -5,6 +5,8 @@ class WebSocketService {
   private handlers: Map<string, MessageHandler[]> = new Map()
   private reconnectTimer: number | null = null
   private _connected = false
+  private reconnectDelay = 1000
+  private readonly maxReconnectDelay = 30000
 
   get connected() {
     return this._connected
@@ -21,6 +23,7 @@ class WebSocketService {
       this.ws.onopen = () => {
         console.log('WebSocket 已连接')
         this._connected = true
+        this.reconnectDelay = 1000
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null
@@ -37,9 +40,10 @@ class WebSocketService {
       }
 
       this.ws.onclose = () => {
-        console.log('WebSocket 已断开')
+        console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连`)
         this._connected = false
-        this.reconnectTimer = window.setTimeout(() => this.connect(), 5000)
+        this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
       }
 
       this.ws.onerror = (error) => {
