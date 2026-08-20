@@ -1,0 +1,393 @@
+/* ========== KPI 卡片网格 ========== */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpiCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.kpiCard:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-2px);
+}
+
+.kpiCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0.8;
+}
+
+.kpiCardCyan::before { background: var(--gradient-cyan); }
+.kpiCardGreen::before { background: var(--gradient-green); }
+.kpiCardOrange::before { background: var(--gradient-orange); }
+.kpiCardRed::before { background: var(--gradient-red); }
+.kpiCardPurple::before { background: var(--gradient-purple); }
+
+.kpiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.kpiLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.kpiIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.kpiCardCyan .kpiIcon { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+.kpiCardGreen .kpiIcon { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
+.kpiCardOrange .kpiIcon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+.kpiCardRed .kpiIcon { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+.kpiCardPurple .kpiIcon { background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); }
+
+.kpiValue {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  line-height: 1.2;
+}
+
+.kpiCardCyan .kpiValue { color: var(--accent-cyan); }
+.kpiCardGreen .kpiValue { color: var(--accent-green); }
+.kpiCardOrange .kpiValue { color: var(--accent-orange); }
+.kpiCardRed .kpiValue { color: var(--accent-red); }
+.kpiCardPurple .kpiValue { color: var(--accent-purple); }
+
+.kpiUnit {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.kpiTrend {
+  font-size: 12px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpiTrendUp { color: var(--accent-green); }
+.kpiTrendDown { color: var(--accent-red); }
+.kpiTrendFlat { color: var(--text-muted); }
+
+/* ========== 面板 ========== */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panelTitle {
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelTitleIcon {
+  color: var(--accent-cyan);
+}
+
+.panelBody {
+  padding: 20px;
+}
+
+.panelBodyFlush {
+  padding: 0;
+}
+
+.panelActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ========== 网格布局 ========== */
+.grid21 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ========== 图表容器 ========== */
+.chartContainer {
+  width: 100%;
+  height: 320px;
+}
+
+/* ========== 实时指示器 ========== */
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
+.liveIndicator::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  animation: livePulse 1.5s infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ========== 指标选择器 ========== */
+.metricSelect {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 120px;
+  cursor: pointer;
+}
+
+.metricSelect:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+/* ========== 采集状态面板 ========== */
+.collectStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.collectStatusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(64, 159, 255, 0.06);
+}
+
+.collectStatusItem:last-child {
+  border-bottom: none;
+}
+
+.collectLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.collectValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.collectValueGreen { color: var(--accent-green); }
+.collectValueCyan { color: var(--accent-cyan); }
+
+/* ========== 按钮 ========== */
+.btnPrimary {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--gradient-cyan);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btnPrimary:hover {
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btnGhost {
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btnGhost:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* ========== 品项能力矩阵 ========== */
+.productMatrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.productMatrixItem {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.productMatrixItem:hover {
+  border-color: var(--border-glow);
+}
+
+.pmName {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pmCpk {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', monospace;
+}
+
+.pmStatus {
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.pmStatusGood { color: var(--accent-green); }
+.pmStatusWarn { color: var(--accent-orange); }
+.pmStatusBad { color: var(--accent-red); }
+
+/* ========== 数据表格 ========== */
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dataTable th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.dataTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(64, 159, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.dataTable tbody tr:hover {
+  background: rgba(0, 212, 255, 0.03);
+}
+
+/* ========== 标签 ========== */
+.tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.tagCritical {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.tagWarning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-orange);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.tagInfo {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1400px) {
+  .kpiGrid { grid-template-columns: repeat(3, 1fr); }
+  .grid21, .grid2 { grid-template-columns: 1fr; }
+}
