@@ -1,450 +1,344 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import {
-  Card, Form, Input, Select, Button, Switch, InputNumber,
-  Table, Tag, Divider, Alert, Typography, message, Space,
-} from 'antd'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { api } from '../../services'
-import type { Config, DBConfig, FieldMapping } from '../../types'
+import styles from './Config.module.css'
 
-const { Title, Text, Paragraph } = Typography
+/* ── Mock data for initial display ───────────────────────────── */
 
-interface ColumnInfo {
-  column_name: string
-  data_type: string
-  is_nullable: string
-  column_default: string | null
-  sample_value?: string
+interface ProductItem {
+  id: string
+  name: string
+  code: string
+  indicatorCount: number
+  status: 'enabled' | 'disabled'
 }
 
-/** Extend DBConfig locally to carry the password field the backend expects */
-interface DBConfigWithPassword extends DBConfig {
-  password?: string
+interface SpecLimit {
+  id: string
+  product: string
+  indicator: string
+  usl: number
+  lsl: number
+  target: number
+  unit: string
 }
 
-const NELSON_RULES = [
-  { key: 1, rule: '规则1', description: '1个点超出3σ控制限', severity: 'CRITICAL' },
-  { key: 2, rule: '规则2', description: '连续9个点在中心线同一侧', severity: 'CRITICAL' },
-  { key: 3, rule: '规则3', description: '连续6个点递增或递减', severity: 'WARNING' },
-  { key: 4, rule: '规则4', description: '连续14个点交替升降', severity: 'WARNING' },
-  { key: 5, rule: '规则5', description: '连续3个点中有2个超出2σ', severity: 'CRITICAL' },
-  { key: 6, rule: '规则6', description: '连续5个点中有4个超出1σ', severity: 'WARNING' },
-  { key: 7, rule: '规则7', description: '连续15个点在1σ以内（层叠）', severity: 'INFO' },
-  { key: 8, rule: '规则8', description: '连续8个点在1σ以外（混合）', severity: 'INFO' },
+interface FrequencyRow {
+  level: string
+  frequency: string
+  trigger: string
+  status: 'current' | 'standby'
+}
+
+interface NelsonRule {
+  id: number
+  rule: string
+  description: string
+  severity: 'CRITICAL' | 'WARNING' | 'INFO'
+  enabled: boolean
+}
+
+const INITIAL_PRODUCTS: ProductItem[] = [
+  { id: '1', name: 'FT1-标准型', code: 'FT1-STD', indicatorCount: 8, status: 'enabled' },
+  { id: '2', name: 'FT1-高精度型', code: 'FT1-HP', indicatorCount: 6, status: 'enabled' },
+  { id: '3', name: 'FT1-经济型', code: 'FT1-ECO', indicatorCount: 5, status: 'disabled' },
 ]
 
-const severityColor = (s: string) => {
-  if (s === 'CRITICAL') return 'red'
-  if (s === 'WARNING') return 'orange'
-  return 'blue'
-}
-
-const nelsonColumns = [
-  { title: '规则', dataIndex: 'rule', key: 'rule', width: 80 },
-  { title: '描述', dataIndex: 'description', key: 'description' },
-  {
-    title: '严重程度',
-    dataIndex: 'severity',
-    key: 'severity',
-    width: 120,
-    render: (s: string) => <Tag color={severityColor(s)}>{s}</Tag>,
-  },
+const INITIAL_SPECS: SpecLimit[] = [
+  { id: '1', product: 'FT1-STD', indicator: '直径(mm)', usl: 10.05, lsl: 9.95, target: 10.00, unit: 'mm' },
+  { id: '2', product: 'FT1-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
+  { id: '3', product: 'FT1-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
+  { id: '4', product: 'FT1-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
 ]
+
+const FREQUENCY_ROWS: FrequencyRow[] = [
+  { level: 'L0', frequency: '1 分钟', trigger: '产线运行时持续', status: 'current' },
+  { level: 'L1', frequency: '5 分钟', trigger: '常规监控', status: 'standby' },
+  { level: 'L2', frequency: '30 分钟', trigger: '待机/低负荷', status: 'standby' },
+]
+
+const INITIAL_NELSON: NelsonRule[] = [
+  { id: 1, rule: '规则1', description: '1个点超出3σ控制限', severity: 'CRITICAL', enabled: true },
+  { id: 2, rule: '规则2', description: '连续9个点在中心线同一侧', severity: 'CRITICAL', enabled: true },
+  { id: 3, rule: '规则3', description: '连续6个点递增或递减', severity: 'WARNING', enabled: true },
+  { id: 4, rule: '规则4', description: '连续14个点交替升降', severity: 'WARNING', enabled: true },
+  { id: 5, rule: '规则5', description: '连续3个点中有2个超出2σ', severity: 'CRITICAL', enabled: true },
+  { id: 6, rule: '规则6', description: '连续5个点中有4个超出1σ', severity: 'WARNING', enabled: false },
+  { id: 7, rule: '规则7', description: '连续15个点在1σ以内（层叠）', severity: 'INFO', enabled: false },
+  { id: 8, rule: '规则8', description: '连续8个点在1σ以外（混合）', severity: 'INFO', enabled: false },
+]
+
+/* ── Tag helper ──────────────────────────────────────────────── */
+
+const StatusTag: React.FC<{ label: string; color: 'green' | 'blue' | 'orange' | 'red' }> = ({ label, color }) => (
+  <span className={`${styles.tag} ${styles[`tag${color.charAt(0).toUpperCase() + color.slice(1)}`]}`}>
+    <span className={`${styles.tagDot} ${styles[`tagDot${color.charAt(0).toUpperCase() + color.slice(1)}`]}`} />
+    {label}
+  </span>
+)
+
+/* ── Component ───────────────────────────────────────────────── */
 
 export const ConfigPage: React.FC = () => {
-  const [config, setConfig] = useState<Config | null>(null)
-  const [dbConfig, setDBConfig] = useState<DBConfigWithPassword | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [testResult, setTestResult] = useState<any>(null)
+  const [products] = useState<ProductItem[]>(INITIAL_PRODUCTS)
+  const [specs] = useState<SpecLimit[]>(INITIAL_SPECS)
+  const [nelsonRules, setNelsonRules] = useState<NelsonRule[]>(INITIAL_NELSON)
+  const [dataSource, setDataSource] = useState<'mock' | 'sqlserver'>('mock')
+  const [sourceLoading, setSourceLoading] = useState(false)
+  const [lastSwitch, setLastSwitch] = useState<string>('')
 
-  // DB Explore state
-  const [exploreLoading, setExploreLoading] = useState(false)
-  const [tables, setTables] = useState<string[]>([])
-  const [selectedTable, setSelectedTable] = useState<string | undefined>(undefined)
-  const [columns, setColumns] = useState<ColumnInfo[]>([])
-  const [columnsLoading, setColumnsLoading] = useState(false)
-
-  // Field Mapping state
-  const [fieldMapping, setFieldMapping] = useState<FieldMapping>({
-    table_name: '',
-    time_column: '',
-    product_column: '',
-    sample_column: '',
-    indicators: {},
-  })
-  const [mappingLoading, setMappingLoading] = useState(false)
-
+  /* Fetch current data source on mount */
   useEffect(() => {
-    const fetchConfig = async () => {
-      const [configData, dbConfigData] = await Promise.all([
-        api.getConfig(),
-        api.getDBConfig(),
-      ])
-      setConfig(configData)
-      setDBConfig(dbConfigData as DBConfigWithPassword)
-    }
-    fetchConfig()
-
-    // Load saved field mapping
-    api.getFieldMapping()
-      .then(data => { if (data) setFieldMapping(data) })
-      .catch(() => { /* no mapping saved yet */ })
+    api.getDataSourceStatus()
+      .then((data: any) => {
+        if (data?.source) setDataSource(data.source)
+        if (data?.last_switch) setLastSwitch(data.last_switch)
+      })
+      .catch(() => { /* default to mock */ })
   }, [])
 
-  const updateDB = (patch: Partial<DBConfigWithPassword>) => {
-    setDBConfig(prev => (prev ? { ...prev, ...patch } : null))
-  }
-
-  const handleSaveConfig = async () => {
-    if (!config) return
+  const handleSwitchSource = useCallback(async (source: 'mock' | 'sqlserver') => {
+    setSourceLoading(true)
     try {
-      await api.updateConfig(config)
-      message.success('配置已保存')
+      const result = await api.switchDataSource(source)
+      setDataSource(source)
+      if (result?.last_switch) setLastSwitch(result.last_switch)
     } catch {
-      message.error('保存失败')
-    }
-  }
-
-  const handleTestConnection = async () => {
-    if (!dbConfig) return
-    setLoading(true)
-    try {
-      const result = await api.testDBConnection(dbConfig)
-      setTestResult(result)
-      if (result.success) {
-        message.success('连接成功')
-      } else {
-        message.error('连接失败: ' + result.message)
-      }
-    } catch {
-      message.error('测试连接请求失败')
+      // Silently fail — source stays unchanged
     } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSaveDBConfig = async () => {
-    if (!dbConfig) return
-    try {
-      const result = await api.updateDBConfig(dbConfig)
-      if (result.success) {
-        message.success('数据库配置已保存')
-      } else {
-        message.error(result.message)
-      }
-    } catch {
-      message.error('保存失败')
-    }
-  }
-
-  // ── DB Explore ──────────────────────────────────────────────
-  const handleExplore = useCallback(async () => {
-    if (!dbConfig) return
-    setExploreLoading(true)
-    setSelectedTable(undefined)
-    setColumns([])
-    try {
-      const result = await api.exploreDBStructure(dbConfig)
-      if (result?.tables) {
-        setTables(result.tables)
-        message.success(`发现 ${result.tables.length} 张表`)
-      } else if (result?.success === false) {
-        message.error(result.message || '探索失败')
-      } else {
-        setTables(result || [])
-      }
-    } catch {
-      message.error('探索数据库失败')
-    } finally {
-      setExploreLoading(false)
-    }
-  }, [dbConfig])
-
-  const handleTableSelect = useCallback(async (tableName: string) => {
-    setSelectedTable(tableName)
-    setColumnsLoading(true)
-    try {
-      const result = await api.getTableColumns(tableName)
-      setColumns(result?.columns || result || [])
-    } catch {
-      message.error('获取列信息失败')
-    } finally {
-      setColumnsLoading(false)
+      setSourceLoading(false)
     }
   }, [])
 
-  // ── Field Mapping ───────────────────────────────────────────
-  const handleSaveMapping = async () => {
-    setMappingLoading(true)
-    try {
-      await api.updateFieldMapping(fieldMapping)
-      message.success('字段映射已保存')
-    } catch {
-      message.error('保存字段映射失败')
-    } finally {
-      setMappingLoading(false)
-    }
+  const toggleNelsonRule = (id: number) => {
+    setNelsonRules(prev =>
+      prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r)
+    )
   }
 
-  const columnDefs = [
-    { title: '列名', dataIndex: 'column_name', key: 'column_name' },
-    { title: '类型', dataIndex: 'data_type', key: 'data_type', width: 160 },
-    {
-      title: '可空',
-      dataIndex: 'is_nullable',
-      key: 'is_nullable',
-      width: 80,
-      render: (v: string) => (v === 'YES' ? <Tag color="green">是</Tag> : <Tag>否</Tag>),
-    },
-    { title: '默认值', dataIndex: 'column_default', key: 'column_default', width: 120, render: (v: string | null) => v ?? '-' },
-    { title: '示例值', dataIndex: 'sample_value', key: 'sample_value', width: 160, render: (v: string | undefined) => v ?? '-' },
-  ]
+  const severityTag = (severity: string) => {
+    if (severity === 'CRITICAL') return <StatusTag label="严重" color="red" />
+    if (severity === 'WARNING') return <StatusTag label="警告" color="orange" />
+    return <StatusTag label="信息" color="blue" />
+  }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
-      <Title level={3} style={{ marginBottom: 24, color: 'var(--primary-dark)' }}>配置管理</Title>
+    <div className={styles.page}>
+      {/* Page title */}
+      <h1 className={styles.pageTitle}>
+        <span className={styles.pageTitleIcon}>⚙</span>
+        系统配置
+      </h1>
 
-      {/* ─── DB Config Form ─────────────────────────────────── */}
-      <Card title="数据库连接配置" style={{ marginBottom: 24 }}>
-        <Form layout="vertical">
-          <Form.Item label="启用数据库采集">
-            <Switch
-              checked={dbConfig?.enabled}
-              onChange={checked => updateDB({ enabled: checked })}
-            />
-          </Form.Item>
-          <Form.Item label="服务器地址">
-            <Input
-              value={dbConfig?.server}
-              onChange={e => updateDB({ server: e.target.value })}
-              placeholder="例: 192.168.1.100\\SQLEXPRESS"
-            />
-          </Form.Item>
-          <Form.Item label="数据库名">
-            <Input
-              value={dbConfig?.database}
-              onChange={e => updateDB({ database: e.target.value })}
-              placeholder="例: FT1_Production"
-            />
-          </Form.Item>
-          <Form.Item label="认证方式">
-            <Select
-              value={dbConfig?.auth_type}
-              onChange={value => updateDB({ auth_type: value })}
+      {/* ── Grid 1: 品项管理 + 规格限配置 ───────────────────── */}
+      <div className={styles.grid}>
+        {/* 品项管理 */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>
+              <span className={styles.cardTitleDot} />
+              品项管理
+            </span>
+            <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`}>
+              + 新增品项
+            </button>
+          </div>
+          <div className={styles.cardBody}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>品项名称</th>
+                  <th>编码</th>
+                  <th>监测指标数</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map(p => (
+                  <tr key={p.id}>
+                    <td className={styles.tableCellPrimary}>{p.name}</td>
+                    <td className={styles.tableCellMono}>{p.code}</td>
+                    <td>{p.indicatorCount}</td>
+                    <td>
+                      {p.status === 'enabled'
+                        ? <StatusTag label="启用" color="green" />
+                        : <StatusTag label="停用" color="orange" />}
+                    </td>
+                    <td>
+                      <button className={styles.btnEdit}>编辑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 规格限配置 */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>
+              <span className={styles.cardTitleDot} />
+              规格限配置
+            </span>
+            <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`}>
+              + 新增配置
+            </button>
+          </div>
+          <div className={styles.cardBody}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>品项</th>
+                  <th>指标</th>
+                  <th>USL</th>
+                  <th>LSL</th>
+                  <th>目标值</th>
+                  <th>单位</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {specs.map(s => (
+                  <tr key={s.id}>
+                    <td className={styles.tableCellPrimary}>{s.product}</td>
+                    <td>{s.indicator}</td>
+                    <td className={styles.tableCellMono}>{s.usl}</td>
+                    <td className={styles.tableCellMono}>{s.lsl}</td>
+                    <td className={styles.tableCellMono}>{s.target}</td>
+                    <td>{s.unit}</td>
+                    <td>
+                      <button className={styles.btnEdit}>编辑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Grid 2: 采集频率 + 预警规则 ─────────────────────── */}
+      <div className={styles.grid}>
+        {/* 采集频率配置 */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>
+              <span className={styles.cardTitleDot} />
+              采集频率配置
+            </span>
+          </div>
+          <div className={styles.cardBody}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>级别</th>
+                  <th>频率</th>
+                  <th>触发条件</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FREQUENCY_ROWS.map(f => (
+                  <tr key={f.level}>
+                    <td className={styles.tableCellPrimary}>{f.level}</td>
+                    <td className={styles.tableCellMono}>{f.frequency}</td>
+                    <td>{f.trigger}</td>
+                    <td>
+                      {f.status === 'current'
+                        ? <StatusTag label="当前" color="green" />
+                        : <StatusTag label="待命" color="blue" />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 预警规则配置 */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}>
+              <span className={styles.cardTitleDot} />
+              预警规则配置
+            </span>
+          </div>
+          <div className={styles.cardBody}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>规则</th>
+                  <th>描述</th>
+                  <th>级别</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nelsonRules.map(rule => (
+                  <tr key={rule.id}>
+                    <td className={styles.tableCellPrimary}>{rule.rule}</td>
+                    <td>{rule.description}</td>
+                    <td>{severityTag(rule.severity)}</td>
+                    <td>
+                      <button
+                        className={`${styles.toggle} ${rule.enabled ? styles.toggleActive : ''}`}
+                        onClick={() => toggleNelsonRule(rule.id)}
+                        title={rule.enabled ? '点击禁用' : '点击启用'}
+                      >
+                        <span className={styles.toggleDot} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Data Source Toggle ──────────────────────────────── */}
+      <div className={styles.sourceSection}>
+        <div className={styles.sourceHeader}>
+          <span className={styles.sourceTitle}>
+            <span className={styles.cardTitleDot} />
+            数据源切换
+          </span>
+          <div className={styles.sourceToggle}>
+            <button
+              className={`${styles.sourceBtn} ${dataSource === 'mock' ? styles.sourceBtnActive : ''}`}
+              onClick={() => handleSwitchSource('mock')}
+              disabled={sourceLoading}
             >
-              <Select.Option value="windows">Windows 集成认证</Select.Option>
-              <Select.Option value="sql">SQL Server 认证</Select.Option>
-            </Select>
-          </Form.Item>
-
-          {dbConfig?.auth_type === 'sql' && (
-            <>
-              <Form.Item label="用户名">
-                <Input
-                  value={dbConfig?.username}
-                  onChange={e => updateDB({ username: e.target.value })}
-                  placeholder="SQL Server 用户名"
-                />
-              </Form.Item>
-              <Form.Item label="密码">
-                <Input.Password
-                  value={dbConfig?.password}
-                  onChange={e => updateDB({ password: e.target.value })}
-                  placeholder="SQL Server 密码"
-                />
-              </Form.Item>
-            </>
+              Mock 数据
+            </button>
+            <button
+              className={`${styles.sourceBtn} ${dataSource === 'sqlserver' ? styles.sourceBtnActive : ''}`}
+              onClick={() => handleSwitchSource('sqlserver')}
+              disabled={sourceLoading}
+            >
+              SQL Server
+            </button>
+          </div>
+        </div>
+        <div className={styles.sourceInfo}>
+          <span>
+            <span className={styles.sourceLabel}>当前数据源:</span>
+            <span className={styles.sourceValue}>
+              {dataSource === 'mock' ? 'Mock 模拟数据' : 'SQL Server 实时数据'}
+            </span>
+          </span>
+          {dataSource === 'mock'
+            ? <StatusTag label="当前" color="green" />
+            : <StatusTag label="当前" color="green" />}
+          {lastSwitch && (
+            <span>
+              <span className={styles.sourceLabel}>上次切换:</span>
+              <span className={styles.sourceValue}>{lastSwitch}</span>
+            </span>
           )}
-
-          <Form.Item label="驱动">
-            <Input
-              value={dbConfig?.driver}
-              onChange={e => updateDB({ driver: e.target.value })}
-              placeholder="ODBC Driver 17 for SQL Server"
-            />
-          </Form.Item>
-          <Form.Item label="连接超时（秒）">
-            <InputNumber
-              value={dbConfig?.timeout}
-              onChange={value => updateDB({ timeout: value ?? 15 })}
-              min={5}
-              max={60}
-              style={{ width: 160 }}
-            />
-          </Form.Item>
-
-          <Space>
-            <Button type="primary" onClick={handleTestConnection} loading={loading}>
-              测试连接
-            </Button>
-            <Button onClick={handleSaveDBConfig}>保存配置</Button>
-          </Space>
-        </Form>
-
-        {testResult && (
-          <Alert
-            style={{ marginTop: 16 }}
-            type={testResult.success ? 'success' : 'error'}
-            showIcon
-            message={testResult.message}
-          />
-        )}
-      </Card>
-
-      {/* ─── DB Explore ─────────────────────────────────────── */}
-      <Card
-        title="数据库探索"
-        style={{ marginBottom: 24 }}
-        extra={
-          <Button
-            icon={<SearchOutlined />}
-            onClick={handleExplore}
-            loading={exploreLoading}
-          >
-            探索数据库
-          </Button>
-        }
-      >
-        {tables.length > 0 ? (
-          <>
-            <Form layout="inline" style={{ marginBottom: 16 }}>
-              <Form.Item label="选择表">
-                <Select
-                  showSearch
-                  placeholder="选择一张表查看列信息"
-                  style={{ width: 320 }}
-                  value={selectedTable}
-                  onChange={handleTableSelect}
-                  options={tables.map(t => ({ label: t, value: t }))}
-                />
-              </Form.Item>
-            </Form>
-
-            {selectedTable && (
-              <>
-                <Divider orientation="left" plain>
-                  <Text strong>{selectedTable}</Text> 的列信息
-                </Divider>
-                <Table
-                  dataSource={columns}
-                  columns={columnDefs}
-                  rowKey="column_name"
-                  loading={columnsLoading}
-                  size="small"
-                  pagination={false}
-                  scroll={{ x: 700 }}
-                />
-              </>
-            )}
-          </>
-        ) : (
-          <Text type="secondary">点击"探索数据库"按钮以发现可用表。</Text>
-        )}
-      </Card>
-
-      {/* ─── Field Mapping ──────────────────────────────────── */}
-      <Card title="字段映射" style={{ marginBottom: 24 }}>
-        <Paragraph type="secondary">
-          指定数据库表中各字段的映射关系，用于自动采集数据。
-        </Paragraph>
-        <Form layout="vertical">
-          <Form.Item label="表名">
-            <Select
-              showSearch
-              placeholder="选择或手动输入表名"
-              value={fieldMapping.table_name || undefined}
-              onChange={(val: string) => setFieldMapping(prev => ({ ...prev, table_name: val }))}
-              options={tables.map(t => ({ label: t, value: t }))}
-              allowClear
-              notFoundContent={null}
-              style={{ maxWidth: 400 }}
-            />
-          </Form.Item>
-          <Form.Item label="时间列">
-            <Input
-              value={fieldMapping.time_column}
-              onChange={e => setFieldMapping(prev => ({ ...prev, time_column: e.target.value }))}
-              placeholder="如: sample_time"
-              style={{ maxWidth: 400 }}
-            />
-          </Form.Item>
-          <Form.Item label="产品列">
-            <Input
-              value={fieldMapping.product_column}
-              onChange={e => setFieldMapping(prev => ({ ...prev, product_column: e.target.value }))}
-              placeholder="如: product_code"
-              style={{ maxWidth: 400 }}
-            />
-          </Form.Item>
-          <Form.Item label="样本列">
-            <Input
-              value={fieldMapping.sample_column}
-              onChange={e => setFieldMapping(prev => ({ ...prev, sample_column: e.target.value }))}
-              placeholder="如: sample_id"
-              style={{ maxWidth: 400 }}
-            />
-          </Form.Item>
-          <Button type="primary" onClick={handleSaveMapping} loading={mappingLoading}>
-            保存字段映射
-          </Button>
-        </Form>
-      </Card>
-
-      {/* ─── Nelson Rules Reference ─────────────────────────── */}
-      <Card title="Nelson 规则参考" style={{ marginBottom: 24 }}>
-        <Alert
-          message="SPC 违规检测规则"
-          description="以下 8 条 Nelson 规则用于 SPC 控制图的违规检测，系统将自动识别并触发告警。"
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-        <Table
-          dataSource={NELSON_RULES}
-          columns={nelsonColumns}
-          rowKey="key"
-          size="small"
-          pagination={false}
-        />
-      </Card>
-
-      {/* ─── Collection Config ──────────────────────────────── */}
-      <Card title="采集配置">
-        <Form layout="vertical">
-          <Form.Item label="默认采集频率（分钟）">
-            <InputNumber
-              value={config?.default_frequency_minutes}
-              onChange={value => setConfig(config ? { ...config, default_frequency_minutes: value || 5 } : null)}
-              min={1}
-              max={60}
-            />
-          </Form.Item>
-          <Form.Item label="SPC 窗口大小">
-            <InputNumber
-              value={config?.spc_window_size}
-              onChange={value => setConfig(config ? { ...config, spc_window_size: value || 30 } : null)}
-              min={10}
-              max={200}
-            />
-          </Form.Item>
-          <Form.Item label="Cpk 预警阈值">
-            <InputNumber
-              value={config?.cpk_min_threshold}
-              onChange={value => setConfig(config ? { ...config, cpk_min_threshold: value || 1.33 } : null)}
-              min={0.5}
-              max={2.0}
-              step={0.1}
-            />
-          </Form.Item>
-          <Form.Item label="声音提醒">
-            <Switch
-              checked={config?.alert_sound_enabled}
-              onChange={checked => setConfig(config ? { ...config, alert_sound_enabled: checked } : null)}
-            />
-          </Form.Item>
-          <Button type="primary" onClick={handleSaveConfig}>保存配置</Button>
-        </Form>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
