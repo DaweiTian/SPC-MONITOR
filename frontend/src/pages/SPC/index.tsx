@@ -282,14 +282,19 @@ export const SPCPage: React.FC = () => {
         </div>
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>窗口</span>
-          <input
-            className={styles.filterInput}
-            type="number"
-            value={filter.window}
-            onChange={e => setFilter(f => ({ ...f, window: parseInt(e.target.value) || 30 }))}
-            min={10}
-            max={100}
-          />
+          <div className={styles.stepper}>
+            <button
+              className={styles.stepperBtn}
+              onClick={() => setFilter(f => ({ ...f, window: Math.max(10, f.window - 10) }))}
+              disabled={filter.window <= 10}
+            >−</button>
+            <span className={styles.stepperValue}>{filter.window}</span>
+            <button
+              className={styles.stepperBtn}
+              onClick={() => setFilter(f => ({ ...f, window: Math.min(100, f.window + 10) }))}
+              disabled={filter.window >= 100}
+            >+</button>
+          </div>
         </div>
         {loading && <span className={styles.loadingText}>加载中...</span>}
       </div>

@@ -212,7 +212,12 @@ export const Dashboard: React.FC = () => {
       return
     }
     try {
-      const pairs: Array<[string, string]> = indicators.map(ind => [currentProduct.code, ind.code])
+      const productLimits = allSpecLimits[currentProduct.code] || {}
+      const capIndicators = indicators.filter(ind => {
+        const s = productLimits[ind.code]
+        return s && s.usl != null && s.lsl != null
+      })
+      const pairs: Array<[string, string]> = capIndicators.map(ind => [currentProduct.code, ind.code])
       const results = await Promise.all(
         pairs.map(([pc, ic]) => api.getCapabilityData(pc, ic).catch(() => null)),
       )
@@ -220,7 +225,7 @@ export const Dashboard: React.FC = () => {
     } catch (e) {
       console.error('获取过程能力数据失败:', e)
     }
-  }, [currentProduct, indicators])
+  }, [currentProduct, indicators, allSpecLimits])
 
   /* ── 品项轮换定时器 ── */
   useEffect(() => {
@@ -337,14 +342,14 @@ export const Dashboard: React.FC = () => {
       markLineData.push({
         yAxis: usl,
         lineStyle: { color: '#ef4444', type: 'dashed', width: 1 },
-        label: { formatter: `USL=${usl}`, color: '#ef4444', fontSize: 10, position: 'start' },
+        label: { formatter: `USL=${usl}`, color: '#ef4444', fontSize: 10, position: 'end' },
       })
     }
     if (lsl !== null) {
       markLineData.push({
         yAxis: lsl,
         lineStyle: { color: '#ef4444', type: 'dashed', width: 1 },
-        label: { formatter: `LSL=${lsl}`, color: '#ef4444', fontSize: 10, position: 'start' },
+        label: { formatter: `LSL=${lsl}`, color: '#ef4444', fontSize: 10, position: 'end' },
       })
     }
 
@@ -352,12 +357,12 @@ export const Dashboard: React.FC = () => {
       ...chartTheme,
       tooltip: { trigger: 'axis', ...tooltipStyle },
       legend: {
-        data: [currentIndicator.name, ...(usl !== null ? ['USL'] : []), ...(lsl !== null ? ['LSL'] : [])],
+        data: [currentIndicator.name],
         textStyle: { color: '#8b95a7' },
         top: 0,
         right: 10,
       },
-      grid: { left: 50, right: 20, top: 40, bottom: 30 },
+      grid: { left: 50, right: 60, top: 40, bottom: 30 },
       xAxis: {
         type: 'category',
         data: times,
@@ -528,7 +533,11 @@ export const Dashboard: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelTitleIcon}>📈</span>
+              <span className={styles.panelTitleIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+              </span>
               实时数据趋势
               <span className={styles.liveIndicator}>LIVE</span>
               {/* 品项选择器 */}
@@ -613,7 +622,11 @@ export const Dashboard: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelTitleIcon}>⚡</span>
+              <span className={styles.panelTitleIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+              </span>
               采集状态
             </div>
           </div>
@@ -654,7 +667,7 @@ export const Dashboard: React.FC = () => {
                 onClick={handleCollect}
                 disabled={collecting}
               >
-                {collecting ? '采集中...' : '🔄 立即采集'}
+                {collecting ? '采集中...' : '立即采集'}
               </button>
             </div>
           </div>
@@ -667,7 +680,11 @@ export const Dashboard: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelTitleIcon}>🏭</span>
+              <span className={styles.panelTitleIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
+                </svg>
+              </span>
               品项过程能力概览
               {currentProduct && (
                 <span className={styles.productBadge}>{productNameMap[currentProduct.code] || currentProduct.name}</span>
@@ -713,7 +730,12 @@ export const Dashboard: React.FC = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div className={styles.panelTitle}>
-              <span className={styles.panelTitleIcon}>🚨</span>
+              <span className={styles.panelTitleIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </span>
               最新预警
             </div>
             <button className={styles.btnGhost} onClick={() => window.location.href = '/alerts'}>

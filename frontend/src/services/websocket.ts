@@ -7,12 +7,16 @@ class WebSocketService {
   private _connected = false
   private reconnectDelay = 1000
   private readonly maxReconnectDelay = 30000
+  private retryCount = 0
+  private readonly maxRetries = 5
 
   get connected() {
     return this._connected
   }
 
   connect() {
+    if (this.retryCount > this.maxRetries) return
+
     const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${wsHost}/api/ws`
@@ -24,6 +28,7 @@ class WebSocketService {
         console.log('WebSocket 已连接')
         this._connected = true
         this.reconnectDelay = 1000
+        this.retryCount = 0
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null
@@ -40,15 +45,27 @@ class WebSocketService {
       }
 
       this.ws.onclose = () => {
-        console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连`)
         this._connected = false
+        this.retryCount++
+        if (this.retryCount > this.maxRetries) {
+          console.log('WebSocket 重连次数超限，停止重连')
+          return
+        }
+        console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
         this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
       }
 
       this.ws.onerror = (error) => {
-        console.warn('WebSocket 连接失败')
         this._connected = false
+        this.retryCount++
+        if (this.retryCount > this.maxRetries) {
+          console.log('WebSocket 重连次数超限，停止重连')
+          this.ws?.close()
+          return
+        }
+        console.warn(`WebSocket 连接失败 (${this.retryCount}/${this.maxRetries})`)
+        this.ws?.close()
       }
     } catch (e) {
       console.warn('WebSocket 初始化失败:', e)

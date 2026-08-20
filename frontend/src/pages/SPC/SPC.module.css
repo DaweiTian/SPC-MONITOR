@@ -89,6 +89,52 @@
   box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
 }
 
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.stepperBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--accent-cyan);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.stepperBtn:hover:not(:disabled) {
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.stepperBtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.stepperValue {
+  width: 40px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  padding: 6px 0;
+}
+
 .btnQuery {
   display: inline-flex;
   align-items: center;
