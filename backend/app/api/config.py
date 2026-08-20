@@ -1,9 +1,18 @@
 from fastapi import APIRouter
-from typing import Optional
+from typing import Optional, Callable
 import json
 import os
 
 router = APIRouter(prefix="/config", tags=["配置"])
+
+# Collector swap callback (set by main.py)
+_switch_collector_func: Optional[Callable] = None
+
+# Source status tracking (updated by main.py)
+_source_status = {
+    "source": "mock",
+    "connected": False,
+}
 
 _config = {
     "default_frequency_minutes": 5,
@@ -199,6 +208,25 @@ async def update_field_mapping(mapping: dict):
 @router.get("/db/mapping")
 async def get_field_mapping():
     return _load_json_config(DB_MAPPING_FILE, _default_mapping)
+
+@router.post("/source/switch")
+async def switch_source(body: dict):
+    source = body.get("source", "mock")
+    if source not in ("mock", "sqlserver"):
+        return {"success": False, "message": f"不支持的数据源类型: {source}"}
+
+    if _switch_collector_func is None:
+        return {"success": False, "message": "采集器切换功能未初始化"}
+
+    try:
+        result = _switch_collector_func(source)
+        return result
+    except Exception as e:
+        return {"success": False, "message": f"切换失败: {str(e)}"}
+
+@router.get("/source/status")
+async def get_source_status():
+    return _source_status
 
 def _build_connection_string(config: dict) -> str:
     server = config.get("server", "")
