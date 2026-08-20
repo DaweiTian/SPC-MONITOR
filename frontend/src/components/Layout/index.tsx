@@ -104,6 +104,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const { currentProduct, collectionFrequency } = useAppContext()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
+  const [sourceStatus, setSourceStatus] = useState<{
+    source: string
+    connected: boolean
+    instrument_type: string
+  }>({ source: 'mock', connected: false, instrument_type: 'mock' })
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -126,6 +131,24 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const status = await api.getStatus()
+        setSourceStatus({
+          source: status.source || 'mock',
+          connected: status.connected ?? false,
+          instrument_type: status.instrument_type || 'mock',
+        })
+      } catch {
+        // keep default
+      }
+    }
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
   const currentPage = pageTitleMap[location.pathname] || { cn: '页面', en: 'Page' }
 
   // Update alerts badge dynamically
@@ -135,6 +158,17 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       item.key === 'alerts' ? { ...item, badge: alertsCount > 0 ? alertsCount : undefined } : item
     )
   }))
+
+  const getStatusDisplay = () => {
+    if (sourceStatus.source === 'mock') {
+      return { text: '模拟数据运行中', color: 'blue' as const }
+    }
+    if (sourceStatus.connected) {
+      return { text: '采集服务运行中', color: 'green' as const }
+    }
+    return { text: '连接异常', color: 'red' as const }
+  }
+  const statusDisplay = getStatusDisplay()
 
   return (
     <div className={styles.app}>
@@ -171,11 +205,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          <div>
-            <span className={styles.statusDot} />
-            采集服务运行中
+          <div className={styles.footerStatus}>
+            <span className={`${styles.footerDot} ${statusDisplay.color === 'green' ? styles.footerDotGreen : statusDisplay.color === 'blue' ? styles.footerDotBlue : styles.footerDotRed}`} />
+            <span className={styles.footerStatusText}>{statusDisplay.text}</span>
           </div>
-          <div className={styles.footerSub}>v1.0.0</div>
+          <div className={styles.footerVersion}>
+            <span className={styles.footerVersionBadge}>v1.5.1</span>
+          </div>
         </div>
       </aside>
 

@@ -138,24 +138,66 @@
 }
 
 .sidebarFooter {
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-color);
-  font-size: 12px;
-  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.statusDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
+.footerStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.footerDot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--accent-green);
-  margin-right: 6px;
+  flex-shrink: 0;
   animation: pulse 2s infinite;
 }
 
-.footerSub {
-  margin-top: 4px;
+.footerDotGreen {
+  background: var(--accent-green);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.footerDotBlue {
+  background: var(--accent-blue);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+
+.footerDotRed {
+  background: var(--accent-red);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  animation: none;
+}
+
+.footerStatusText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footerVersion {
+  display: flex;
+  align-items: center;
+}
+
+.footerVersionBadge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
 }
 
 /* ========== 主区域 ========== */

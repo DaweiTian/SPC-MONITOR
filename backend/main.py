@@ -22,7 +22,7 @@ from backend.app.engine.alert.engine import AlertEngine
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="液奶过程监控系统", version="1.0.0")
+app = FastAPI(title="液奶过程监控系统", version="1.5.1")
 
 app.add_middleware(
     CORSMiddleware,
