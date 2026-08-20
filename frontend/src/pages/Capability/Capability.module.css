@@ -1,0 +1,300 @@
+/* ========== 过程能力分析 ========== */
+.page {
+  animation: fadeIn 0.3s ease;
+}
+
+/* ========== 筛选栏 ========== */
+.filterBar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.filterIcon {
+  color: var(--accent-cyan);
+}
+
+.select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 140px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnPrimary {
+  composes: btn;
+  background: var(--gradient-cyan);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
+}
+
+.btnPrimary:hover {
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========== 能力指数卡片网格 ========== */
+.capabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.capCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.capLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.capValue {
+  font-size: 42px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  line-height: 1.2;
+}
+
+.capDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* 色彩状态 */
+.capCard.good {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.capCard.good .capValue {
+  color: var(--accent-green);
+}
+
+.capCard.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.capCard.warning .capValue {
+  color: var(--accent-orange);
+}
+
+.capCard.danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.capCard.danger .capValue {
+  color: var(--accent-red);
+}
+
+/* ========== 直方图 + 仪表盘网格 ========== */
+.chartGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ========== 面板通用 ========== */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panelTitle {
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelIcon {
+  color: var(--accent-cyan);
+}
+
+.panelActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.panelBody {
+  padding: 20px;
+}
+
+/* ========== 标签 ========== */
+.tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tagCritical {
+  composes: tag;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.tagInfo {
+  composes: tag;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.tagSuccess {
+  composes: tag;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.tagWarning {
+  composes: tag;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-orange);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* ========== 西格玛面板 ========== */
+.sigmaDisplay {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.sigmaValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-green);
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+}
+
+.sigmaHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.statsList {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+}
+
+.statValueGreen {
+  composes: statValue;
+  color: var(--accent-green);
+}
+
+.statValueCyan {
+  composes: statValue;
+  color: var(--accent-cyan);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1200px) {
+  .capabilityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .capabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
