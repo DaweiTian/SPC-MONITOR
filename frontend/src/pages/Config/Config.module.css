@@ -856,6 +856,60 @@
   50% { opacity: 0; transform: scale(1.8); }
 }
 
+.freqInfo {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.freqInfoTitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.freqInfoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.freqInfoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.freqInfoIcon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 212, 255, 0.08);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.freqInfoLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.freqInfoDesc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* ========== Animation ========== */
 @keyframes fadeIn {
   from {

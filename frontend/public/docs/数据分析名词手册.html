@@ -51,7 +51,7 @@ body {
 /* ===== 侧边栏 ===== */
 .sidebar {
   position: fixed; top: 56px; left: 0; bottom: 0; width: 260px;
-  background: #fff; border-right: 1px solid var(--border);
+  background: var(--card-bg); border-right: 1px solid var(--border);
   overflow-y: auto; padding: 16px 0; z-index: 50;
 }
 .sidebar::-webkit-scrollbar { width: 4px; }
@@ -91,12 +91,12 @@ body {
   font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
   margin-left: auto;
 }
-.tag-spc { background: #dbeafe; color: #1d4ed8; }
+.tag-spc { background: rgba(0,212,255,0.12); color: #00d4ff; }
 .tag-capability { background: #dcfce7; color: #15803d; }
-.tag-anomaly { background: #fee2e2; color: #b91c1c; }
-.tag-trend { background: #fef3c7; color: #b45309; }
+.tag-anomaly { background: rgba(239,68,68,0.15); color: #ef4444; }
+.tag-trend { background: rgba(245,158,11,0.15); color: #f59e0b; }
 .tag-quality { background: #e0e7ff; color: #4338ca; }
-.tag-stat { background: #f0fdfa; color: #0d9488; }
+.tag-stat { background: rgba(16,185,129,0.15); color: #10b981; }
 
 /* ===== 通用排版 ===== */
 .def-box {
@@ -112,12 +112,12 @@ body {
 .formula-box .label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
 
 .note-box {
-  background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+  background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px;
   padding: 12px 16px; margin: 14px 0; font-size: 13px;
 }
 .note-box::before { content: "💡 "; }
 .warn-box {
-  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px;
   padding: 12px 16px; margin: 14px 0; font-size: 13px;
 }
 .warn-box::before { content: "⚠️ "; }
@@ -125,7 +125,7 @@ body {
 table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
 th { background: var(--code-bg); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); }
 td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
-tr:hover td { background: #f8fafc; }
+tr:hover td { background: var(--code-bg); }
 
 code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: "SF Mono", "Fira Code", Consolas, monospace; }
 
@@ -160,7 +160,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 .toc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 20px; }
 .toc-card {
   display: flex; align-items: center; gap: 12px; padding: 14px 18px;
-  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
   text-decoration: none; color: var(--text); transition: all 0.15s;
 }
 .toc-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); border-color: var(--primary); }
@@ -183,7 +183,6 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <!-- ===== 顶部导航 ===== -->
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:16px;">
-    <a href="/" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">← 返回主页</a>
     <h1>📊 数据分析专有名词可视化手册</h1>
     <span class="subtitle">液奶成品检验数据分析平台</span>
   </div>
@@ -247,7 +246,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 
   <div class="toc-grid">
     <a class="toc-card" href="#spc">
-      <div class="toc-icon" style="background:#dbeafe;color:#1d4ed8;">📊</div>
+      <div class="toc-icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📊</div>
       <div class="toc-text"><h3>SPC 统计过程控制</h3><p>控制图、控制限、Nelson规则、3σ原则</p></div>
     </a>
     <a class="toc-card" href="#cpk">
@@ -255,15 +254,15 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
       <div class="toc-text"><h3>过程能力分析</h3><p>Cpk、Cp、Ppk、PPM缺陷率、规格限</p></div>
     </a>
     <a class="toc-card" href="#zscore">
-      <div class="toc-icon" style="background:#fee2e2;color:#b91c1c;">🔍</div>
+      <div class="toc-icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">🔍</div>
       <div class="toc-text"><h3>异常检测</h3><p>Z-Score、IQR四分位距、EWMA指数加权</p></div>
     </a>
     <a class="toc-card" href="#arima">
-      <div class="toc-icon" style="background:#fef3c7;color:#b45309;">📈</div>
+      <div class="toc-icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📈</div>
       <div class="toc-text"><h3>趋势预测</h3><p>ARIMA模型、Mann-Kendall趋势检验</p></div>
     </a>
     <a class="toc-card" href="#mean-std">
-      <div class="toc-icon" style="background:#f0fdfa;color:#0d9488;">📐</div>
+      <div class="toc-icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">📐</div>
       <div class="toc-text"><h3>基础统计概念</h3><p>均值、标准差、正态分布、置信区间</p></div>
     </a>
     <a class="toc-card" href="#sliding-window">
@@ -277,7 +276,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="spc" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dbeafe;color:#1d4ed8;">📊</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📊</div>
       <h2>SPC（统计过程控制）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -312,7 +311,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="imr-chart" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dbeafe;color:#1d4ed8;">📉</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📉</div>
       <h2>I-MR 控制图（单值-移动极差图）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -373,7 +372,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="control-limits" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dbeafe;color:#1d4ed8;">📏</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📏</div>
       <h2>控制限（UCL / LCL / CL）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -414,7 +413,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="nelson" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dbeafe;color:#1d4ed8;">📋</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">📋</div>
       <h2>Nelson 规则（8 条判异规则）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -451,7 +450,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="sigma" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#dbeafe;color:#1d4ed8;">σ</div>
+      <div class="icon" style="background:rgba(0,212,255,0.12);color:#00d4ff;">σ</div>
       <h2>3σ 原则（经验法则）</h2>
       <span class="tag tag-spc">SPC</span>
     </div>
@@ -630,7 +629,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="zscore" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#fee2e2;color:#b91c1c;">🔍</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">🔍</div>
       <h2>Z-Score（标准分数）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -670,7 +669,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="iqr" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#fee2e2;color:#b91c1c;">📦</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">📦</div>
       <h2>IQR（四分位距）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -713,7 +712,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="ewma" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#fee2e2;color:#b91c1c;">📡</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);color:#b91c1c;">📡</div>
       <h2>EWMA（指数加权移动平均）</h2>
       <span class="tag tag-anomaly">异常检测</span>
     </div>
@@ -760,7 +759,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="arima" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#fef3c7;color:#b45309;">📈</div>
+      <div class="icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📈</div>
       <h2>ARIMA 模型（自回归积分移动平均）</h2>
       <span class="tag tag-trend">趋势预测</span>
     </div>
@@ -811,7 +810,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="mann-kendall" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#fef3c7;color:#b45309;">📉</div>
+      <div class="icon" style="background:rgba(245,158,11,0.15);color:#b45309;">📉</div>
       <h2>Mann-Kendall 趋势检验</h2>
       <span class="tag tag-trend">趋势预测</span>
     </div>
@@ -878,7 +877,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="mean-std" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#f0fdfa;color:#0d9488;">📐</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">📐</div>
       <h2>均值（μ / x̄）与标准差（σ / s）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
@@ -926,7 +925,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="normal-dist" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#f0fdfa;color:#0d9488;">🔔</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">🔔</div>
       <h2>正态分布（高斯分布）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
@@ -972,7 +971,7 @@ code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-si
 <section id="confidence-interval" class="section-anchor">
   <div class="card">
     <div class="card-header">
-      <div class="icon" style="background:#f0fdfa;color:#0d9488;">🎯</div>
+      <div class="icon" style="background:rgba(16,185,129,0.15);color:#0d9488;">🎯</div>
       <h2>置信区间（CI）</h2>
       <span class="tag tag-stat">基础统计</span>
     </div>
