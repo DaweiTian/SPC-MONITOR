@@ -12,7 +12,11 @@
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "resources": ["ft1-backend/"],
     "windows": {
-      "nsis": {}
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "nsis/header.bmp",
+        "sidebarImage": "nsis/sidebar.bmp"
+      }
     }
   },
   "app": {
