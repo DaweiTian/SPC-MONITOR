@@ -3,6 +3,9 @@ name = "ft1-monitor-launcher"
 version = "1.5.1"
 edition = "2021"
 
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
 [dependencies]
 tauri = { version = "1.5", features = ["system-tray", "shell-open", "dialog"] }
 tokio = { version = "1", features = ["full"] }
