@@ -189,6 +189,9 @@
   background: var(--bg-secondary);
   border-radius: 10px;
   border: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .tab {
