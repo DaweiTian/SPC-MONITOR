@@ -97,7 +97,7 @@ function TrendChart({ alerts }: { alerts: Alert[] }) {
     () => ({
       tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow' } },
       legend: { top: 0, right: 0, textStyle: { color: '#8b95a7', fontSize: 11 }, itemWidth: 10, itemHeight: 10, itemGap: 16 },
-      grid: { left: 40, right: 16, top: 31, bottom: 4 },
+      grid: { left: 40, right: 16, top: 31, bottom: 24 },
       xAxis: { type: 'category', data: days, axisLabel: { color: '#8b95a7', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(64,159,255,0.15)' } } },
       yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#8b95a7', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(64,159,255,0.06)' } }, axisLine: { show: false } },
       series: [

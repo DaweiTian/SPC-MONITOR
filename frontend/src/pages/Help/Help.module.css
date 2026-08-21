@@ -4,6 +4,84 @@
   font-size: 14px;
 }
 
+.brandHeader {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 12px;
+}
+
+.brandLogo {
+  height: 36px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.brandInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brandTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.brandSub {
+  font-size: 13px;
+  color: var(--accent-cyan);
+}
+
+.archFlow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.archFlowItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  min-width: 100px;
+  text-align: center;
+}
+
+.archFlowLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.archFlowDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.archFlowArrow {
+  color: var(--accent-cyan);
+  font-size: 18px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
 .sectionTitle {
   color: var(--accent-cyan);
   margin-bottom: 12px;

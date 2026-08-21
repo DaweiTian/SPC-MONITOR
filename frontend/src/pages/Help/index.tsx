@@ -49,6 +49,14 @@ export const HelpPage: React.FC = () => {
 
       {activeTab === 'overview' && (
         <>
+          <div className={styles.brandHeader}>
+            <img src="/icons/powered-by-yili2.svg" alt="YILI" className={styles.brandLogo} />
+            <div className={styles.brandInfo}>
+              <div className={styles.brandTitle}>液奶过程监控系统</div>
+              <div className={styles.brandSub}>由液态奶中心实验室开发</div>
+            </div>
+          </div>
+
           <h3 className={styles.sectionTitle}>系统简介</h3>
           <p>
             液奶过程监控系统是一套面向乳制品生产过程的实时SPC分析平台，集成FT1数据定时采集、统计过程控制（SPC）分析、过程能力评估、指标趋势预测和分级预警功能，帮助质量管理人员实时掌握生产过程稳定性。
@@ -64,11 +72,33 @@ export const HelpPage: React.FC = () => {
           </ul>
 
           <h3 className={styles.sectionTitle}>技术架构</h3>
+          <div className={styles.archFlow}>
+            <div className={styles.archFlowItem}>
+              <span className={styles.archFlowLabel}>数据源</span>
+              <span className={styles.archFlowDesc}>FT120仪器 → SQL Server</span>
+            </div>
+            <div className={styles.archFlowArrow}>→</div>
+            <div className={styles.archFlowItem}>
+              <span className={styles.archFlowLabel}>后端引擎</span>
+              <span className={styles.archFlowDesc}>FastAPI + NumPy + SciPy + Statsmodels</span>
+            </div>
+            <div className={styles.archFlowArrow}>→</div>
+            <div className={styles.archFlowItem}>
+              <span className={styles.archFlowLabel}>实时推送</span>
+              <span className={styles.archFlowDesc}>WebSocket</span>
+            </div>
+            <div className={styles.archFlowArrow}>→</div>
+            <div className={styles.archFlowItem}>
+              <span className={styles.archFlowLabel}>前端展示</span>
+              <span className={styles.archFlowDesc}>React + ECharts</span>
+            </div>
+          </div>
           <ul className={styles.archList}>
-            <li className={styles.archItem}>前端：React + Element Plus + ECharts</li>
-            <li className={styles.archItem}>后端：Python (FastAPI + NumPy + SciPy + Statsmodels)</li>
-            <li className={styles.archItem}>启动器：Rust (进程管理 + 系统托盘)</li>
-            <li className={styles.archItem}>实时通信：WebSocket</li>
+            <li className={styles.archItem}>前端：React 18 + TypeScript + ECharts 5，响应式仪表盘与交互式控制图</li>
+            <li className={styles.archItem}>后端：Python FastAPI，提供RESTful API与WebSocket实时推送</li>
+            <li className={styles.archItem}>分析引擎：NumPy + SciPy + Statsmodels，实现SPC计算、过程能力分析与指标预测</li>
+            <li className={styles.archItem}>数据层：SQLite本地存储 + pandas数据处理</li>
+            <li className={styles.archItem}>启动器：Rust Tauri，进程管理与系统托盘集成</li>
           </ul>
 
           <h3 className={styles.sectionTitle}>SPC判异规则（Nelson Rules）</h3>

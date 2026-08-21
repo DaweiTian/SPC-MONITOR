@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 40" width="320" height="40">
+  <style>
+    .icon-bg { fill: #0A2E5C; }
+    .icon-drop { fill: #2D8CFF; }
+    .icon-shine { fill: rgba(255,255,255,0.35); }
+    .label-text { fill: #0A2E5C; }
+
+    @media (prefers-color-scheme: dark) {
+      .icon-bg { fill: #2D8CFF; }
+      .icon-drop { fill: #7ab8ff; }
+      .icon-shine { fill: rgba(255,255,255,0.25); }
+      .label-text { fill: #d0dce8; }
+    }
+  </style>
+
+  <!-- 液滴图标 -->
+  <circle class="icon-bg" cx="26" cy="20" r="12"/>
+  <path class="icon-drop"
+        d="M26,11 C26,11 19,18 19,22 C19,25.5 22,28 26,28 C30,28 33,25.5 33,22 C33,18 26,11 26,11 Z"/>
+  <circle class="icon-shine" cx="23" cy="20" r="2"/>
+
+  <!-- 英文名称 -->
+  <text class="label-text" x="48" y="25.5"
+        font-family="'Montserrat','Segoe UI',sans-serif"
+        font-size="14" font-weight="700" letter-spacing="0.5"
+        textLength="256" lengthAdjust="spacing">YILI · Liquid Dairy Central Lab</text>
+</svg>

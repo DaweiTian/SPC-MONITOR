@@ -209,6 +209,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             <span className={`${styles.footerDot} ${statusDisplay.color === 'green' ? styles.footerDotGreen : statusDisplay.color === 'blue' ? styles.footerDotBlue : styles.footerDotRed}`} />
             <span className={styles.footerStatusText}>{statusDisplay.text}</span>
           </div>
+          <div className={styles.footerPoweredBy}>
+            <img src="/icons/powered-by-yili2.svg" alt="Powered by YILI" className={styles.footerPoweredByImg} />
+          </div>
           <div className={styles.footerVersion}>
             <span className={styles.footerVersionBadge}>v1.5.1</span>
           </div>

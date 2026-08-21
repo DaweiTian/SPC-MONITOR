@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from fastapi import APIRouter, HTTPException
 import numpy as np
 from backend.app.engine.spc.control_charts import IMRControlChart
@@ -75,7 +76,7 @@ async def get_spc_data(product_code: str, indicator_code: str, window: int = 30)
         },
         "sigma": round(result['sigma_estimate'], 4),
         "data_points": data_points,
-        "violations": [v.to_dict() for v in violations],
+        "violations": [asdict(v) for v in violations],
     }
 
 @router.get("/capability/{product_code}/{indicator_code}")

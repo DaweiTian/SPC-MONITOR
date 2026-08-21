@@ -141,9 +141,24 @@
   padding: 12px 16px;
   border-top: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footerPoweredBy {
+  display: flex;
+  justify-content: center;
+}
+
+.footerPoweredByImg {
+  height: 24px;
+  width: auto;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+.footerPoweredByImg:hover {
+  opacity: 0.85;
 }
 
 .footerStatus {
