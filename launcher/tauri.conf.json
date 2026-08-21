@@ -32,11 +32,7 @@
         "nsis": {
           "installerIcon": "icons/icon.ico",
           "header": "nsis/header.bmp",
-          "sidebar": "nsis/sidebar.bmp",
-          "languages": ["SimpChinese", "English"],
-          "displayLanguageSelector": false,
-          "installMode": "both",
-          "startMenuSubdirectory": "液奶过程监控系统"
+          "sidebar": "nsis/sidebar.bmp"
         }
       }
     },
