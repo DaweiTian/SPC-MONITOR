@@ -51,8 +51,7 @@
         "title": "液奶过程监控系统",
         "width": 1200,
         "height": 800,
-        "decorations": true,
-        "transparent": true
+        "decorations": true
       }
     ],
     "systemTray": {

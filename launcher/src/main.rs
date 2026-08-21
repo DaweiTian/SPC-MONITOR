@@ -49,7 +49,7 @@ fn main() {
             start_server,
             stop_server,
             is_server_running,
-            set_window_opacity,
+
         ])
         .setup(move |app| {
             // 拦截关闭事件：关闭时隐藏到托盘，不停止后端
@@ -107,9 +107,4 @@ fn is_server_running(service: tauri::State<Arc<ServiceManager>>) -> bool {
     service.is_running()
 }
 
-#[tauri::command]
-fn set_window_opacity(window: tauri::Window, opacity: f64) -> Result<(), String> {
-    window
-        .set_opacity(opacity)
-        .map_err(|e| format!("设置透明度失败: {}", e))
-}
+
