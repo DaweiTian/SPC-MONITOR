@@ -15,14 +15,14 @@ call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 
 echo [2/5] Nuitka 编译后端...
 cd /d "%PROJECT_DIR%backend"
-python -m nuitka --standalone --onefile --output-filename=ft1-backend.exe --windows-console-mode=disable --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-data-dir=../data=data --nofollow-import-to=tkinter --nofollow-import-to=matplotlib --nofollow-import-to=PIL --nofollow-import-to=pytest --nofollow-import-to=unittest run.py || (echo 后端编译失败 & pause & exit /b 1)
+python -m nuitka --standalone --output-dir=ft1-backend --windows-console-mode=disable --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-data-dir=../data=data --nofollow-import-to=tkinter --nofollow-import-to=matplotlib --nofollow-import-to=PIL --nofollow-import-to=pytest --nofollow-import-to=unittest run.py || (echo 后端编译失败 & pause & exit /b 1)
 
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 if exist "%BACKEND_DIST%" rmdir /s /q "%BACKEND_DIST%"
-mkdir "%BACKEND_DIST%"
-if not exist "ft1-backend.exe" (echo Nuitka 编译产物 ft1-backend.exe 不存在 & pause & exit /b 1)
-copy /Y ft1-backend.exe "%BACKEND_DIST%\" >nul
+if not exist "ft1-backend\run.exe" (echo Nuitka 编译产物 ft1-backend\run.exe 不存在 & pause & exit /b 1)
+move /Y "ft1-backend\run.exe" "ft1-backend\ft1-backend.exe" >nul
+xcopy /E /I /Q /Y ft1-backend "%BACKEND_DIST%" >nul
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
 REM 复制配置文件
 for %%f in ("%PROJECT_DIR%*.json") do copy /Y "%%f" "%BACKEND_DIST%\" >nul 2>nul
