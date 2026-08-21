@@ -173,9 +173,10 @@
         time = time.length >= 16 ? time.substring(11, 16) : time.substring(0, 5);
       }
 
+      var escapedMsg = escapeHtml(String(message));
       html += '<div class="alert-item">' +
         '<span class="alert-dot ' + dotClass + '"></span>' +
-        '<span class="alert-text">' + escapeHtml(String(message)) + '</span>' +
+        '<span class="alert-text" title="' + escapedMsg + '">' + escapedMsg + '</span>' +
         '<span class="alert-time">' + escapeHtml(String(time)) + '</span>' +
         '</div>';
     });
@@ -301,7 +302,8 @@
     ctx.fillStyle = 'rgba(0,212,255,0.4)';
     ctx.fillText('CL', padding.left + chartW, toY(spcMean) - 3);
     ctx.fillStyle = 'rgba(255,100,100,0.5)';
-    ctx.fillText('LCL', padding.left + chartW, toY(spcLcl) + 10);
+    var lclY = toY(spcLcl);
+    ctx.fillText('LCL', padding.left + chartW, lclY + 10 > h - 2 ? lclY - 3 : lclY + 10);
   }
 
   // ── Error handling ──

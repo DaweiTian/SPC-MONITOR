@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul
 set PROJECT_DIR=%~dp0
 set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
