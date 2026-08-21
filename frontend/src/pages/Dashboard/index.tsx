@@ -302,7 +302,7 @@ export const Dashboard: React.FC = () => {
 
   /* ── derived data ── */
   const pendingAlerts = dashboard
-    ? (dashboard.pending_alerts.CRITICAL || 0) + (dashboard.pending_alerts.WARNING || 0)
+    ? (dashboard.pending_alerts?.CRITICAL || 0) + (dashboard.pending_alerts?.WARNING || 0)
     : 0
 
   const avgCpk = useMemo(() => {
