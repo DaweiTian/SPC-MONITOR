@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>液奶成品检验数据分析平台 — 专有名词可视化手册</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script>
 // Auto-resize ECharts when container size changes (e.g. sidebar toggle)
 (function() {
@@ -1812,15 +1811,21 @@ makeChart('chart-products', {
 // ===== 侧边栏高亮 =====
 const navItems = document.querySelectorAll('.nav-item');
 const sections = document.querySelectorAll('.card');
+let scrollTicking = false;
 window.addEventListener('scroll', () => {
-  let current = '';
-  sections.forEach(sec => {
-    const top = sec.offsetTop - 100;
-    if (window.scrollY >= top) current = sec.id;
-  });
-  navItems.forEach(item => {
-    item.classList.remove('active');
-    if (item.getAttribute('href') === '#' + current) item.classList.add('active');
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(() => {
+    let current = '';
+    sections.forEach(sec => {
+      const top = sec.offsetTop - 100;
+      if (window.scrollY >= top) current = sec.id;
+    });
+    navItems.forEach(item => {
+      item.classList.remove('active');
+      if (item.getAttribute('href') === '#' + current) item.classList.add('active');
+    });
+    scrollTicking = false;
   });
 });
 </script>
