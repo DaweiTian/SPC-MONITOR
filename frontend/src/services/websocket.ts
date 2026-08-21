@@ -17,7 +17,7 @@ class WebSocketService {
   connect() {
     if (this.retryCount > this.maxRetries) return
 
-    const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
+    const wsHost = window.location.hostname === 'localhost' ? 'localhost:18080' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
     const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`

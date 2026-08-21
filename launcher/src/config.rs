@@ -12,7 +12,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            server_port: 8000,
+            server_port: 18080,
             auto_start: true,
             log_level: "info".to_string(),
             python_path: "python".to_string(),
