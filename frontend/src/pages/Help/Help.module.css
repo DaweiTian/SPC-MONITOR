@@ -194,6 +194,17 @@
   z-index: 10;
 }
 
+.tabBar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -24px;
+  height: 24px;
+  background: var(--bg-secondary);
+  z-index: -1;
+}
+
 .tab {
   padding: 10px 20px;
   border-radius: 8px;
