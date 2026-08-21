@@ -181,28 +181,27 @@
   white-space: nowrap;
 }
 
+.pageLayout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .tabBar {
   display: flex;
   gap: 4px;
-  margin-bottom: 24px;
-  padding: 4px 24px;
+  margin-bottom: 0;
+  padding: 4px;
   background: var(--bg-secondary);
+  border-radius: 10px;
   border: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin-left: -24px;
-  margin-right: -24px;
+  flex-shrink: 0;
 }
 
-.tabBar::after {
-  content: '';
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  top: 100%;
-  height: 25px;
-  background: var(--bg-secondary);
+.contentScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
 }
 
 .tab {

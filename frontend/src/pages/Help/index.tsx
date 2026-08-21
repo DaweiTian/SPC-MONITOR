@@ -34,7 +34,7 @@ export const HelpPage: React.FC = () => {
   ]
 
   return (
-    <div className={styles.container}>
+    <div className={styles.pageLayout}>
       <div className={styles.tabBar}>
         {tabs.map(tab => (
           <button
@@ -48,7 +48,7 @@ export const HelpPage: React.FC = () => {
       </div>
 
       {activeTab === 'overview' && (
-        <>
+        <div className={styles.contentScroll}>
           <div className={styles.brandHeader}>
             <img src="/icons/powered-by-yili2.svg" alt="YILI" className={styles.brandLogo} />
             <div className={styles.brandInfo}>
@@ -120,7 +120,7 @@ export const HelpPage: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </>
+        </div>
       )}
 
       {activeTab === 'glossary' && (
