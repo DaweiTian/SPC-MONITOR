@@ -82,8 +82,8 @@ cargo tauri dev
 ## 访问
 
 - 前端开发: http://localhost:5173
-- 后端 API: http://localhost:8000
-- 生产模式: http://localhost:8000
+- 后端 API: http://localhost:18080
+- 生产模式: http://localhost:18080
 
 ## 项目结构
 
@@ -121,4 +121,4 @@ FT1-MONITOR/
 
 ## API 文档
 
-启动后端后访问: http://localhost:8000/docs
+启动后端后访问: http://localhost:18080/docs

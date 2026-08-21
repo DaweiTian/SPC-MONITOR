@@ -41,17 +41,17 @@ npm run build
 mkdir -p "$PROJECT_DIR/data"
 
 # 启动后端服务
-echo -e "${GREEN}[3/3] 启动后端服务 (端口 8000)...${NC}"
+echo -e "${GREEN}[3/3] 启动后端服务 (端口 18080)...${NC}"
 cd "$PROJECT_DIR"
 echo ""
 echo "=========================================="
 echo -e "${GREEN}  生产服务已启动${NC}"
 echo "=========================================="
 echo ""
-echo "  访问: http://localhost:8000"
-echo "  API 文档: http://localhost:8000/docs"
+echo "  访问: http://localhost:18080"
+echo "  API 文档: http://localhost:18080/docs"
 echo ""
 echo "  按 Ctrl+C 停止服务"
 echo ""
 
-python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 18080

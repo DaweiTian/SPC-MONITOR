@@ -49,11 +49,11 @@ mkdir -p "$PROJECT_DIR/data"
 mkdir -p "$LOG_DIR"
 
 echo ""
-echo -e "${GREEN}[3/4] 启动后端服务 (端口 8000)...${NC}"
+echo -e "${GREEN}[3/4] 启动后端服务 (端口 18080)...${NC}"
 cd "$PROJECT_DIR"
 nohup python3 -m uvicorn backend.main:app \
     --host 127.0.0.1 \
-    --port 8000 \
+    --port 18080 \
     --reload \
     --log-level warning \
     > "$LOG_DIR/backend.log" 2>&1 &
@@ -76,8 +76,8 @@ echo -e "${GREEN}  开发服务已在后台启动${NC}"
 echo "=========================================="
 echo ""
 echo "  前端: http://localhost:5173"
-echo "  后端: http://localhost:8000"
-echo "  API 文档: http://localhost:8000/docs"
+echo "  后端: http://localhost:18080"
+echo "  API 文档: http://localhost:18080/docs"
 echo ""
 echo "  日志文件:"
 echo "    后端: $LOG_DIR/backend.log"

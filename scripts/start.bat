@@ -40,17 +40,17 @@ REM 创建数据目录
 if not exist "%PROJECT_DIR%\data" mkdir "%PROJECT_DIR%\data"
 
 REM 启动后端服务
-echo [3/3] 启动后端服务 (端口 8000)...
+echo [3/3] 启动后端服务 (端口 18080)...
 echo.
 echo ==========================================
 echo   生产服务已启动
 echo ==========================================
 echo.
-echo   访问: http://localhost:8000
-echo   API 文档: http://localhost:8000/docs
+echo   访问: http://localhost:18080
+echo   API 文档: http://localhost:18080/docs
 echo.
 echo   按 Ctrl+C 停止服务
 echo.
 
 cd /d "%PROJECT_DIR%"
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 18080

@@ -7,7 +7,7 @@
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 18080
 ```
 
 ### 前端
@@ -36,12 +36,12 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "18080"]
 ```
 
 ```bash
 docker build -t ft1-monitor-backend -f backend/Dockerfile .
-docker run -p 8000:8000 ft1-monitor-backend
+docker run -p 18080:18080 ft1-monitor-backend
 ```
 
 ## Nginx 配置
@@ -57,13 +57,13 @@ server {
     }
 
     location /api {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:18080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /api/ws {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:18080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
