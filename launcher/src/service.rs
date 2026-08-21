@@ -134,35 +134,52 @@ impl ServiceManager {
     }
 
     pub fn health_check(&self) -> bool {
-        let mut state = self.inner.lock().unwrap();
+        // Snapshot state under lock, then drop guard before HTTP request
+        let (is_running, server_alive) = {
+            let mut state = self.inner.lock().unwrap();
 
-        if !state.is_running {
-            return false;
-        }
+            if !state.is_running {
+                return false;
+            }
 
-        if let Some(ref mut child) = state.server_process {
-            match child.try_wait() {
-                Ok(Some(status)) => {
-                    warn!("后端进程异常退出: {:?}", status);
-                    state.server_process = None;
-                    state.is_running = false;
-                    return false;
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    error!("检查进程状态失败: {}", e);
-                    state.server_process = None;
-                    state.is_running = false;
-                    return false;
+            let mut alive = true;
+            if let Some(ref mut child) = state.server_process {
+                match child.try_wait() {
+                    Ok(Some(status)) => {
+                        warn!("后端进程异常退出: {:?}", status);
+                        state.server_process = None;
+                        state.is_running = false;
+                        alive = false;
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        error!("检查进程状态失败: {}", e);
+                        state.server_process = None;
+                        state.is_running = false;
+                        alive = false;
+                    }
                 }
             }
-        }
 
+            if !alive {
+                return false;
+            }
+
+            (state.is_running, alive)
+        }; // lock dropped here
+
+        // HTTP check WITHOUT holding the lock
         let url = format!("http://127.0.0.1:{}/api/health", self.server_port);
-        let healthy = reqwest::blocking::get(&url)
+        let healthy = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .ok()
+            .and_then(|client| client.get(&url).send().ok())
             .map(|r| r.status().is_success())
             .unwrap_or(false);
 
+        // Re-acquire lock to update state
+        let mut state = self.inner.lock().unwrap();
         state.is_running = healthy;
         healthy
     }

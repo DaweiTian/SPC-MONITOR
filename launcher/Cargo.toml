@@ -11,11 +11,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 window-vibrancy = "0.6"
-tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-anyhow = "1"
 dirs = "5"
 log = "0.4"
 simplelog = "0.12"

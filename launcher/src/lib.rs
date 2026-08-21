@@ -3,7 +3,7 @@ mod service;
 mod tray;
 
 use config::AppConfig;
-use log::error;
+use log::{error, warn};
 use service::ServiceManager;
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::fs::File;
@@ -130,7 +130,11 @@ fn is_server_running(service: tauri::State<Arc<ServiceManager>>) -> bool {
 
 #[tauri::command]
 fn set_window_opacity(window: tauri::WebviewWindow, opacity: f64) -> Result<(), String> {
-    window.set_opacity(opacity).map_err(|e| e.to_string())
+    if !opacity.is_finite() {
+        return Err("opacity must be a finite number".to_string());
+    }
+    let clamped = opacity.clamp(0.0, 1.0);
+    window.set_opacity(clamped).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -139,7 +143,13 @@ fn get_widget_data(
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
     let url = format!("http://127.0.0.1:{}/api/monitor/dashboard", port);
-    reqwest::blocking::get(&url)
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+    client
+        .get(&url)
+        .send()
         .map_err(|e| e.to_string())?
         .json::<serde_json::Value>()
         .map_err(|e| e.to_string())
@@ -154,6 +164,8 @@ fn toggle_widget(app: tauri::AppHandle) -> Result<(), String> {
             widget.show().map_err(|e| e.to_string())?;
             widget.set_focus().map_err(|e| e.to_string())?;
         }
+    } else {
+        warn!("toggle_widget: widget window not found");
     }
     Ok(())
 }
