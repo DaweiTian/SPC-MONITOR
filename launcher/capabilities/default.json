@@ -15,7 +15,6 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
-    "core:window:allow-set-opacity",
     "core:event:default",
     "core:tray:default",
     "core:menu:default"
