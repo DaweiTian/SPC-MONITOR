@@ -15,7 +15,11 @@ class WebSocketService {
   }
 
   connect() {
-    if (this.retryCount > this.maxRetries) return
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
+
+    // 每次 connect 重置重连状态
+    this.retryCount = 0
+    this.reconnectDelay = 1000
 
     // 开发模式走 vite 代理，生产模式用当前页面地址，Tauri 环境直连后端
     const isTauri = '__TAURI__' in window
@@ -71,14 +75,17 @@ class WebSocketService {
   }
 
   disconnect() {
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
+    if (this.ws) {
+      this.ws.onclose = null
+      this.ws.onerror = null
+      this.ws.close()
+      this.ws = null
+    }
+    this._connected = false
   }
 
   on(event: string, handler: MessageHandler) {
