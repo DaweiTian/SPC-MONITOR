@@ -1,9 +1,8 @@
-import json
 import logging
-import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
+from .utils import parse_datetime, load_breakpoint, save_breakpoint, load_spec_limits
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +16,10 @@ def _fix_encoding(s):
     if isinstance(s, str):
         try:
             return s.encode('latin-1').decode('gbk')
-        except:
+        except (UnicodeDecodeError, LookupError):
             try:
                 return s.encode('latin-1').decode('gb2312')
-            except:
+            except (UnicodeDecodeError, LookupError):
                 return s
     return s
 
@@ -84,33 +83,13 @@ class MDBCollector(BaseCollector):
     
     def _load_breakpoint(self) -> Optional[datetime]:
         """从文件加载断点"""
-        if os.path.exists(BREAKPOINT_FILE):
-            try:
-                with open(BREAKPOINT_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    last_time = data.get('last_collect_time')
-                    if last_time:
-                        # Handle both ISO format and space-separated format
-                        if 'T' in last_time:
-                            return datetime.fromisoformat(last_time)
-                        else:
-                            return datetime.strptime(last_time, '%Y-%m-%d %H:%M:%S')
-            except Exception as e:
-                logger.warning(f"加载断点失败: {e}")
-        return None
+        ts = load_breakpoint(BREAKPOINT_FILE)
+        return parse_datetime(ts) if ts else None
     
     def _save_breakpoint(self):
         """保存断点到文件"""
-        try:
-            data = {
-                'last_collect_time': self._last_collect_time.isoformat() if self._last_collect_time else None,
-                'mdb_path': self.mdb_path,
-                'updated_at': datetime.now().isoformat()
-            }
-            with open(BREAKPOINT_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"保存断点失败: {e}")
+        if self._last_collect_time:
+            save_breakpoint(BREAKPOINT_FILE, self._last_collect_time.isoformat())
     
     @property
     def db(self):
@@ -235,12 +214,8 @@ class MDBCollector(BaseCollector):
                         continue
                     
                     if isinstance(sample_time, str):
-                        try:
-                            if 'T' in sample_time:
-                                sample_dt = datetime.fromisoformat(sample_time)
-                            else:
-                                sample_dt = datetime.strptime(sample_time, '%Y-%m-%d %H:%M:%S')
-                        except ValueError:
+                        sample_dt = parse_datetime(sample_time)
+                        if sample_dt is None:
                             continue
                     else:
                         sample_dt = sample_time
@@ -267,13 +242,8 @@ class MDBCollector(BaseCollector):
                 # Filter by breakpoint
                 if self._last_collect_time:
                     if isinstance(sample_time, str):
-                        try:
-                            # Handle both ISO format and space-separated format
-                            if 'T' in sample_time:
-                                sample_dt = datetime.fromisoformat(sample_time)
-                            else:
-                                sample_dt = datetime.strptime(sample_time, '%Y-%m-%d %H:%M:%S')
-                        except ValueError:
+                        sample_dt = parse_datetime(sample_time)
+                        if sample_dt is None:
                             continue
                     else:
                         sample_dt = sample_time
@@ -334,15 +304,12 @@ class MDBCollector(BaseCollector):
             # Update and persist breakpoint
             if records:
                 max_time = max(r['sample_time'] for r in records)
-                try:
-                    # Handle both ISO format and space-separated format
-                    if 'T' in max_time:
-                        self._last_collect_time = datetime.fromisoformat(max_time)
-                    else:
-                        self._last_collect_time = datetime.strptime(max_time, '%Y-%m-%d %H:%M:%S')
+                parsed = parse_datetime(max_time)
+                if parsed:
+                    self._last_collect_time = parsed
                     self._save_breakpoint()
-                except ValueError as e:
-                    logger.warning(f"解析时间失败: {max_time}, 错误: {e}")
+                else:
+                    logger.warning(f"解析时间失败: {max_time}")
             
             return {
                 'new_records': saved_count,
@@ -388,26 +355,7 @@ class MDBCollector(BaseCollector):
         ]
     
     def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
-        # Load from spec_limits.json if available
-        spec_limits_file = "spec_limits.json"
-        if os.path.exists(spec_limits_file):
-            try:
-                with open(spec_limits_file, 'r', encoding='utf-8') as f:
-                    raw = json.load(f)
-                if not raw:
-                    return {}
-                # Detect format: flat (old) vs per-product (new)
-                first_val = next(iter(raw.values()), None)
-                is_flat = isinstance(first_val, dict) and ('lsl' in first_val or 'usl' in first_val)
-                if is_flat:
-                    return raw  # old global format
-                # New per-product format
-                if product_code and product_code in raw:
-                    return raw[product_code]
-                return {}
-            except Exception:
-                pass
-        return {}
+        return load_spec_limits("spec_limits.json", product_code)
     
     def clear_cache(self):
         """清除所有缓存"""

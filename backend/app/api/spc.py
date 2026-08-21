@@ -12,7 +12,7 @@ storage = None
 collector = None
 
 @router.get("/spc/{product_code}/{indicator_code}")
-async def get_spc_data(product_code: str, indicator_code: str, window: int = 30):
+def get_spc_data(product_code: str, indicator_code: str, window: int = 30):
     data = storage.get_recent_data(
         indicator_code=indicator_code,
         product_code=product_code,
@@ -80,7 +80,7 @@ async def get_spc_data(product_code: str, indicator_code: str, window: int = 30)
     }
 
 @router.get("/capability/{product_code}/{indicator_code}")
-async def get_cpk_data(product_code: str, indicator_code: str, window: int = 30):
+def get_cpk_data(product_code: str, indicator_code: str, window: int = 30):
     data = storage.get_recent_data(
         indicator_code=indicator_code,
         product_code=product_code,
@@ -93,7 +93,7 @@ async def get_cpk_data(product_code: str, indicator_code: str, window: int = 30)
     values = np.array([d['value'] for d in data], dtype=float)
     spec_limits = collector.get_spec_limits(product_code=product_code).get(indicator_code, {})
     
-    if not spec_limits.get('lsl') and not spec_limits.get('usl'):
+    if spec_limits.get('lsl') is None and spec_limits.get('usl') is None:
         raise HTTPException(status_code=400, detail="未配置规格限")
     
     capability = ProcessCapability()

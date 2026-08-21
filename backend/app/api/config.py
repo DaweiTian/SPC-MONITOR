@@ -1,7 +1,22 @@
 from fastapi import APIRouter, Query
 from typing import Optional, Callable
 import json
+import logging
 import os
+
+from backend.app.core.validation import validate_identifier, validate_mdb_path
+from backend.app.engine.collector.utils import build_connection_string
+from backend.app.models.requests import (
+    DBConfigRequest,
+    MDBConfigRequest,
+    FTAConfigRequest,
+    UpdateConfigRequest,
+    InstrumentSwitchRequest,
+    AliasRequest,
+    ProductStatusRequest,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/config", tags=["配置"])
 
@@ -15,7 +30,9 @@ _source_status = {
     "instrument_type": "mock",
 }
 
-_config = {
+CONFIG_FILE = "runtime_config.json"
+
+_default_config = {
     "default_frequency_minutes": 5,
     "max_frequency_minutes": 300,
     "spc_window_size": 30,
@@ -92,8 +109,8 @@ def _load_json_config(filepath: str, default: dict) -> dict:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except (json.JSONDecodeError, PermissionError, FileNotFoundError) as e:
+            logger.warning(f"加载配置失败: {e}")
     return default
 
 def _save_json_config(filepath: str, data: dict) -> bool:
@@ -102,34 +119,40 @@ def _save_json_config(filepath: str, data: dict) -> bool:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
-        print(f"保存配置失败: {e}")
+        logger.error(f"保存配置失败: {e}")
         return False
 
+def _load_runtime_config() -> dict:
+    return _load_json_config(CONFIG_FILE, _default_config.copy())
+
+_config = _load_runtime_config()
+
 @router.get("")
-async def get_config():
+def get_config():
     return _config
 
 @router.put("")
-async def update_config(config: dict):
-    _config.update(config)
+def update_config(config: UpdateConfigRequest):
+    _config.update(config.model_dump(exclude_none=True))
+    _save_json_config(CONFIG_FILE, _config)
     return {"status": "updated", "config": _config}
 
 @router.get("/db")
-async def get_db_config():
+def get_db_config():
     config = _load_json_config(DB_CONFIG_FILE, _default_db_config)
     if config.get("password"):
         config["password_saved"] = True
     return config
 
 @router.put("/db")
-async def update_db_config(config: dict):
-    success = _save_json_config(DB_CONFIG_FILE, config)
+def update_db_config(config: DBConfigRequest):
+    success = _save_json_config(DB_CONFIG_FILE, config.model_dump())
     if success:
         return {"success": True, "message": "配置已保存"}
     return {"success": False, "message": "保存失败"}
 
 @router.post("/db/test")
-async def test_db_connection(config: dict):
+def test_db_connection(config: dict):
     try:
         conn_str = _build_connection_string(config)
         
@@ -162,7 +185,7 @@ async def test_db_connection(config: dict):
         return {"success": False, "message": f"连接失败: {error_msg}"}
 
 @router.post("/db/explore")
-async def explore_db_structure(config: dict):
+def explore_db_structure(config: dict):
     try:
         conn_str = _build_connection_string(config)
 
@@ -180,10 +203,15 @@ async def explore_db_structure(config: dict):
         tables = []
         for table_name in inspector.get_table_names():
             try:
+                validate_identifier(table_name)
+            except ValueError:
+                continue  # skip tables with unsafe names
+            try:
                 with engine.connect() as conn:
                     result = conn.execute(text(f"SELECT COUNT(*) FROM [{table_name}]"))
                     row_count = result.scalar()
-            except:
+            except Exception as e:
+                logger.warning(f"查询表行数失败: {e}")
                 row_count = 0
 
             tables.append({
@@ -200,7 +228,7 @@ async def explore_db_structure(config: dict):
 
 
 @router.post("/db/test-relational")
-async def test_relational_connection(config: dict):
+def test_relational_connection(config: dict):
     """测试四表关联结构（与 MDB 一致的 Sample/Product/Component/Prediction）"""
     db_config = config.get("db_config", {})
     mapping_config = config.get("mapping_config", {})
@@ -244,7 +272,7 @@ async def test_relational_connection(config: dict):
         return {"success": False, "message": f"测试失败: {str(e)}", "step": "error"}
 
 @router.get("/db/table/{table_name}/columns")
-async def get_table_columns(table_name: str):
+def get_table_columns(table_name: str):
     try:
         config = _load_json_config(DB_CONFIG_FILE, _default_db_config)
         conn_str = _build_connection_string(config)
@@ -254,19 +282,23 @@ async def get_table_columns(table_name: str):
         engine = create_engine(conn_str)
         inspector = inspect(engine)
         
+        validate_identifier(table_name)
+
         columns = []
         for col in inspector.get_columns(table_name):
+            col_name = col['name']
+            validate_identifier(col_name)
             sample = None
             try:
                 with engine.connect() as conn:
                     result = conn.execute(
-                        text(f"SELECT TOP 1 [{col['name']}] FROM [{table_name}] WHERE [{col['name']}] IS NOT NULL")
+                        text(f"SELECT TOP 1 [{col_name}] FROM [{table_name}] WHERE [{col_name}] IS NOT NULL")
                     )
                     row = result.fetchone()
                     if row:
                         sample = str(row[0])[:50]
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"获取列信息失败: {e}")
             
             columns.append({
                 "name": col["name"],
@@ -284,18 +316,18 @@ async def get_table_columns(table_name: str):
         return {"success": False, "message": f"获取表结构失败: {str(e)}"}
 
 @router.put("/db/mapping")
-async def update_field_mapping(mapping: dict):
+def update_field_mapping(mapping: dict):
     success = _save_json_config(DB_MAPPING_FILE, mapping)
     if success:
         return {"success": True, "message": "字段映射已保存"}
     return {"success": False, "message": "保存失败"}
 
 @router.get("/db/mapping")
-async def get_field_mapping():
+def get_field_mapping():
     return _load_json_config(DB_MAPPING_FILE, _default_mapping)
 
 @router.post("/source/switch")
-async def switch_source(body: dict):
+def switch_source(body: dict):
     source = body.get("source", "mock")
     if source not in ("mock", "sqlserver"):
         return {"success": False, "message": f"不支持的数据源类型: {source}"}
@@ -310,36 +342,40 @@ async def switch_source(body: dict):
         return {"success": False, "message": f"切换失败: {str(e)}"}
 
 @router.get("/source/status")
-async def get_source_status():
+def get_source_status():
     # Load from instrument_config.json to persist across restarts
     instrument_config = _load_json_config(INSTRUMENT_CONFIG_FILE, _default_instrument_config)
     current = instrument_config.get("current_instrument", "mock")
-    
+
     # Update _source_status based on instrument config
     if current == "mock":
         _source_status["source"] = "mock"
         _source_status["connected"] = False
         _source_status["instrument_type"] = "mock"
-    elif current in ("ft1", "fta"):
+    elif current == "ft1":
         _source_status["source"] = "sqlserver"
         _source_status["connected"] = True
-        _source_status["instrument_type"] = current
+        _source_status["instrument_type"] = "ft1"
+    elif current == "fta":
+        _source_status["source"] = "fta"
+        _source_status["connected"] = True
+        _source_status["instrument_type"] = "fta"
     elif current == "ft120":
         _source_status["source"] = "mdb"
         _source_status["connected"] = True
         _source_status["instrument_type"] = "ft120"
-    
+
     return _source_status
 
 # ========== Instrument Configuration ==========
 
 @router.get("/instrument")
-async def get_instrument_config():
+def get_instrument_config():
     """获取仪器配置"""
     return _load_json_config(INSTRUMENT_CONFIG_FILE, _default_instrument_config)
 
 @router.put("/instrument")
-async def update_instrument_config(config: dict):
+def update_instrument_config(config: dict):
     """更新仪器配置"""
     success = _save_json_config(INSTRUMENT_CONFIG_FILE, config)
     if success:
@@ -347,9 +383,9 @@ async def update_instrument_config(config: dict):
     return {"success": False, "message": "保存失败"}
 
 @router.post("/instrument/switch")
-async def switch_instrument(body: dict):
+def switch_instrument(body: InstrumentSwitchRequest):
     """切换仪器"""
-    instrument_id = body.get("instrument_id", "mock")
+    instrument_id = body.instrument_id
     
     instrument_config = _load_json_config(INSTRUMENT_CONFIG_FILE, _default_instrument_config)
     instruments = instrument_config.get("instruments", {})
@@ -380,25 +416,26 @@ async def switch_instrument(body: dict):
 # ========== MDB Configuration ==========
 
 @router.get("/mdb")
-async def get_mdb_config():
+def get_mdb_config():
     """获取 MDB 配置"""
     return _load_json_config(MDB_CONFIG_FILE, _default_mdb_config)
 
 @router.put("/mdb")
-async def update_mdb_config(config: dict):
+def update_mdb_config(config: MDBConfigRequest):
     """更新 MDB 配置"""
-    success = _save_json_config(MDB_CONFIG_FILE, config)
+    success = _save_json_config(MDB_CONFIG_FILE, config.model_dump())
     if success:
         return {"success": True, "message": "MDB 配置已保存"}
     return {"success": False, "message": "保存失败"}
 
 @router.post("/mdb/test")
-async def test_mdb_connection(config: dict):
+def test_mdb_connection(config: dict):
     """测试 MDB 文件连接"""
     mdb_path = config.get("mdb_path", "")
-    
-    if not mdb_path:
-        return {"success": False, "message": "请提供 MDB 文件路径"}
+    try:
+        mdb_path = validate_mdb_path(mdb_path)
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": f"文件不存在: {mdb_path}"}
@@ -421,12 +458,13 @@ async def test_mdb_connection(config: dict):
         return {"success": False, "message": f"连接失败: {str(e)}"}
 
 @router.post("/mdb/explore")
-async def explore_mdb_structure(config: dict):
+def explore_mdb_structure(config: dict):
     """探索 MDB 文件结构"""
     mdb_path = config.get("mdb_path", "")
-    
-    if not mdb_path:
-        return {"success": False, "message": "请提供 MDB 文件路径"}
+    try:
+        mdb_path = validate_mdb_path(mdb_path)
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": f"文件不存在: {mdb_path}"}
@@ -443,7 +481,8 @@ async def explore_mdb_structure(config: dict):
             try:
                 raw_data = db.parse_table(table_name)
                 row_count = len(raw_data[list(raw_data.keys())[0]]) if raw_data and raw_data.keys() else 0
-            except:
+            except Exception as e:
+                logger.warning(f"查询MDB表行数失败: {e}")
                 row_count = 0
             
             tables.append({
@@ -463,12 +502,17 @@ async def explore_mdb_structure(config: dict):
         return {"success": False, "message": f"探查失败: {str(e)}"}
 
 @router.get("/mdb/table/{table_name}/columns")
-async def get_mdb_table_columns(table_name: str):
+def get_mdb_table_columns(table_name: str):
     """获取 MDB 表结构"""
     config = _load_json_config(MDB_CONFIG_FILE, _default_mdb_config)
     mdb_path = config.get("mdb_path", "")
     
-    if not mdb_path or not os.path.exists(mdb_path):
+    try:
+        mdb_path = validate_mdb_path(mdb_path)
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
+    
+    if not os.path.exists(mdb_path):
         return {"success": False, "message": "MDB 文件未配置或不存在"}
     
     try:
@@ -497,12 +541,17 @@ async def get_mdb_table_columns(table_name: str):
         return {"success": False, "message": f"获取表结构失败: {str(e)}"}
 
 @router.get("/mdb/init-status")
-async def get_mdb_init_status():
+def get_mdb_init_status():
     """获取 MDB 初始化状态（断点信息和基本统计）- 优化版本，不解析预测表"""
     config = _load_json_config(MDB_CONFIG_FILE, _default_mdb_config)
     mdb_path = config.get("mdb_path", "")
     
-    if not mdb_path or not os.path.exists(mdb_path):
+    try:
+        mdb_path = validate_mdb_path(mdb_path)
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
+    
+    if not os.path.exists(mdb_path):
         return {"success": False, "message": "MDB 文件未配置或不存在"}
     
     try:
@@ -517,8 +566,8 @@ async def get_mdb_init_status():
             try:
                 with open(breakpoint_file, 'r', encoding='utf-8') as f:
                     breakpoint_info = json.load(f)
-            except:
-                pass
+            except (json.JSONDecodeError, FileNotFoundError) as e:
+                logger.warning(f"加载断点失败: {e}")
         
         # Only parse small tables for basic info (skip Prediction table which is huge)
         sample_table = config.get("sample_table", "Sample")
@@ -545,18 +594,71 @@ async def get_mdb_init_status():
         return {"success": False, "message": f"获取初始化状态失败: {str(e)}"}
 
 def _build_connection_string(config: dict) -> str:
-    server = config.get("server", "")
-    database = config.get("database", "")
-    driver = config.get("driver", "ODBC Driver 17 for SQL Server")
-    auth_type = config.get("auth_type", "windows")
-    driver_encoded = driver.replace(" ", "+")
-    
-    if auth_type == "windows":
-        return f"mssql+pyodbc://@{server}/{database}?driver={driver_encoded}&trusted_connection=yes"
-    else:
-        username = config.get("username", "")
-        password = config.get("password", "")
-        return f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver={driver_encoded}"
+    return build_connection_string(config)
+
+# ========== FTA Configuration ==========
+
+FTA_CONFIG_FILE = "fta_config.json"
+
+_default_fta_config = {
+    "server": "",
+    "database": "Pert_Application",
+    "auth_type": "sql",
+    "driver": "ODBC Driver 17 for SQL Server",
+    "username": "sa",
+    "password": "",
+    "timeout": 30
+}
+
+@router.get("/fta")
+def get_fta_config():
+    """获取 FTA 配置"""
+    config = _load_json_config(FTA_CONFIG_FILE, _default_fta_config)
+    if config.get("password"):
+        config["password_saved"] = True
+    return config
+
+@router.put("/fta")
+def update_fta_config(config: FTAConfigRequest):
+    """更新 FTA 配置"""
+    success = _save_json_config(FTA_CONFIG_FILE, config.model_dump())
+    if success:
+        return {"success": True, "message": "FTA 配置已保存"}
+    return {"success": False, "message": "保存失败"}
+
+@router.post("/fta/test")
+def test_fta_connection(config: dict):
+    """测试 FTA 数据库连接"""
+    try:
+        from backend.app.engine.collector.fta import FTACollector
+        collector = FTACollector.from_config(db_config=config)
+
+        # Test connection
+        if not collector.test_connection():
+            return {"success": False, "message": "FTA 数据库连接失败"}
+
+        # Test tables
+        table_result = collector.test_tables()
+        if not table_result["success"]:
+            return {"success": False, "message": table_result["message"], "tables": table_result["tables"]}
+
+        # Get products and indicators
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+
+        collector.close()
+
+        return {
+            "success": True,
+            "message": "FTA 数据库连接成功",
+            "products_count": len(products),
+            "indicators_count": len(indicators),
+            "products": [p["name"] for p in products[:5]],
+            "indicators": [i["name"] for i in indicators[:5]],
+        }
+    except Exception as e:
+        return {"success": False, "message": f"测试失败: {str(e)}"}
+
 
 # ========== Alias Configuration ==========
 
@@ -568,20 +670,20 @@ _default_alias_config = {
 }
 
 @router.get("/aliases")
-async def get_aliases():
+def get_aliases():
     """获取别名配置"""
     return _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
 
 @router.put("/aliases")
-async def update_aliases(config: dict):
+def update_aliases(config: AliasRequest):
     """更新别名配置"""
-    success = _save_json_config(ALIAS_CONFIG_FILE, config)
+    success = _save_json_config(ALIAS_CONFIG_FILE, config.model_dump())
     if success:
         return {"success": True, "message": "别名配置已保存"}
     return {"success": False, "message": "保存失败"}
 
 @router.put("/aliases/product/{product_code}")
-async def update_product_alias(product_code: str, body: dict):
+def update_product_alias(product_code: str, body: dict):
     """更新单个品项别名"""
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
@@ -597,7 +699,7 @@ async def update_product_alias(product_code: str, body: dict):
     return {"success": False, "message": "更新失败"}
 
 @router.put("/aliases/indicator/{indicator_code}")
-async def update_indicator_alias(indicator_code: str, body: dict):
+def update_indicator_alias(indicator_code: str, body: dict):
     """更新单个指标别名"""
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
@@ -624,20 +726,20 @@ SPEC_LIMITS_FILE = "spec_limits.json"
 _default_spec_limits = {}
 
 @router.get("/product-status")
-async def get_product_status():
+def get_product_status():
     """获取品项状态配置"""
     return _load_json_config(PRODUCT_STATUS_FILE, _default_product_status)
 
 @router.put("/product-status")
-async def update_product_status(config: dict):
+def update_product_status(config: ProductStatusRequest):
     """更新品项状态配置"""
-    success = _save_json_config(PRODUCT_STATUS_FILE, config)
+    success = _save_json_config(PRODUCT_STATUS_FILE, config.model_dump())
     if success:
         return {"success": True, "message": "品项状态已保存"}
     return {"success": False, "message": "保存失败"}
 
 @router.put("/product-status/{product_code}")
-async def update_single_product_status(product_code: str, body: dict):
+def update_single_product_status(product_code: str, body: dict):
     """更新单个品项状态"""
     status = body.get("status", "enabled")
     config = _load_json_config(PRODUCT_STATUS_FILE, _default_product_status)
@@ -670,7 +772,7 @@ def _get_merged_spec_limits(product_code: str = None) -> dict:
     return {}
 
 @router.get("/spec-limits")
-async def get_spec_limits(product_code: str = Query(None)):
+def get_spec_limits(product_code: str = Query(None)):
     """获取规格限配置。传 product_code 则返回该品项的规格限，否则返回完整品项结构。"""
     raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
     if product_code:
@@ -678,7 +780,7 @@ async def get_spec_limits(product_code: str = Query(None)):
     return raw
 
 @router.put("/spec-limits")
-async def update_spec_limits(config: dict):
+def update_spec_limits(config: dict):
     """更新规格限配置"""
     success = _save_json_config(SPEC_LIMITS_FILE, config)
     if success:
@@ -686,7 +788,7 @@ async def update_spec_limits(config: dict):
     return {"success": False, "message": "保存失败"}
 
 @router.put("/spec-limits/{indicator_code}")
-async def update_single_spec_limit(indicator_code: str, body: dict):
+def update_single_spec_limit(indicator_code: str, body: dict):
     """更新单个指标的规格限。传 product_code 则保存到该品项下，否则保存为全局默认。"""
     lsl = body.get("lsl")
     usl = body.get("usl")
@@ -754,13 +856,13 @@ _default_alert_rules = [
 
 
 @router.get("/alert-rules")
-async def get_alert_rules():
+def get_alert_rules():
     """获取预警规则配置"""
     return _load_json_config(ALERT_RULES_FILE, {"rules": _default_alert_rules})
 
 
 @router.put("/alert-rules")
-async def update_alert_rules(config: dict):
+def update_alert_rules(config: dict):
     """更新预警规则配置"""
     success = _save_json_config(ALERT_RULES_FILE, config)
     if success:

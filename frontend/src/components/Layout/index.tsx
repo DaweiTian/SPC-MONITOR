@@ -181,7 +181,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             <span className={styles.logoSubTitle}>SPC实时分析平台</span>
           </div>
         </div>
-        <nav className={styles.sidebarNav}>
+        <nav className={styles.sidebarNav} role="navigation" aria-label="主导航">
           {navGroupsWithBadge.map((group) => (
             <React.Fragment key={group.title}>
               <div className={styles.navGroupTitle}>{group.title}</div>
@@ -219,7 +219,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       </aside>
 
       {/* ===== 主区域 ===== */}
-      <div className={styles.main}>
+      <div className={styles.main} role="main">
         {/* 顶部栏 */}
         <header className={styles.topbar}>
           <div className={styles.topbarTitle}>

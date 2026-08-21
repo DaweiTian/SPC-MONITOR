@@ -1,7 +1,31 @@
 import { useRef, useEffect, useCallback } from 'react'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
+import { LineChart, BarChart, GaugeChart, PieChart } from 'echarts/charts'
+import {
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  MarkLineComponent,
+  DataZoomComponent,
+  TitleComponent,
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { chartTheme } from './theme'
+
+echarts.use([
+  LineChart,
+  BarChart,
+  GaugeChart,
+  PieChart,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  MarkLineComponent,
+  DataZoomComponent,
+  TitleComponent,
+  CanvasRenderer,
+])
 
 /**
  * Custom hook that manages ECharts lifecycle:

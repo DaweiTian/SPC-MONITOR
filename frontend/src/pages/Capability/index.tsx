@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, DefaultLabelFormatterCallbackParams } from 'echarts'
 import { api } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
+import { escapeHtml } from '../../utils/html'
 import { useProducts } from '../../hooks/useProducts'
 import { useIndicators } from '../../hooks/useIndicators'
-import type { CapabilityData } from '../../types'
+import { useAppMetadata } from '../../hooks'
+import type { CapabilityData, EChartsParam, MonitorData } from '../../types'
 import styles from './Capability.module.css'
 
 /* ─────────── helpers ─────────── */
@@ -82,12 +84,10 @@ const CAP_CARDS: CapCardInfo[] = [
 export const CapabilityPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
+  const { aliases, productStatus, specLimits: allSpecLimits, getIndicatorName } = useAppMetadata()
   const [capabilityData, setCapabilityData] = useState<CapabilityData | null>(null)
   const [rawValues, setRawValues] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
-  const [productStatus, setProductStatus] = useState<Record<string, string> | null>(null)
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
-  const [allSpecLimits, setAllSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number }>>>({})
   const [initialized, setInitialized] = useState(false)
   const [filter, setFilter] = useState({
     product_code: '',
@@ -95,24 +95,11 @@ export const CapabilityPage: React.FC = () => {
     window: 30,
   })
 
-  // Load product status, aliases, and all spec limits
-  useEffect(() => {
-    Promise.all([
-      api.getProductStatus(),
-      api.getAliases(),
-      api.getSpecLimits(),
-    ]).then(([status, aliasData, specData]) => {
-      setProductStatus(status)
-      setAliases(aliasData)
-      setAllSpecLimits(specData)
-    }).catch(console.error)
-  }, [])
-
   // Products with spec limits (at least one indicator has both USL and LSL)
   const capableProducts = useMemo(() => {
-    const base = productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled')
+    const base = products.filter(p => productStatus[p.code] !== 'disabled')
     return base.filter(p => {
-      const specs = allSpecLimits[p.code]
+      const specs = allSpecLimits[p.code] as Record<string, { lsl?: number; usl?: number }> | undefined
       if (!specs) return false
       return Object.values(specs).some(s => s.usl != null && s.lsl != null)
     })
@@ -130,9 +117,10 @@ export const CapabilityPage: React.FC = () => {
 
   // Set initial product and indicator when data loads
   useEffect(() => {
-    if (initialized || capableProducts.length === 0 || productStatus === null) return
+    if (initialized || capableProducts.length === 0) return
     // Prefer Dashboard's saved product if it has spec limits
-    const dashboardProduct = localStorage.getItem('dashboard_selected_product')
+    let dashboardProduct: string | null = null
+    try { dashboardProduct = localStorage.getItem('dashboard_selected_product') } catch { /* ignore */ }
     const savedProduct = dashboardProduct && capableProducts.find(p => p.code === dashboardProduct)
     const product = savedProduct || capableProducts[0]
     // Pick first indicator with spec limits for this product
@@ -169,7 +157,7 @@ export const CapabilityPage: React.FC = () => {
         api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window }),
       ])
       setCapabilityData(capData)
-      const values = (recent.data || recent).map((d: any) => d.value as number)
+      const values = (recent.data || recent).map((d: MonitorData) => d.value as number)
       setRawValues(values)
     } catch (e) {
       console.error('获取过程能力数据失败:', e)
@@ -184,8 +172,7 @@ export const CapabilityPage: React.FC = () => {
     }
   }, [initialized, filter.product_code, filter.indicator_code, filter.window])
 
-  // Helper: get indicator name with alias
-  const getIndicatorName = (code: string) => aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
+  // getIndicatorName provided by useAppMetadata hook
 
   /* ── Chart options ── */
 
@@ -203,12 +190,13 @@ export const CapabilityPage: React.FC = () => {
       tooltip: {
         trigger: 'axis' as const,
         ...tooltipStyle,
-        formatter: (params: any) => {
-          const p = Array.isArray(params) ? params[0] : params
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
+          const v = Array.isArray(p.value) ? p.value : [p.value]
           if (p.seriesName === '频数') {
-            return `区间中点: ${p.value[0].toFixed(3)}<br/>频数: <b>${p.value[1]}</b>`
+            return `区间中点: ${escapeHtml(String(v[0].toFixed(3)))}<br/>频数: <b>${escapeHtml(String(v[1]))}</b>`
           }
-          return `${p.seriesName}: ${p.value[1]?.toFixed(1) ?? ''}`
+          return `${escapeHtml(p.seriesName ?? '')}: ${escapeHtml(String(v[1]?.toFixed(1) ?? ''))}`
         },
       },
       legend: {
@@ -337,19 +325,15 @@ export const CapabilityPage: React.FC = () => {
 
   const cpkTrendOption = useMemo<EChartsOption | null>(() => {
     if (!capabilityData) return null
-    const cpkVal = capabilityData.result.cpk
 
-    const days = 12
-    const dates: string[] = []
-    const cpkData: number[] = []
-    const now = new Date()
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now)
-      d.setDate(d.getDate() - i)
-      dates.push(`${d.getMonth() + 1}/${d.getDate()}`)
-      const variation = (Math.sin(i * 0.8) * 0.06) + (Math.cos(i * 1.3) * 0.03)
-      cpkData.push(+(cpkVal + variation).toFixed(2))
+    // Check if historical Cpk data is available from the API
+    const historicalCpk = capabilityData.cpk_history
+    if (!historicalCpk || historicalCpk.length === 0) {
+      return null
     }
+
+    const dates = historicalCpk.map(h => h.time)
+    const cpkData = historicalCpk.map(h => h.value)
 
     return {
       ...chartTheme,
@@ -549,9 +533,17 @@ export const CapabilityPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.panelBody}>
-          <div ref={cpkTrendRef} style={{ height: 280, width: '100%' }} />
+          {cpkTrendOption ? (
+            <div ref={cpkTrendRef} style={{ height: 280, width: '100%' }} />
+          ) : (
+            <div style={{ height: 280, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b95a7', fontSize: 14 }}>
+              暂无历史 Cpk 数据
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
+
+export default CapabilityPage

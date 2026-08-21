@@ -6,6 +6,20 @@
 <title>液奶成品检验数据分析平台 — 专有名词可视化手册</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+// Auto-resize ECharts when container size changes (e.g. sidebar toggle)
+(function() {
+  var origInit = echarts.init;
+  echarts.init = function(dom, theme, opts) {
+    var chart = origInit.call(echarts, dom, theme, opts);
+    if (dom) {
+      var ro = new ResizeObserver(function() { chart.resize(); });
+      ro.observe(dom);
+    }
+    return chart;
+  };
+})();
+</script>
 <style>
   :root {
     --primary: #00d4ff;
@@ -1592,6 +1606,8 @@ makeChart('chart-cpk-gauge', {
     type: 'gauge',
     min: 0,
     max: 2.5,
+    startAngle: 225,
+    endAngle: -45,
     splitNumber: 5,
     progress: { show: true, width: 18 },
     axisLine: { lineStyle: { width: 18, color: [
@@ -1601,18 +1617,31 @@ makeChart('chart-cpk-gauge', {
       [1.67/2.5, '#16a34a'],
       [1, '#16a34a']
     ]}},
+    axisTick: { show: true, distance: -30, length: 6, lineStyle: { color: '#94a3b8', width: 1 } },
+    splitLine: { show: true, distance: -34, length: 10, lineStyle: { color: '#94a3b8', width: 2 } },
+    axisLabel: {
+      distance: -50,
+      fontSize: 10,
+      formatter: function(v) {
+        if (v === 0) return '0';
+        if (Math.abs(v - 0.67) < 0.05) return '{red|严重不足}';
+        if (Math.abs(v - 1.0) < 0.05) return '{orange|不足}';
+        if (Math.abs(v - 1.33) < 0.05) return '{orange|尚可}';
+        if (Math.abs(v - 1.67) < 0.05) return '{green|良好}';
+        if (Math.abs(v - 2.5) < 0.05) return '{green|优秀}';
+        return '';
+      },
+      rich: {
+        red: { color: '#dc2626', fontSize: 10, fontWeight: 600, padding: [0, 0, 0, 0] },
+        orange: { color: '#d97706', fontSize: 10, fontWeight: 600, padding: [0, 0, 0, 0] },
+        green: { color: '#16a34a', fontSize: 10, fontWeight: 600, padding: [0, 0, 0, 0] }
+      }
+    },
     pointer: { width: 5 },
     detail: { valueAnimation: true, formatter: '{value}', fontSize: 28, offsetCenter: [0, '70%'] },
     title: { offsetCenter: [0, '95%'], fontSize: 12 },
     data: [{ value: 1.52, name: 'Cpk = 1.52 (良好)' }]
-  }],
-  graphic: [
-    { type: 'text', left: '15%', top: '65%', style: { text: '严重不足', fill: '#dc2626', fontSize: 9 } },
-    { type: 'text', left: '30%', top: '80%', style: { text: '不足', fill: '#d97706', fontSize: 9 } },
-    { type: 'text', left: '48%', top: '82%', style: { text: '尚可', fill: '#d97706', fontSize: 9 } },
-    { type: 'text', left: '65%', top: '80%', style: { text: '良好', fill: '#16a34a', fontSize: 9 } },
-    { type: 'text', left: '82%', top: '65%', style: { text: '优秀', fill: '#16a34a', fontSize: 9 } },
-  ]
+  }]
 });
 
 // ===== 9. Z-Score =====

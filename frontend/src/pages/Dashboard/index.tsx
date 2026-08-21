@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, LinearGradientObject, MarkLineComponentOption } from 'echarts'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { useAppContext } from '../../contexts/AppContext'
+import { useAppMetadata } from '../../hooks'
 import type { DashboardData, SchedulerStatus, Product, Indicator, MonitorData, CapabilityData } from '../../types'
 import styles from './Dashboard.module.css'
 
@@ -47,6 +48,7 @@ function fmtTime(iso?: string): string {
 export const Dashboard: React.FC = () => {
   /* ── 全局状态 ── */
   const { setCurrentProduct, setCollectionFrequency } = useAppContext()
+  const { aliases, productStatus, specLimits: allSpecLimits } = useAppMetadata()
   
   /* ── state ── */
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
@@ -56,15 +58,13 @@ export const Dashboard: React.FC = () => {
   const [recentData, setRecentData] = useState<MonitorData[]>([])
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
   const [collecting, setCollecting] = useState(false)
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
-  const [allSpecLimits, setAllSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
   
   /* ── 品项选择状态（从 localStorage 恢复） ── */
   const [productMode, setProductMode] = useState<ProductMode>(() => {
-    return (localStorage.getItem('dashboard_product_mode') as ProductMode) || 'auto'
+    try { return (localStorage.getItem('dashboard_product_mode') as ProductMode) || 'auto' } catch { return 'auto' }
   })
   const [selectedProduct, setSelectedProduct] = useState<string>(() => {
-    return localStorage.getItem('dashboard_selected_product') || ''
+    try { return localStorage.getItem('dashboard_selected_product') || '' } catch { return '' }
   })
   const [autoProducts, setAutoProducts] = useState<Product[]>([])
   const [autoProductIndex, setAutoProductIndex] = useState(0)
@@ -126,23 +126,18 @@ export const Dashboard: React.FC = () => {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [p, i, a, status, allLimits] = await Promise.all([
+      const [p, i] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
-        api.getAliases().catch(() => ({ products: {}, indicators: {} })),
-        api.getProductStatus().catch(() => ({} as Record<string, string>)),
-        api.getSpecLimits().catch(() => ({})),
       ])
 
       // 过滤掉停用的品项
-      const enabledProducts = p.products.filter((product: any) =>
-        (status as Record<string, string>)[product.code] !== 'disabled'
+      const enabledProducts = p.products.filter((product: Product) =>
+        productStatus[product.code] !== 'disabled'
       )
 
       setProducts(enabledProducts)
       setIndicators(i.indicators)
-      setAliases(a)
-      setAllSpecLimits(allLimits)
       
       // 自动模式时，取最近3个启用的品项
       if (productMode === 'auto') {
@@ -152,7 +147,7 @@ export const Dashboard: React.FC = () => {
     } catch (e) {
       console.error('获取元数据失败:', e)
     }
-  }, [productMode])
+  }, [productMode, productStatus])
 
   /* ── 获取有数据的指标 ── */
   const fetchActiveIndicators = useCallback(async () => {
@@ -316,6 +311,39 @@ export const Dashboard: React.FC = () => {
     return +(sum / capMatrix.length).toFixed(2)
   }, [capMatrix])
 
+  /* ── 变异系数 CV% ── */
+  const cvPercent = useMemo(() => {
+    if (recentData.length < 2) return null
+    const values = recentData.map(d => d.value).filter(v => v != null)
+    if (values.length < 2) return null
+    const mean = values.reduce((s, v) => s + v, 0) / values.length
+    if (mean === 0) return null
+    const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (values.length - 1)
+    const std = Math.sqrt(variance)
+    return +((std / Math.abs(mean)) * 100).toFixed(2)
+  }, [recentData])
+
+  /* ── 偏移量（相对目标值） ── */
+  const shiftValue = useMemo(() => {
+    if (recentData.length === 0 || !currentProduct || !currentIndicator) return null
+    const limits = allSpecLimits[currentProduct.code]?.[currentIndicator.code]
+    const target = limits?.target
+    if (target == null || target === 0) return null
+    const values = recentData.map(d => d.value).filter(v => v != null)
+    if (values.length === 0) return null
+    const mean = values.reduce((s, v) => s + v, 0) / values.length
+    return +((mean - target).toFixed(4))
+  }, [recentData, currentProduct, currentIndicator, allSpecLimits])
+
+  /* ── 偏移百分比 ── */
+  const shiftPercent = useMemo(() => {
+    if (shiftValue == null || !currentProduct || !currentIndicator) return null
+    const limits = allSpecLimits[currentProduct.code]?.[currentIndicator.code]
+    const target = limits?.target
+    if (target == null || target === 0) return null
+    return +((shiftValue / Math.abs(target)) * 100).toFixed(2)
+  }, [shiftValue, currentProduct, currentIndicator, allSpecLimits])
+
   /* ── trend chart option ── */
   const chartOption: EChartsOption | null = useMemo(() => {
     if (recentData.length === 0 || !currentIndicator) return null
@@ -337,7 +365,7 @@ export const Dashboard: React.FC = () => {
     const usl = dataUsl ?? configLimits?.usl ?? null
     const lsl = dataLsl ?? configLimits?.lsl ?? null
 
-    const markLineData: any[] = []
+    const markLineData: NonNullable<MarkLineComponentOption['data']> = []
     if (usl !== null) {
       markLineData.push({
         yAxis: usl,
@@ -387,7 +415,7 @@ export const Dashboard: React.FC = () => {
                 { offset: 0, color: 'rgba(0,212,255,0.25)' },
                 { offset: 1, color: 'rgba(0,212,255,0)' },
               ],
-            } as any,
+            } as LinearGradientObject,
           },
           ...(markLineData.length > 0
             ? { markLine: { symbol: 'none', silent: true, data: markLineData } }
@@ -429,9 +457,9 @@ export const Dashboard: React.FC = () => {
   return (
     <div>
       {/* ─── KPI 卡片 ─── */}
-      <div className={styles.kpiGrid}>
+      <div className={styles.kpiGrid} aria-label="关键绩效指标">
         {/* 今日检测 */}
-        <div className={`${styles.kpiCard} ${styles.kpiCardCyan}`}>
+        <div className={`${styles.kpiCard} ${styles.kpiCardCyan}`} aria-label="今日检测">
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>今日检测</span>
             <div className={styles.kpiIcon}>
@@ -448,7 +476,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* 待处理预警 */}
-        <div className={`${styles.kpiCard} ${styles.kpiCardRed}`}>
+        <div className={`${styles.kpiCard} ${styles.kpiCardRed}`} aria-label="待处理预警">
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>待处理预警</span>
             <div className={styles.kpiIcon}>
@@ -467,28 +495,26 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 今日采集 */}
-        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
+        {/* 变异系数 CV% */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardBlue}`} aria-label="变异系数">
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>今日采集</span>
+            <span className={styles.kpiLabel}>变异 (CV%)</span>
             <div className={styles.kpiIcon}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
             </div>
           </div>
           <div className={styles.kpiValue}>
-            {dashboard?.today_data_count ?? 0}<span className={styles.kpiUnit}>条</span>
+            {cvPercent != null ? cvPercent : '-'}<span className={styles.kpiUnit}>%</span>
           </div>
-          <div className={`${styles.kpiTrend} ${styles.kpiTrendUp}`}>
-            {dashboard?.today_collect_attempts ? `成功率 ${((dashboard.today_collect_success / dashboard.today_collect_attempts) * 100).toFixed(1)}%` : '-'}
+          <div className={`${styles.kpiTrend} ${cvPercent != null && cvPercent <= 5 ? styles.kpiTrendFlat : styles.kpiTrendDown}`}>
+            {cvPercent != null ? (cvPercent <= 5 ? '→ 稳定' : cvPercent <= 10 ? '→ 波动' : '→ 不稳定') : '→ 无数据'}
           </div>
         </div>
 
         {/* 平均Cpk */}
-        <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
+        <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`} aria-label="平均Cpk">
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>平均Cpk</span>
             <div className={styles.kpiIcon}>
@@ -507,22 +533,22 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 采集频率 */}
-        <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`}>
+        {/* 偏移量 */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`} aria-label="偏移">
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>采集频率</span>
+            <span className={styles.kpiLabel}>偏移</span>
             <div className={styles.kpiIcon}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
               </svg>
             </div>
           </div>
           <div className={styles.kpiValue}>
-            {status?.current_interval_minutes ?? 5}<span className={styles.kpiUnit}>分钟</span>
+            {shiftPercent != null ? `${shiftPercent > 0 ? '+' : ''}${shiftPercent}` : '-'}<span className={styles.kpiUnit}>%</span>
           </div>
-          <div className={`${styles.kpiTrend} ${styles.kpiTrendFlat}`}>
-            L{status?.current_level ?? 0} {status?.current_level === 0 ? '常规模式' : '加速模式'}
+          <div className={`${styles.kpiTrend} ${shiftPercent != null && Math.abs(shiftPercent) <= 5 ? styles.kpiTrendFlat : styles.kpiTrendDown}`}>
+            {shiftPercent != null ? (Math.abs(shiftPercent) <= 5 ? '→ 正常' : Math.abs(shiftPercent) <= 15 ? '→ 偏离' : '→ 严重偏离') : '→ 无目标值'}
           </div>
         </div>
       </div>
@@ -539,7 +565,7 @@ export const Dashboard: React.FC = () => {
                 </svg>
               </span>
               实时数据趋势
-              <span className={styles.liveIndicator}>LIVE</span>
+              <span className={styles.liveIndicator} aria-live="polite">LIVE</span>
               {/* 品项选择器 */}
               <div className={styles.productSelector}>
                 <select
@@ -743,7 +769,7 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
           <div className={`${styles.panelBody} ${styles.panelBodyFlush}`}>
-            <table className={styles.dataTable}>
+            <table className={styles.dataTable} aria-label="监控数据表">
               <thead>
                 <tr>
                   <th>级别</th>
@@ -779,3 +805,5 @@ export const Dashboard: React.FC = () => {
     </div>
   )
 }
+
+export default Dashboard

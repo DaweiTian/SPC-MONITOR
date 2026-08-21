@@ -65,6 +65,7 @@ export interface SPCData {
     lsl: number
     mean: number
     std: number
+    unit?: string
   }
   sigma: number
   data_points: Array<{
@@ -97,6 +98,7 @@ export interface CapabilityData {
     sigma_level: number
     defect_rate_ppm: number
   }
+  cpk_history?: Array<{ time: string; value: number }>
 }
 
 export interface SchedulerStatus {
@@ -108,6 +110,8 @@ export interface SchedulerStatus {
   next_collect_time?: string
   frequency_ladder: number[]
   connected?: boolean
+  source?: string
+  instrument_type?: string
 }
 
 export interface Product {
@@ -202,11 +206,22 @@ export interface MDBConfig {
 export interface InstrumentInfo {
   id: string
   name: string
-  type: 'mock' | 'sqlserver' | 'mdb'
+  type: 'mock' | 'sqlserver' | 'mdb' | 'fta'
   enabled: boolean
 }
 
 export interface InstrumentConfig {
   current_instrument: string
   instruments: Record<string, InstrumentInfo>
+}
+
+/** Narrowing type for ECharts formatter params — use after casting from ECharts callback */
+export interface EChartsParam {
+  value: number | number[]
+  name: string
+  seriesName?: string
+  dataIndex: number
+  marker?: string
+  percent?: number
+  data?: Record<string, unknown>
 }

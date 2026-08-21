@@ -6,7 +6,7 @@ router = APIRouter(prefix="/alerts", tags=["预警"])
 storage = None
 
 @router.get("")
-async def get_alerts(
+def get_alerts(
     severity: Optional[str] = None,
     status: Optional[str] = None,
     product_code: Optional[str] = None,
@@ -31,19 +31,19 @@ async def get_alerts(
     }
 
 @router.get("/count")
-async def get_alert_count():
+def get_alert_count():
     """Return pending alert counts by severity — uncapped."""
     counts = storage.count_pending_alerts()
     return counts
 
 @router.get("/products")
-async def get_alert_products():
+def get_alert_products():
     """Return distinct product_codes that have alerts."""
     products = storage.get_distinct_alert_products()
     return {"products": products}
 
 @router.post("/{alert_id}/resolve")
-async def resolve_alert(alert_id: str, body: dict = None):
+def resolve_alert(alert_id: str, body: dict = None):
     resolved_by = "user"
     note = ""
     if body:
@@ -55,7 +55,7 @@ async def resolve_alert(alert_id: str, body: dict = None):
     return {"status": "not_found", "alert_id": alert_id}
 
 @router.post("/batch-resolve")
-async def batch_resolve_alerts(body: dict):
+def batch_resolve_alerts(body: dict):
     alert_ids = body.get("alert_ids", [])
     resolved_by = body.get("resolved_by", "user")
     note = body.get("note", "")

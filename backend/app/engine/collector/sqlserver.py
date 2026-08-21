@@ -1,9 +1,9 @@
-import json
 import logging
-import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
+from .utils import parse_datetime, load_breakpoint, save_breakpoint, load_spec_limits, build_connection_string
+from backend.app.core.validation import validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -104,45 +104,16 @@ class SQLServerCollector(BaseCollector):
         return instance
 
     def _load_breakpoint(self) -> Optional[datetime]:
-        if os.path.exists(BREAKPOINT_FILE):
-            try:
-                with open(BREAKPOINT_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    last_time = data.get('last_collect_time')
-                    if last_time:
-                        if 'T' in last_time:
-                            return datetime.fromisoformat(last_time)
-                        else:
-                            return datetime.strptime(last_time, '%Y-%m-%d %H:%M:%S')
-            except Exception as e:
-                logger.warning(f"加载断点失败: {e}")
-        return None
+        ts = load_breakpoint(BREAKPOINT_FILE)
+        return parse_datetime(ts) if ts else None
 
     def _save_breakpoint(self):
-        try:
-            data = {
-                'last_collect_time': self._last_collect_time.isoformat() if self._last_collect_time else None,
-                'updated_at': datetime.now().isoformat()
-            }
-            with open(BREAKPOINT_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"保存断点失败: {e}")
+        if self._last_collect_time:
+            save_breakpoint(BREAKPOINT_FILE, self._last_collect_time.isoformat())
     
     @staticmethod
     def _build_connection_string(config: dict) -> str:
-        server = config.get("server", "")
-        database = config.get("database", "")
-        driver = config.get("driver", "ODBC Driver 17 for SQL Server")
-        auth_type = config.get("auth_type", "windows")
-        driver_encoded = driver.replace(" ", "+")
-
-        if auth_type == "windows":
-            return f"mssql+pyodbc://@{server}/{database}?driver={driver_encoded}&trusted_connection=yes"
-        else:
-            username = config.get("username", "")
-            password = config.get("password", "")
-            return f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver={driver_encoded}"
+        return build_connection_string(config)
 
     @staticmethod
     def _build_pymssql_connection(config: dict):
@@ -165,17 +136,6 @@ class SQLServerCollector(BaseCollector):
                 pool_pre_ping=True,
             )
         return self._engine
-
-    def _get_connection(self):
-        """获取数据库连接，优先使用 SQLAlchemy，失败时回退到 pymssql"""
-        try:
-            return self.engine.connect(), "sqlalchemy"
-        except Exception:
-            try:
-                conn = self._build_pymssql_connection(self._db_config)
-                return conn, "pymssql"
-            except Exception as e:
-                raise Exception(f"无法连接数据库: {e}")
 
     def test_connection(self) -> bool:
         # Try pymssql first (more reliable on Linux without ODBC)
@@ -250,6 +210,12 @@ class SQLServerCollector(BaseCollector):
             }
 
         now = datetime.now()
+
+        # Validate SQL identifiers before building the query
+        validate_identifier(self.table_name)
+        validate_identifier(self.time_column)
+        validate_identifier(self.product_column)
+
         columns = self._build_column_list()
         where_clause, params = self._build_where_clause()
 
@@ -298,6 +264,16 @@ class SQLServerCollector(BaseCollector):
         """四表关联模式采集（与 MDB 结构一致）"""
         now = datetime.now()
         try:
+            # Validate SQL identifiers
+            validate_identifier(self.time_col)
+            validate_identifier(self.product_ref_col)
+            validate_identifier(self.component_ref_col)
+            validate_identifier(self.value_col)
+            validate_identifier(self.sample_table)
+            validate_identifier(self.product_table)
+            validate_identifier(self.component_table)
+            validate_identifier(self.prediction_table)
+
             products_map = self._load_products_sql()
             components_map = self._load_components_sql()
 
@@ -314,7 +290,15 @@ class SQLServerCollector(BaseCollector):
 
             rep_filter = ""
             if self.rep_no_ref is not None:
-                rep_filter = f"AND p.[RepNoRef] = {self.rep_no_ref}"
+                if self._use_pymssql:
+                    rep_filter = "AND p.[RepNoRef] = %s"
+                    if isinstance(params, tuple):
+                        params = params + (self.rep_no_ref,)
+                    else:
+                        params = (self.rep_no_ref,)
+                else:
+                    rep_filter = "AND p.[RepNoRef] = :rep_no_ref"
+                    params["rep_no_ref"] = self.rep_no_ref
 
             sql = f"""
                 SELECT TOP 200
@@ -389,14 +373,10 @@ class SQLServerCollector(BaseCollector):
 
             if records:
                 max_time = max(r['sample_time'] for r in records)
-                try:
-                    if 'T' in max_time:
-                        self._last_collect_time = datetime.fromisoformat(max_time)
-                    else:
-                        self._last_collect_time = datetime.strptime(max_time, '%Y-%m-%d %H:%M:%S')
+                parsed = parse_datetime(max_time)
+                if parsed:
+                    self._last_collect_time = parsed
                     self._save_breakpoint()
-                except ValueError:
-                    pass
 
             return {
                 'new_records': saved_count,
@@ -414,6 +394,8 @@ class SQLServerCollector(BaseCollector):
         """从 SQL Server 加载产品映射"""
         if self._products_cache is not None:
             return self._products_cache
+        validate_identifier(self.product_table)
+        validate_identifier(self.product_name_col)
         sql = f"SELECT [ProdNo], [{self.product_name_col}] FROM [{self.product_table}]"
         try:
             if self._use_pymssql:
@@ -436,6 +418,8 @@ class SQLServerCollector(BaseCollector):
         """从 SQL Server 加载指标映射"""
         if self._components_cache is not None:
             return self._components_cache
+        validate_identifier(self.component_table)
+        validate_identifier(self.component_name_col)
         sql = f"SELECT [CompNo], [{self.component_name_col}] FROM [{self.component_table}]"
         try:
             if self._use_pymssql:
@@ -467,8 +451,10 @@ class SQLServerCollector(BaseCollector):
     def _build_column_list(self) -> List[str]:
         columns = [f"[{self.time_column}]", f"[{self.product_column}]"]
         if self.sample_column:
+            validate_identifier(self.sample_column)
             columns.append(f"[{self.sample_column}]")
         for indicator_code, col_name in self.indicators.items():
+            validate_identifier(col_name)
             columns.append(f"[{col_name}]")
         return columns
     
@@ -520,7 +506,7 @@ class SQLServerCollector(BaseCollector):
         return records
     
     def _generate_product_code(self, product_name: str) -> str:
-        return product_name[:10].strip()
+        return product_name.strip()
     
     def get_products(self) -> List[Dict[str, str]]:
         if self.mode == "relational":
@@ -530,6 +516,8 @@ class SQLServerCollector(BaseCollector):
     def _get_products_flat(self) -> List[Dict[str, str]]:
         if not self.table_name or not self.product_column:
             return []
+        validate_identifier(self.table_name)
+        validate_identifier(self.product_column)
         from sqlalchemy import text
         sql = f"""
             SELECT DISTINCT [{self.product_column}] as product_name
@@ -572,23 +560,7 @@ class SQLServerCollector(BaseCollector):
         ]
 
     def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
-        spec_limits_file = "spec_limits.json"
-        if os.path.exists(spec_limits_file):
-            try:
-                with open(spec_limits_file, 'r', encoding='utf-8') as f:
-                    raw = json.load(f)
-                if not raw:
-                    return {}
-                first_val = next(iter(raw.values()), None)
-                is_flat = isinstance(first_val, dict) and ('lsl' in first_val or 'usl' in first_val)
-                if is_flat:
-                    return raw
-                if product_code and product_code in raw:
-                    return raw[product_code]
-                return {}
-            except Exception:
-                pass
-        return {}
+        return load_spec_limits("spec_limits.json", product_code)
 
     def clear_cache(self):
         self._products_cache = None

@@ -12,13 +12,13 @@ const AppContext = createContext<AppState | null>(null)
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentProduct, setCurrentProductState] = useState(() => {
-    return localStorage.getItem('app_current_product') || '自动轮换'
+    try { return localStorage.getItem('app_current_product') || '自动轮换' } catch { return '自动轮换' }
   })
   const [currentProductCode, setCurrentProductCode] = useState(() => {
-    return localStorage.getItem('app_current_product_code') || ''
+    try { return localStorage.getItem('app_current_product_code') || '' } catch { return '' }
   })
   const [collectionFrequency, setCollectionFrequencyState] = useState(() => {
-    return localStorage.getItem('app_collection_frequency') || 'L0 · 5min'
+    try { return localStorage.getItem('app_collection_frequency') || 'L0 · 5min' } catch { return 'L0 · 5min' }
   })
 
   const setCurrentProduct = useCallback((name: string, code: string) => {

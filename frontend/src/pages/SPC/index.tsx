@@ -1,37 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, DefaultLabelFormatterCallbackParams, MarkLineComponentOption } from 'echarts'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
-import { useProducts, useIndicators } from '../../hooks'
+import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import { api } from '../../services'
-import type { SPCData } from '../../types'
+import { escapeHtml } from '../../utils/html'
+import type { SPCData, EChartsParam } from '../../types'
 import styles from './SPC.module.css'
 
 export const SPCPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { products } = useProducts()
   const { indicators } = useIndicators()
+  const { aliases, productStatus, getIndicatorName } = useAppMetadata()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [productStatus, setProductStatus] = useState<Record<string, string> | null>(null)
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
   const [initialized, setInitialized] = useState(false)
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: 'fat',
     window: 30,
   })
-
-  // Load product status and aliases
-  useEffect(() => {
-    Promise.all([
-      api.getProductStatus(),
-      api.getAliases(),
-    ]).then(([status, aliasData]) => {
-      setProductStatus(status)
-      setAliases(aliasData)
-    }).catch(console.error)
-  }, [])
 
   // Filter out disabled products (show all until status loaded)
   const enabledProducts = useMemo(() =>
@@ -41,10 +30,10 @@ export const SPCPage: React.FC = () => {
 
   // Set initial product/indicator: URL params > Dashboard saved > first enabled
   useEffect(() => {
-    if (initialized || enabledProducts.length === 0 || productStatus === null) return
+    if (initialized || enabledProducts.length === 0) return
     const urlProduct = searchParams.get('product')
     const urlIndicator = searchParams.get('indicator')
-    const dashboardProduct = localStorage.getItem('dashboard_selected_product')
+    const dashboardProduct = (() => { try { return localStorage.getItem('dashboard_selected_product') } catch { return null } })()
     const productFromUrl = urlProduct && enabledProducts.find(p => p.code === urlProduct)
     const productFromDash = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
     const initProduct = productFromUrl ? productFromUrl.code : productFromDash ? productFromDash.code : enabledProducts[0].code
@@ -77,8 +66,7 @@ export const SPCPage: React.FC = () => {
     }
   }, [initialized, filter.product_code, filter.indicator_code, filter.window])
 
-  // Helper: get alias or original name
-  const getIndicatorName = (code: string) => aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
+  // getIndicatorName provided by useAppMetadata hook
 
   // Compute derived values
   const stats = useMemo(() => {
@@ -124,7 +112,7 @@ export const SPCPage: React.FC = () => {
     const { ucl, cl, lcl } = i_chart
     const { usl, lsl } = spec_limits
 
-    const markLineData: any[] = [
+    const markLineData: NonNullable<MarkLineComponentOption['data']> = [
       {
         yAxis: ucl,
         lineStyle: { color: '#f59e0b', type: 'dashed' },
@@ -162,12 +150,12 @@ export const SPCPage: React.FC = () => {
       tooltip: {
         trigger: 'axis',
         ...tooltipStyle,
-        formatter: (params: any) => {
-          const p = Array.isArray(params) ? params[0] : params
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
           const idx = p.dataIndex
           const pt = data_points[idx]
           const violation = pt.is_violation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 违规点</span>' : ''
-          return `<b>${pt.time}</b><br/>值: <b>${p.value}</b>${violation}`
+          return `<b>${escapeHtml(pt.time)}</b><br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}`
         },
       },
       grid: { left: 50, right: 80, top: 30, bottom: 30 },
@@ -175,7 +163,7 @@ export const SPCPage: React.FC = () => {
         type: 'category',
         data: times,
         ...chartTheme.xAxis,
-        axisLabel: { ...(chartTheme.xAxis as any)?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
+        axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
       yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
       series: [{
@@ -211,12 +199,13 @@ export const SPCPage: React.FC = () => {
       tooltip: {
         trigger: 'axis',
         ...tooltipStyle,
-        formatter: (params: any) => {
-          const p = Array.isArray(params) ? params[0] : params
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
           const idx = p.dataIndex
           const time = mrData.times[idx]
-          const violation = p.value > ucl ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 超出UCL</span>' : ''
-          return `<b>${time}</b><br/>MR: <b>${p.value}</b>${violation}`
+          const mrValue = p.value as number
+          const violation = mrValue > ucl ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 超出UCL</span>' : ''
+          return `<b>${escapeHtml(time)}</b><br/>MR: <b>${escapeHtml(String(mrValue))}</b>${violation}`
         },
       },
       grid: { left: 50, right: 80, top: 20, bottom: 30 },
@@ -224,7 +213,7 @@ export const SPCPage: React.FC = () => {
         type: 'category',
         data: times,
         ...chartTheme.xAxis,
-        axisLabel: { ...(chartTheme.xAxis as any)?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
+        axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
       yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
       series: [{
@@ -295,12 +284,14 @@ export const SPCPage: React.FC = () => {
               className={styles.stepperBtn}
               onClick={() => setFilter(f => ({ ...f, window: Math.max(10, f.window - 10) }))}
               disabled={filter.window <= 10}
+              aria-label="减少窗口"
             >−</button>
             <span className={styles.stepperValue}>{filter.window}</span>
             <button
               className={styles.stepperBtn}
               onClick={() => setFilter(f => ({ ...f, window: Math.min(100, f.window + 10) }))}
               disabled={filter.window >= 100}
+              aria-label="增加窗口"
             >+</button>
           </div>
         </div>
@@ -322,7 +313,7 @@ export const SPCPage: React.FC = () => {
           </div>
           <div className={styles.kpiValue}>
             {stats?.mean.toFixed(2) || '-'}
-            <span className={styles.kpiUnit}>g/100g</span>
+            <span className={styles.kpiUnit}>{spcData?.spec_limits.unit || ''}</span>
           </div>
         </div>
         <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
@@ -373,7 +364,7 @@ export const SPCPage: React.FC = () => {
       </div>
 
       {/* I Chart */}
-      <div className={styles.chartPanel}>
+      <div className={styles.chartPanel} aria-label="单值控制图">
         <div className={styles.chartPanelHeader}>
           <div className={styles.chartPanelTitle}>
             <span className={styles.chartPanelTitleIcon}>
@@ -401,7 +392,7 @@ export const SPCPage: React.FC = () => {
       </div>
 
       {/* MR Chart */}
-      <div className={styles.chartPanel}>
+      <div className={styles.chartPanel} aria-label="移动极差控制图">
         <div className={styles.chartPanelHeader}>
           <div className={styles.chartPanelTitle}>
             <span className={styles.chartPanelTitleIcon}>
@@ -437,7 +428,7 @@ export const SPCPage: React.FC = () => {
             </div>
           </div>
           <div className={styles.violationsBody}>
-            <table className={styles.violationsTable}>
+            <table className={styles.violationsTable} aria-label="Nelson规则违规表">
               <thead>
                 <tr>
                   <th>规则</th>
@@ -475,3 +466,5 @@ export const SPCPage: React.FC = () => {
     </div>
   )
 }
+
+export default SPCPage

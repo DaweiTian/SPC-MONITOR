@@ -36,6 +36,7 @@
 .kpiCardOrange::before { background: var(--gradient-orange); }
 .kpiCardRed::before { background: var(--gradient-red); }
 .kpiCardPurple::before { background: var(--gradient-purple); }
+.kpiCardBlue::before { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 
 .kpiHeader {
   display: flex;
@@ -70,6 +71,7 @@
 .kpiCardOrange .kpiIcon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
 .kpiCardRed .kpiIcon { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
 .kpiCardPurple .kpiIcon { background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); }
+.kpiCardBlue .kpiIcon { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
 
 .kpiValue {
   font-size: 32px;
@@ -83,6 +85,7 @@
 .kpiCardOrange .kpiValue { color: var(--accent-orange); }
 .kpiCardRed .kpiValue { color: var(--accent-red); }
 .kpiCardPurple .kpiValue { color: var(--accent-purple); }
+.kpiCardBlue .kpiValue { color: var(--accent-blue); }
 
 .kpiUnit {
   font-size: 14px;

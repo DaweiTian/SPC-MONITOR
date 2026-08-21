@@ -1,35 +1,41 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppLayout } from './components/Layout'
-import { Dashboard } from './pages/Dashboard'
-import { SPCPage } from './pages/SPC'
-import { CapabilityPage } from './pages/Capability'
-import { AlertsPage } from './pages/Alerts'
-import { ConfigPage } from './pages/Config'
-import { DataPage } from './pages/Data'
-import { HelpPage } from './pages/Help'
-import { PredictionPage } from './pages/Prediction'
+
+const Dashboard = React.lazy(() => import('./pages/Dashboard'))
+const SPCPage = React.lazy(() => import('./pages/SPC'))
+const CapabilityPage = React.lazy(() => import('./pages/Capability'))
+const AlertsPage = React.lazy(() => import('./pages/Alerts'))
+const ConfigPage = React.lazy(() => import('./pages/Config'))
+const DataPage = React.lazy(() => import('./pages/Data'))
+const HelpPage = React.lazy(() => import('./pages/Help'))
+const PredictionPage = React.lazy(() => import('./pages/Prediction'))
 
 const App: React.FC = () => {
   return (
-    <AppProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/spc" element={<SPCPage />} />
-            <Route path="/capability" element={<CapabilityPage />} />
-            <Route path="/prediction" element={<PredictionPage />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/config" element={<ConfigPage />} />
-            <Route path="/data" element={<DataPage />} />
-            <Route path="/help" element={<HelpPage />} />
-          </Routes>
-        </AppLayout>
-      </BrowserRouter>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AppLayout>
+            <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/spc" element={<SPCPage />} />
+                <Route path="/capability" element={<CapabilityPage />} />
+                <Route path="/prediction" element={<PredictionPage />} />
+                <Route path="/alerts" element={<AlertsPage />} />
+                <Route path="/config" element={<ConfigPage />} />
+                <Route path="/data" element={<DataPage />} />
+                <Route path="/help" element={<HelpPage />} />
+              </Routes>
+            </Suspense>
+          </AppLayout>
+        </BrowserRouter>
+      </AppProvider>
+    </ErrorBoundary>
   )
 }
 

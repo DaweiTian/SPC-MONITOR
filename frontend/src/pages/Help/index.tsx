@@ -124,24 +124,24 @@ export const HelpPage: React.FC = () => {
       )}
 
       {activeTab === 'glossary' && (
-        <div className={styles.docFrame}>
-          <iframe
-            src="/docs/数据分析名词手册.html"
-            className={styles.docIframe}
-            title="数据分析名词手册"
-          />
-        </div>
+        <iframe
+          src="/docs/数据分析名词手册.html"
+          className={styles.docIframe}
+          title="数据分析名词手册"
+          sandbox="allow-same-origin allow-scripts"
+        />
       )}
 
       {activeTab === 'visual' && (
-        <div className={styles.docFrame}>
-          <iframe
-            src="/docs/数据分析名词可视化手册.html"
-            className={styles.docIframe}
-            title="数据分析名词可视化手册"
-          />
-        </div>
+        <iframe
+          src="/docs/数据分析名词可视化手册.html"
+          className={styles.docIframe}
+          title="数据分析名词可视化手册"
+          sandbox="allow-same-origin allow-scripts"
+        />
       )}
     </div>
   )
 }
+
+export default HelpPage

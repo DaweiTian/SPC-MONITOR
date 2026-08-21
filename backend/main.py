@@ -2,9 +2,23 @@ import asyncio
 import json
 import os
 import logging
-from fastapi import FastAPI
+import threading
+from fastapi import FastAPI, Security
 from fastapi.middleware.cors import CORSMiddleware
+
+from backend.app.core.auth import verify_api_key
+from backend.app.core.exceptions import AppException, app_exception_handler, generic_exception_handler
 from datetime import datetime
+
+os.makedirs('logs', exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('logs/backend.log', encoding='utf-8')
+    ]
+)
 
 from backend.app.api.monitor import router as monitor_router
 from backend.app.api.spc import router as spc_router
@@ -17,6 +31,7 @@ from backend.app.services.storage import OnlineStorage
 from backend.app.engine.collector.mock import MockCollector
 from backend.app.engine.collector.sqlserver import SQLServerCollector
 from backend.app.engine.collector.mdb import MDBCollector
+from backend.app.engine.collector.fta import FTACollector
 from backend.app.engine.collector.scheduler import AdaptiveScheduler
 from backend.app.engine.alert.engine import AlertEngine
 
@@ -24,12 +39,17 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="液奶过程监控系统", version="1.5.1")
 
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
 
 # 初始化存储
@@ -50,7 +70,8 @@ if os.path.exists(MONITOR_START_FILE):
             saved = json.load(f)
         alert_engine.monitoring_start = datetime.fromisoformat(saved['started_at'])
         logger.info(f"Monitoring resumed from {alert_engine.monitoring_start}")
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
+        logger.warning(f"加载监控开始时间失败: {e}")
         alert_engine.monitoring_start = datetime.now()
 else:
     alert_engine.monitoring_start = datetime.now()
@@ -64,7 +85,9 @@ else:
 
 # 初始化调度器
 def collect_with_alert():
-    result = collector.collect()
+    with _collector_lock:
+        current_collector = collector
+    result = current_collector.collect()
     all_new_alerts = []
     
     # Log collection attempt
@@ -77,12 +100,11 @@ def collect_with_alert():
     # Only check alerts if we have new data
     if new_records > 0:
         # Get products and indicators from collector
-        products = collector.get_products()
-        indicators = collector.get_indicators()
+        products = current_collector.get_products()
+        indicators = current_collector.get_indicators()
         
         # Check alerts for each product/indicator combination
-        # Limit to first 10 products to avoid performance issues
-        for product in products[:10]:
+        for product in products:
             for indicator in indicators:
                 product_data = storage.get_recent_data(
                     indicator_code=indicator['code'],
@@ -93,7 +115,7 @@ def collect_with_alert():
                 if len(product_data) >= 5:
                     values = [d['value'] for d in product_data]
                     timestamps = [datetime.fromisoformat(d['sample_time']) for d in product_data]
-                    spec_limits = collector.get_spec_limits(product_code=product['code']).get(indicator['code'])
+                    spec_limits = current_collector.get_spec_limits(product_code=product['code']).get(indicator['code'])
                     
                     new_alerts = alert_engine.check_and_alert(
                         product_code=product['code'],
@@ -109,21 +131,24 @@ def collect_with_alert():
         loop = asyncio.get_event_loop()
         if result.get('new_records', 0) > 0:
             asyncio.run_coroutine_threadsafe(
-                broadcast_typed('new_data', result), loop
+                broadcast_typed('data_update', result), loop
             )
         if all_new_alerts:
             asyncio.run_coroutine_threadsafe(
-                broadcast_typed('alert', {'alerts': all_new_alerts}), loop
+                broadcast_typed('new_alert', {'alerts': all_new_alerts}), loop
             )
         asyncio.run_coroutine_threadsafe(
             broadcast_typed('stats_update', result), loop
         )
-    except Exception:
-        pass  # WebSocket broadcast failure should not break collection
+    except Exception as e:
+        logger.debug(f"WebSocket广播失败: {e}")  # WebSocket broadcast failure should not break collection
     
     return result
 
 scheduler = AdaptiveScheduler(collect_func=collect_with_alert)
+
+# Lock to protect collector/scheduler swap from TOCTOU races
+_collector_lock = threading.Lock()
 
 # 注入依赖
 import backend.app.api.monitor as monitor_module
@@ -156,115 +181,148 @@ def switch_collector(instrument_id: str) -> dict:
     """
     global collector, scheduler
 
-    # Stop the current scheduler
-    try:
-        scheduler.stop()
-    except Exception as e:
-        logger.warning(f"停止调度器时出错（可忽略）: {e}")
-
-    # Close old collector if it supports it
-    if hasattr(collector, "close"):
+    with _collector_lock:
+        # Stop the current scheduler
         try:
-            collector.close()
-        except Exception:
-            pass
+            scheduler.stop()
+        except Exception as e:
+            logger.warning(f"停止调度器时出错（可忽略）: {e}")
 
-    # Build new collector
-    is_connected = False
-    source = "mock"
-    
-    if instrument_id == "mock":
-        collector = MockCollector(storage=storage)
-        logger.info("已切换到 Mock 数据源")
-    elif instrument_id in ("ft1", "fta"):
-        # FT1 and FTA use SQL Server
-        try:
-            db_config_file = "db_config.json"
-            mapping_file = "db_mapping.json"
+        # Close old collector if it supports it
+        if hasattr(collector, "close"):
+            try:
+                collector.close()
+            except Exception:
+                pass
 
-            if not os.path.exists(db_config_file):
-                return {"success": False, "message": "请先配置数据库连接（db_config.json 不存在）"}
-            if not os.path.exists(mapping_file):
-                return {"success": False, "message": "请先配置字段映射（db_mapping.json 不存在）"}
+        # Build new collector
+        is_connected = False
+        source = "mock"
 
-            with open(db_config_file, "r", encoding="utf-8") as f:
-                db_config = json.load(f)
-            with open(mapping_file, "r", encoding="utf-8") as f:
-                mapping_config = json.load(f)
+        if instrument_id == "mock":
+            collector = MockCollector(storage=storage)
+            logger.info("已切换到 Mock 数据源")
+        elif instrument_id == "ft1":
+            # FT1 uses SQL Server with 4-table relational structure
+            try:
+                db_config_file = "db_config.json"
+                mapping_file = "db_mapping.json"
 
-            new_collector = SQLServerCollector.from_config(
-                db_config=db_config,
-                mapping_config=mapping_config,
-                storage=storage,
-            )
+                if not os.path.exists(db_config_file):
+                    return {"success": False, "message": "请先配置数据库连接（db_config.json 不存在）"}
+                if not os.path.exists(mapping_file):
+                    return {"success": False, "message": "请先配置字段映射（db_mapping.json 不存在）"}
 
-            # Verify connectivity before committing
-            if not new_collector.test_connection():
-                new_collector.close()
+                with open(db_config_file, "r", encoding="utf-8") as f:
+                    db_config = json.load(f)
+                with open(mapping_file, "r", encoding="utf-8") as f:
+                    mapping_config = json.load(f)
+
+                new_collector = SQLServerCollector.from_config(
+                    db_config=db_config,
+                    mapping_config=mapping_config,
+                    storage=storage,
+                )
+
+                # Verify connectivity before committing
+                if not new_collector.test_connection():
+                    new_collector.close()
+                    collector = MockCollector(storage=storage)
+                    _update_all_references("mock", False, "mock")
+                    return {"success": False, "message": "SQL Server 连接失败，请检查配置，已回退到 Mock"}
+
+                collector = new_collector
+                is_connected = True
+                source = "sqlserver"
+                logger.info(f"已切换到 {instrument_id.upper()} 数据源 (SQL Server)")
+            except Exception as e:
+                logger.error(f"切换到 {instrument_id.upper()} 失败，回退到 Mock: {e}")
                 collector = MockCollector(storage=storage)
                 _update_all_references("mock", False, "mock")
-                return {"success": False, "message": "SQL Server 连接失败，请检查配置，已回退到 Mock"}
+                return {"success": False, "message": f"切换失败，已回退到 Mock: {str(e)}"}
+        elif instrument_id == "fta":
+            # FTA uses Perten SQL Server database
+            try:
+                fta_config_file = "fta_config.json"
 
-            collector = new_collector
-            is_connected = True
-            source = "sqlserver"
-            logger.info(f"已切换到 {instrument_id.upper()} 数据源 (SQL Server)")
-        except Exception as e:
-            logger.error(f"切换到 {instrument_id.upper()} 失败，回退到 Mock: {e}")
-            collector = MockCollector(storage=storage)
-            _update_all_references("mock", False, "mock")
-            return {"success": False, "message": f"切换失败，已回退到 Mock: {str(e)}"}
-    elif instrument_id == "ft120":
-        # FT120 uses .mdb file
-        try:
-            mdb_config_file = "mdb_config.json"
+                if not os.path.exists(fta_config_file):
+                    return {"success": False, "message": "请先配置 FTA 数据库连接（fta_config.json 不存在）"}
 
-            if not os.path.exists(mdb_config_file):
-                return {"success": False, "message": "请先配置 MDB 文件路径（mdb_config.json 不存在）"}
+                with open(fta_config_file, "r", encoding="utf-8") as f:
+                    fta_config = json.load(f)
 
-            with open(mdb_config_file, "r", encoding="utf-8") as f:
-                mdb_config = json.load(f)
+                new_collector = FTACollector.from_config(
+                    db_config=fta_config,
+                    storage=storage,
+                )
 
-            new_collector = MDBCollector.from_config(
-                config=mdb_config,
-                storage=storage,
-            )
+                # Verify connectivity before committing
+                if not new_collector.test_connection():
+                    new_collector.close()
+                    collector = MockCollector(storage=storage)
+                    _update_all_references("mock", False, "mock")
+                    return {"success": False, "message": "FTA 数据库连接失败，请检查配置，已回退到 Mock"}
 
-            # Verify connectivity before committing
-            if not new_collector.test_connection():
-                new_collector.close()
+                collector = new_collector
+                is_connected = True
+                source = "fta"
+                logger.info("已切换到 FTA 数据源 (Perten)")
+            except Exception as e:
+                logger.error(f"切换到 FTA 失败，回退到 Mock: {e}")
                 collector = MockCollector(storage=storage)
                 _update_all_references("mock", False, "mock")
-                return {"success": False, "message": "MDB 文件连接失败，请检查配置，已回退到 Mock"}
+                return {"success": False, "message": f"切换失败，已回退到 Mock: {str(e)}"}
+        elif instrument_id == "ft120":
+            # FT120 uses .mdb file
+            try:
+                mdb_config_file = "mdb_config.json"
 
-            collector = new_collector
-            is_connected = True
-            source = "mdb"
-            logger.info("已切换到 FT120 数据源 (MDB)")
-        except Exception as e:
-            logger.error(f"切换到 FT120 失败，回退到 Mock: {e}")
-            collector = MockCollector(storage=storage)
-            _update_all_references("mock", False, "mock")
-            return {"success": False, "message": f"切换失败，已回退到 Mock: {str(e)}"}
-    else:
-        return {"success": False, "message": f"未知的仪器类型: {instrument_id}"}
+                if not os.path.exists(mdb_config_file):
+                    return {"success": False, "message": "请先配置 MDB 文件路径（mdb_config.json 不存在）"}
 
-    # Update all module-level references
-    _update_all_references(source, is_connected, instrument_id)
+                with open(mdb_config_file, "r", encoding="utf-8") as f:
+                    mdb_config = json.load(f)
 
-    # Create and start new scheduler
-    scheduler = AdaptiveScheduler(collect_func=collect_with_alert)
-    monitor_module.scheduler = scheduler
-    scheduler.start()
+                new_collector = MDBCollector.from_config(
+                    config=mdb_config,
+                    storage=storage,
+                )
 
-    instrument_name = instrument_id.upper() if instrument_id != "mock" else "Mock"
-    return {
-        "success": True,
-        "message": f"已切换到 {instrument_name} 数据源",
-        "source": source,
-        "instrument_id": instrument_id,
-        "connected": is_connected,
-    }
+                # Verify connectivity before committing
+                if not new_collector.test_connection():
+                    new_collector.close()
+                    collector = MockCollector(storage=storage)
+                    _update_all_references("mock", False, "mock")
+                    return {"success": False, "message": "MDB 文件连接失败，请检查配置，已回退到 Mock"}
+
+                collector = new_collector
+                is_connected = True
+                source = "mdb"
+                logger.info("已切换到 FT120 数据源 (MDB)")
+            except Exception as e:
+                logger.error(f"切换到 FT120 失败，回退到 Mock: {e}")
+                collector = MockCollector(storage=storage)
+                _update_all_references("mock", False, "mock")
+                return {"success": False, "message": f"切换失败，已回退到 Mock: {str(e)}"}
+        else:
+            return {"success": False, "message": f"未知的仪器类型: {instrument_id}"}
+
+        # Update all module-level references
+        _update_all_references(source, is_connected, instrument_id)
+
+        # Create and start new scheduler
+        scheduler = AdaptiveScheduler(collect_func=collect_with_alert)
+        monitor_module.scheduler = scheduler
+        scheduler.start()
+
+        instrument_name = instrument_id.upper() if instrument_id != "mock" else "Mock"
+        return {
+            "success": True,
+            "message": f"已切换到 {instrument_name} 数据源",
+            "source": source,
+            "instrument_id": instrument_id,
+            "connected": is_connected,
+        }
 
 
 def _update_all_references(source: str, connected: bool, instrument_type: str = "mock"):
@@ -302,23 +360,23 @@ def _auto_switch_on_startup():
                 is_connected = False
                 source = "mock"
                 
-                if current in ("ft1", "fta"):
-                    # FT1 and FTA use SQL Server
+                if current == "ft1":
+                    # FT1 uses SQL Server with 4-table relational structure
                     db_config_file = "db_config.json"
                     mapping_file = "db_mapping.json"
-                    
+
                     if os.path.exists(db_config_file) and os.path.exists(mapping_file):
                         with open(db_config_file, "r", encoding="utf-8") as f:
                             db_config = json.load(f)
                         with open(mapping_file, "r", encoding="utf-8") as f:
                             mapping_config = json.load(f)
-                        
+
                         new_collector = SQLServerCollector.from_config(
                             db_config=db_config,
                             mapping_config=mapping_config,
                             storage=storage,
                         )
-                        
+
                         if new_collector.test_connection():
                             collector = new_collector
                             is_connected = True
@@ -326,6 +384,26 @@ def _auto_switch_on_startup():
                             logger.info(f"已自动切换到 {current.upper()} 数据源")
                         else:
                             logger.warning(f"SQL Server 连接失败，保持 Mock 数据源")
+                elif current == "fta":
+                    # FTA uses Perten SQL Server database
+                    fta_config_file = "fta_config.json"
+
+                    if os.path.exists(fta_config_file):
+                        with open(fta_config_file, "r", encoding="utf-8") as f:
+                            fta_config = json.load(f)
+
+                        new_collector = FTACollector.from_config(
+                            db_config=fta_config,
+                            storage=storage,
+                        )
+
+                        if new_collector.test_connection():
+                            collector = new_collector
+                            is_connected = True
+                            source = "fta"
+                            logger.info("已自动切换到 FTA 数据源")
+                        else:
+                            logger.warning("FTA 数据库连接失败，保持 Mock 数据源")
                 elif current == "ft120":
                     # FT120 uses .mdb file
                     mdb_config_file = "mdb_config.json"
@@ -359,14 +437,15 @@ def _auto_switch_on_startup():
 
 _auto_switch_on_startup()
 
-# 注册路由
-app.include_router(monitor_router, prefix="/api")
-app.include_router(spc_router, prefix="/api")
-app.include_router(alerts_router, prefix="/api")
-app.include_router(data_router, prefix="/api")
-app.include_router(config_router, prefix="/api")
-app.include_router(predict_router, prefix="/api")
-app.include_router(ws_router, prefix="/api")
+# 注册路由 (API key auth required)
+_auth = [Security(verify_api_key)]
+app.include_router(monitor_router, prefix="/api", dependencies=_auth)
+app.include_router(spc_router, prefix="/api", dependencies=_auth)
+app.include_router(alerts_router, prefix="/api", dependencies=_auth)
+app.include_router(data_router, prefix="/api", dependencies=_auth)
+app.include_router(config_router, prefix="/api", dependencies=_auth)
+app.include_router(predict_router, prefix="/api", dependencies=_auth)
+app.include_router(ws_router, prefix="/api")  # No auth dependency; WS uses query-param key
 
 @app.get("/api/health")
 def health():

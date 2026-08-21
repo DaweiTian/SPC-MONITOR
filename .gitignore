@@ -170,3 +170,5 @@ product_indicators.json
 product_status.json
 sqlserver_breakpoint.json
 monitor_start.json
+frontend/dist/
+runtime_config.json

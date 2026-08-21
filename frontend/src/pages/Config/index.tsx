@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
 import { AliasConfig } from '../../components/AliasConfig'
+import type { Product } from '../../types'
 import styles from './Config.module.css'
 
 /* ── Mock data for initial display ───────────────────────────── */
@@ -63,14 +64,14 @@ interface MDBConfig {
 interface InstrumentInfo {
   id: string
   name: string
-  type: 'mock' | 'sqlserver' | 'mdb'
+  type: 'mock' | 'sqlserver' | 'mdb' | 'fta'
 }
 
 const INSTRUMENTS: InstrumentInfo[] = [
   { id: 'mock', name: 'Mock 模拟数据', type: 'mock' },
   { id: 'ft1', name: 'FT1 乳品分析仪', type: 'sqlserver' },
   { id: 'ft120', name: 'FT120 乳品分析仪', type: 'mdb' },
-  { id: 'fta', name: 'FTA 乳品分析仪', type: 'sqlserver' },
+  { id: 'fta', name: 'FTA 乳品分析仪', type: 'fta' },
 ]
 
 const INITIAL_PRODUCTS: ProductItem[] = [
@@ -112,6 +113,26 @@ const DEFAULT_MDB_CONFIG: MDBConfig = {
   component_name_column: 'Name',
   value_column: 'Value',
   indicators: {},
+}
+
+interface FTAConfig {
+  server: string
+  database: string
+  auth_type: string
+  driver: string
+  username: string
+  password: string
+  timeout: number
+}
+
+const DEFAULT_FTA_CONFIG: FTAConfig = {
+  server: '',
+  database: 'Pert_Application',
+  auth_type: 'sql',
+  driver: 'ODBC Driver 17 for SQL Server',
+  username: 'sa',
+  password: '',
+  timeout: 30,
 }
 
 /* ── Tag helper ──────────────────────────────────────────────── */
@@ -157,6 +178,7 @@ export const ConfigPage: React.FC = () => {
   const [sourceLoading, setSourceLoading] = useState(false)
   const [dbConfig, setDbConfig] = useState<DBConfig>(DEFAULT_DB_CONFIG)
   const [mdbConfig, setMdbConfig] = useState<MDBConfig>(DEFAULT_MDB_CONFIG)
+  const [ftaConfig, setFtaConfig] = useState<FTAConfig>(DEFAULT_FTA_CONFIG)
   const [configLoading, setConfigLoading] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -183,20 +205,26 @@ export const ConfigPage: React.FC = () => {
   /* Fetch current instrument and configs on mount */
   useEffect(() => {
     api.getDataSourceStatus()
-      .then((data: any) => {
-        if (data?.instrument_type) setCurrentInstrument(data.instrument_type)
+      .then((data: Record<string, unknown>) => {
+        if (data?.instrument_type) setCurrentInstrument(String(data.instrument_type))
       })
       .catch(() => { /* default to mock */ })
 
     api.getDBConfig()
-      .then((data: any) => {
+      .then((data) => {
         if (data) setDbConfig({ ...DEFAULT_DB_CONFIG, ...data })
       })
       .catch(() => { /* use defaults */ })
 
     api.getMDBConfig()
-      .then((data: any) => {
+      .then((data) => {
         if (data) setMdbConfig({ ...DEFAULT_MDB_CONFIG, ...data })
+      })
+      .catch(() => { /* use defaults */ })
+
+    api.getFTAConfig()
+      .then((data) => {
+        if (data) setFtaConfig({ ...DEFAULT_FTA_CONFIG, ...data })
       })
       .catch(() => { /* use defaults */ })
 
@@ -207,7 +235,13 @@ export const ConfigPage: React.FC = () => {
     const fetchFrequency = async () => {
       try {
         const status = await api.getStatus()
-        setFrequencyStatus(status)
+        setFrequencyStatus({
+          current_level: status.current_level,
+          current_interval_minutes: status.current_interval_minutes,
+          frequency_ladder: status.frequency_ladder,
+          is_collecting: status.is_collecting,
+          last_collect_time: status.last_collect_time ?? null,
+        })
       } catch {}
     }
     fetchFrequency()
@@ -240,7 +274,10 @@ export const ConfigPage: React.FC = () => {
       }
 
       if (rulesResult?.rules) {
-        setNelsonRules(rulesResult.rules)
+        setNelsonRules(rulesResult.rules.map((r) => ({
+          ...r,
+          severity: r.severity as 'CRITICAL' | 'WARNING' | 'INFO',
+        })))
       }
 
       if (savedIndResult) {
@@ -249,12 +286,12 @@ export const ConfigPage: React.FC = () => {
 
       if (productsResult?.products) {
         // Fetch indicator counts per product from actual data
-        const countPromises = productsResult.products.map((p: any) =>
+        const countPromises = productsResult.products.map((p: Product) =>
           api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
         )
         const counts = await Promise.all(countPromises)
 
-        const productList: ProductItem[] = productsResult.products.map((p: any, index: number) => ({
+        const productList: ProductItem[] = productsResult.products.map((p: Product, index: number) => ({
           id: String(index + 1),
           name: p.name,
           code: p.code,
@@ -310,6 +347,12 @@ export const ConfigPage: React.FC = () => {
     setSaveResult(null)
   }
 
+  const handleFtaConfigChange = (field: keyof FTAConfig, value: string | number) => {
+    setFtaConfig(prev => ({ ...prev, [field]: value }))
+    setTestResult(null)
+    setSaveResult(null)
+  }
+
   const handleTestConnection = async () => {
     setConfigLoading(true)
     setTestResult(null)
@@ -318,6 +361,8 @@ export const ConfigPage: React.FC = () => {
       let result
       if (instrumentInfo.type === 'mdb') {
         result = await api.testMDBConnection(mdbConfig)
+      } else if (instrumentInfo.type === 'fta') {
+        result = await api.testFTAConnection(ftaConfig)
       } else {
         result = await api.testDBConnection(dbConfig)
       }
@@ -338,6 +383,8 @@ export const ConfigPage: React.FC = () => {
       let result
       if (instrumentInfo.type === 'mdb') {
         result = await api.updateMDBConfig({ ...mdbConfig, enabled: true })
+      } else if (instrumentInfo.type === 'fta') {
+        result = await api.updateFTAConfig({ ...ftaConfig })
       } else {
         result = await api.updateDBConfig({ ...dbConfig, enabled: true })
       }
@@ -821,6 +868,7 @@ export const ConfigPage: React.FC = () => {
                         className={`${styles.toggle} ${rule.enabled ? styles.toggleActive : ''}`}
                         onClick={() => toggleNelsonRule(rule.id)}
                         title={rule.enabled ? '点击禁用' : '点击启用'}
+                        aria-pressed={rule.enabled}
                       >
                         <span className={styles.toggleDot} />
                       </button>
@@ -855,26 +903,25 @@ export const ConfigPage: React.FC = () => {
               </span>
               <span className={styles.instrumentName}>{instrument.name}</span>
               <span className={styles.instrumentType}>
-                {instrument.type === 'mock' ? '模拟数据' : instrument.type === 'mdb' ? 'MDB 文件' : 'SQL Server'}
+                {instrument.type === 'mock' ? '模拟数据' : instrument.type === 'mdb' ? 'MDB 文件' : instrument.type === 'fta' ? 'FTA SQL Server' : 'FT1 SQL Server'}
               </span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── SQL Server Configuration (for FT1/FTA) ── */}
-      {(currentInstrument === 'ft1' || currentInstrument === 'fta') && (
+      {/* ── FT1 SQL Server Configuration ── */}
+      {currentInstrument === 'ft1' && (
         <div className={styles.dbConfigSection}>
           <div className={styles.dbConfigHeader}>
             <span className={styles.dbConfigTitle}>
               <span className={styles.cardTitleDot} />
-              SQL Server 连接配置
+              FT1 乳品分析仪 — 数据库配置
             </span>
-            <StatusTag label={currentInstrument.toUpperCase()} color="blue" />
+            <StatusTag label="FT1" color="blue" />
           </div>
 
-          <div className={styles.dbConfigForm}>
-            {/* Row 1: Server & Database */}
+          <div className={styles.dbConfigForm} role="group" aria-label="FT1 数据库配置">
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>
@@ -887,8 +934,9 @@ export const ConfigPage: React.FC = () => {
                   value={dbConfig.server}
                   onChange={e => handleDbConfigChange('server', e.target.value)}
                   placeholder="例: XTZJ-20230331ga\MSCFT1SQLSERVER,49382"
+                  aria-label="服务器地址"
                 />
-                <span className={styles.formHint}>格式: 主机名\实例名,端口</span>
+                <span className={styles.formHint}>格式: 主机名\实例名,端口（FT1 专用 SQL Server 实例）</span>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>
@@ -901,11 +949,12 @@ export const ConfigPage: React.FC = () => {
                   value={dbConfig.database}
                   onChange={e => handleDbConfigChange('database', e.target.value)}
                   placeholder="例: MSCFT1"
+                  aria-label="数据库名称"
                 />
+                <span className={styles.formHint}>FT1 默认数据库: MSCFT1</span>
               </div>
             </div>
 
-            {/* Row 2: Auth Type & Driver */}
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>认证方式</label>
@@ -913,6 +962,7 @@ export const ConfigPage: React.FC = () => {
                   className={styles.formSelect}
                   value={dbConfig.auth_type}
                   onChange={e => handleDbConfigChange('auth_type', e.target.value)}
+                  aria-label="认证方式"
                 >
                   <option value="windows">Windows 认证 (SSPI)</option>
                   <option value="sql">SQL Server 认证</option>
@@ -924,6 +974,7 @@ export const ConfigPage: React.FC = () => {
                   className={styles.formSelect}
                   value={dbConfig.driver}
                   onChange={e => handleDbConfigChange('driver', e.target.value)}
+                  aria-label="ODBC 驱动"
                 >
                   <option value="ODBC Driver 17 for SQL Server">ODBC Driver 17</option>
                   <option value="ODBC Driver 18 for SQL Server">ODBC Driver 18</option>
@@ -932,7 +983,6 @@ export const ConfigPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 3: Username & Password (SQL auth only) */}
             {dbConfig.auth_type === 'sql' && (
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
@@ -946,6 +996,7 @@ export const ConfigPage: React.FC = () => {
                     value={dbConfig.username}
                     onChange={e => handleDbConfigChange('username', e.target.value)}
                     placeholder="SQL Server 登录用户名"
+                    aria-label="用户名"
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -959,12 +1010,12 @@ export const ConfigPage: React.FC = () => {
                     value={dbConfig.password}
                     onChange={e => handleDbConfigChange('password', e.target.value)}
                     placeholder="SQL Server 登录密码"
+                    aria-label="密码"
                   />
                 </div>
               </div>
             )}
 
-            {/* Row 4: Timeout */}
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>连接超时 (秒)</label>
@@ -975,11 +1026,15 @@ export const ConfigPage: React.FC = () => {
                   onChange={e => handleDbConfigChange('timeout', parseInt(e.target.value) || 30)}
                   min="5"
                   max="120"
+                  aria-label="连接超时（秒）"
                 />
               </div>
             </div>
 
-            {/* Action Buttons */}
+            <div className={styles.formHint} style={{ margin: '8px 0 12px', padding: '8px 12px', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: 6, fontSize: 13 }}>
+              <strong>FT1 数据库结构:</strong> 支持两种模式 — <b>四表关联</b>（Sample、Product、Component、Prediction）和<b>单表宽表</b>模式，具体映射通过字段映射配置文件定义
+            </div>
+
             <div className={styles.formActions}>
               <button
                 className={`${styles.btn} ${styles.btnSecondary}`}
@@ -997,7 +1052,162 @@ export const ConfigPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Result Messages */}
+            {testResult && (
+              <div className={`${styles.formMessage} ${testResult.success ? styles.formMessageSuccess : styles.formMessageError}`}>
+                {testResult.message}
+              </div>
+            )}
+            {saveResult && (
+              <div className={`${styles.formMessage} ${saveResult.success ? styles.formMessageSuccess : styles.formMessageError}`}>
+                {saveResult.message}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── FTA (Perten) SQL Server Configuration ── */}
+      {currentInstrument === 'fta' && (
+        <div className={styles.dbConfigSection}>
+          <div className={styles.dbConfigHeader}>
+            <span className={styles.dbConfigTitle}>
+              <span className={styles.cardTitleDot} />
+              FTA (Perten) 乳品分析仪 — 数据库配置
+            </span>
+            <StatusTag label="FTA (Perten)" color="orange" />
+          </div>
+
+          <div className={styles.dbConfigForm} role="group" aria-label="FTA 数据库配置">
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  服务器地址
+                  <span className={styles.formRequired}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={ftaConfig.server}
+                  onChange={e => handleFtaConfigChange('server', e.target.value)}
+                  placeholder="例: XTZJ-20230331ga\Perten,1433"
+                  aria-label="服务器地址"
+                />
+                <span className={styles.formHint}>格式: 主机名\实例名,端口（Perten 专用 SQL Server 实例）</span>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  数据库名称
+                  <span className={styles.formRequired}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={ftaConfig.database}
+                  onChange={e => handleFtaConfigChange('database', e.target.value)}
+                  placeholder="例: Pert_Application"
+                  aria-label="数据库名称"
+                />
+                <span className={styles.formHint}>FTA 默认数据库: Pert_Application</span>
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>认证方式</label>
+                <select
+                  className={styles.formSelect}
+                  value={ftaConfig.auth_type}
+                  onChange={e => handleFtaConfigChange('auth_type', e.target.value)}
+                  aria-label="认证方式"
+                >
+                  <option value="sql">SQL Server 认证</option>
+                  <option value="windows">Windows 认证 (SSPI)</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>ODBC 驱动</label>
+                <select
+                  className={styles.formSelect}
+                  value={ftaConfig.driver}
+                  onChange={e => handleFtaConfigChange('driver', e.target.value)}
+                  aria-label="ODBC 驱动"
+                >
+                  <option value="ODBC Driver 17 for SQL Server">ODBC Driver 17</option>
+                  <option value="ODBC Driver 18 for SQL Server">ODBC Driver 18</option>
+                  <option value="SQL Server">SQL Server (旧版)</option>
+                </select>
+              </div>
+            </div>
+
+            {ftaConfig.auth_type === 'sql' && (
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>
+                    用户名
+                    <span className={styles.formRequired}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    value={ftaConfig.username}
+                    onChange={e => handleFtaConfigChange('username', e.target.value)}
+                    placeholder="SQL Server 登录用户名"
+                    aria-label="用户名"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>
+                    密码
+                    <span className={styles.formRequired}>*</span>
+                  </label>
+                  <input
+                    type="password"
+                    className={styles.formInput}
+                    value={ftaConfig.password}
+                    onChange={e => handleFtaConfigChange('password', e.target.value)}
+                    placeholder="SQL Server 登录密码"
+                    aria-label="密码"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>连接超时 (秒)</label>
+                <input
+                  type="number"
+                  className={styles.formInput}
+                  value={ftaConfig.timeout}
+                  onChange={e => handleFtaConfigChange('timeout', parseInt(e.target.value) || 30)}
+                  min="5"
+                  max="120"
+                  aria-label="连接超时（秒）"
+                />
+              </div>
+            </div>
+
+            <div className={styles.formHint} style={{ margin: '8px 0 12px', padding: '8px 12px', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: 6, fontSize: 13 }}>
+              <strong>FTA 数据库结构:</strong> EstimateEvent（样本事件）、Estimate（测量结果）、AnalysisParameter（指标定义）、Product（产品）
+            </div>
+
+            <div className={styles.formActions}>
+              <button
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                onClick={handleTestConnection}
+                disabled={configLoading || !ftaConfig.server || !ftaConfig.database}
+              >
+                {configLoading ? '测试中...' : '测试连接'}
+              </button>
+              <button
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                onClick={handleSaveConfig}
+                disabled={configLoading || !ftaConfig.server || !ftaConfig.database}
+              >
+                {configLoading ? '保存中...' : '保存配置'}
+              </button>
+            </div>
+
             {testResult && (
               <div className={`${styles.formMessage} ${testResult.success ? styles.formMessageSuccess : styles.formMessageError}`}>
                 {testResult.message}
@@ -1023,7 +1233,7 @@ export const ConfigPage: React.FC = () => {
             <StatusTag label="FT120" color="blue" />
           </div>
 
-          <div className={styles.dbConfigForm}>
+          <div className={styles.dbConfigForm} role="group" aria-label="MDB 文件配置">
             {/* Row 1: MDB File Path */}
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
@@ -1039,6 +1249,7 @@ export const ConfigPage: React.FC = () => {
                     value={mdbConfig.mdb_path}
                     onChange={e => handleMdbConfigChange('mdb_path', e.target.value)}
                     placeholder="例: /mnt/d/数据/ft120.mdb 或 C:\Data\ft120.mdb"
+                    aria-label="MDB 文件路径"
                   />
                   <label className={`${styles.btn} ${styles.btnSecondary}`} style={{ cursor: 'pointer', whiteSpace: 'nowrap', margin: 0 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1072,6 +1283,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.sample_table}
                   onChange={e => handleMdbConfigChange('sample_table', e.target.value)}
                   placeholder="Sample"
+                  aria-label="样本表名"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -1082,6 +1294,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.product_table}
                   onChange={e => handleMdbConfigChange('product_table', e.target.value)}
                   placeholder="Product"
+                  aria-label="产品表名"
                 />
               </div>
             </div>
@@ -1096,6 +1309,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.component_table}
                   onChange={e => handleMdbConfigChange('component_table', e.target.value)}
                   placeholder="Component"
+                  aria-label="组件/指标表名"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -1106,6 +1320,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.prediction_table}
                   onChange={e => handleMdbConfigChange('prediction_table', e.target.value)}
                   placeholder="Prediction"
+                  aria-label="预测/结果表名"
                 />
               </div>
             </div>
@@ -1120,6 +1335,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.time_column}
                   onChange={e => handleMdbConfigChange('time_column', e.target.value)}
                   placeholder="DateTime"
+                  aria-label="时间列名"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -1130,6 +1346,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.product_ref_column}
                   onChange={e => handleMdbConfigChange('product_ref_column', e.target.value)}
                   placeholder="ProdRef"
+                  aria-label="产品引用列名"
                 />
               </div>
             </div>
@@ -1144,6 +1361,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.product_name_column}
                   onChange={e => handleMdbConfigChange('product_name_column', e.target.value)}
                   placeholder="Name"
+                  aria-label="产品名称列名"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -1154,6 +1372,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.component_ref_column}
                   onChange={e => handleMdbConfigChange('component_ref_column', e.target.value)}
                   placeholder="CompRef"
+                  aria-label="组件引用列名"
                 />
               </div>
             </div>
@@ -1168,6 +1387,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.component_name_column}
                   onChange={e => handleMdbConfigChange('component_name_column', e.target.value)}
                   placeholder="Name"
+                  aria-label="组件名称列名"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -1178,6 +1398,7 @@ export const ConfigPage: React.FC = () => {
                   value={mdbConfig.value_column}
                   onChange={e => handleMdbConfigChange('value_column', e.target.value)}
                   placeholder="Value"
+                  aria-label="测量值列名"
                 />
               </div>
             </div>
@@ -1223,7 +1444,7 @@ export const ConfigPage: React.FC = () => {
       {/* ── Confirmation Dialog ── */}
       {showConfirmDialog && initStatus && (
         <div className={styles.confirmOverlay}>
-          <div className={styles.confirmDialog}>
+          <div className={styles.confirmDialog} role="dialog" aria-modal="true" aria-label="数据源确认">
             <div className={styles.confirmHeader}>
               <h3>数据源确认</h3>
               <button className={styles.confirmClose} onClick={handleCancelConfirm}>×</button>
@@ -1313,7 +1534,7 @@ export const ConfigPage: React.FC = () => {
       {/* ── Product Dialog ── */}
       {showProductDialog && (
         <div className={styles.confirmOverlay}>
-          <div className={styles.confirmDialog} style={{ maxWidth: '700px' }}>
+          <div className={styles.confirmDialog} style={{ maxWidth: '700px' }} role="dialog" aria-modal="true" aria-label={editingProduct ? '编辑品项' : '新增品项'}>
             <div className={styles.confirmHeader}>
               <h3>{editingProduct ? '编辑品项' : '新增品项'}</h3>
               <button className={styles.confirmClose} onClick={() => setShowProductDialog(false)}>×</button>
@@ -1335,6 +1556,7 @@ export const ConfigPage: React.FC = () => {
                       value={newProduct.name}
                       onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="例: 砖纯牛奶"
+                      aria-label="品项名称"
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -1348,6 +1570,7 @@ export const ConfigPage: React.FC = () => {
                       value={newProduct.code}
                       onChange={e => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
                       placeholder="例: FT1-STD"
+                      aria-label="品项编码"
                     />
                   </div>
                 </div>
@@ -1370,6 +1593,7 @@ export const ConfigPage: React.FC = () => {
                     value={productAlias}
                     onChange={e => setProductAlias(e.target.value)}
                     placeholder="可选，配置后界面上显示此别名"
+                    aria-label="品项别名"
                   />
                 </div>
               </div>
@@ -1495,3 +1719,4 @@ export const ConfigPage: React.FC = () => {
     </div>
   )
 }
+export default ConfigPage

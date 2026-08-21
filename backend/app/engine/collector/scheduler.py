@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime
 from typing import Callable, Optional, Dict, Any
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -22,7 +23,8 @@ class AdaptiveScheduler:
         self.current_level = 0
         self.last_collect_time: Optional[datetime] = None
         self.last_record_count = 0
-        self.is_collecting = False
+        self._collect_lock = threading.Lock()
+        self._is_collecting = False
         self.job = None
     
     @property
@@ -73,11 +75,14 @@ class AdaptiveScheduler:
         logger.info(f"采集频率调整为: L{level} = {interval} 分钟")
     
     def _run_collection(self):
-        if self.is_collecting:
+        if self._is_collecting:
             logger.warning("上一次采集尚未完成，跳过本次")
             return
-        
-        self.is_collecting = True
+        with self._collect_lock:
+            if self._is_collecting:
+                logger.warning("上一次采集尚未完成，跳过本次")
+                return
+            self._is_collecting = True
         try:
             result = self.collect_func()
             count = result.get("new_records", 0)
@@ -105,7 +110,7 @@ class AdaptiveScheduler:
         except Exception as e:
             logger.error(f"采集异常: {e}", exc_info=True)
         finally:
-            self.is_collecting = False
+            self._is_collecting = False
     
     def trigger_manual(self) -> Dict[str, Any]:
         logger.info("手动采集触发")
@@ -135,7 +140,7 @@ class AdaptiveScheduler:
         return {
             "current_level": self.current_level,
             "current_interval_minutes": self.current_interval,
-            "is_collecting": self.is_collecting,
+            "is_collecting": self._is_collecting,
             "last_collect_time": self.last_collect_time.isoformat() if self.last_collect_time else None,
             "last_record_count": self.last_record_count,
             "next_collect_time": self.next_collect_time.isoformat() if self.next_collect_time else None,

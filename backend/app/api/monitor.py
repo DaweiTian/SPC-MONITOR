@@ -10,7 +10,7 @@ scheduler = None
 collector = None
 
 @router.get("/dashboard")
-async def get_dashboard():
+def get_dashboard():
     if scheduler and not scheduler.scheduler.running:
         scheduler.start()
     
@@ -35,7 +35,7 @@ async def get_dashboard():
     }
 
 @router.get("/status")
-async def get_status():
+def get_status():
     status = scheduler.get_status() if scheduler else {}
     # Include connection status from source_status
     from backend.app.api.config import _source_status
@@ -45,12 +45,12 @@ async def get_status():
     return status
 
 @router.post("/collect/manual")
-async def manual_collect():
+def manual_collect():
     result = scheduler.trigger_manual() if scheduler else {"status": "no_scheduler"}
     return result
 
 @router.get("/products")
-async def get_products():
+def get_products():
     if not collector:
         return {"products": []}
     
@@ -89,17 +89,17 @@ async def get_products():
     return {"products": unique}
 
 @router.get("/products/{product_code}/indicator-count")
-async def get_product_indicator_count(product_code: str):
+def get_product_indicator_count(product_code: str):
     count = storage.get_product_indicator_count(product_code)
     return {"count": count}
 
 @router.get("/products/{product_code}/indicator-codes")
-async def get_product_indicator_codes(product_code: str):
+def get_product_indicator_codes(product_code: str):
     codes = storage.get_product_indicator_codes(product_code)
     return {"codes": codes}
 
 @router.post("/products/snapshot-indicators")
-async def snapshot_product_indicators():
+def snapshot_product_indicators():
     """初始化时扫描数据库，保存每个品项有数据的指标编码（一次性操作）"""
     mapping = storage.get_all_product_indicator_codes()
     from backend.app.api.config import _save_json_config
@@ -107,13 +107,13 @@ async def snapshot_product_indicators():
     return {"success": True, "count": len(mapping), "mapping": mapping}
 
 @router.get("/products/saved-indicators")
-async def get_saved_indicators():
+def get_saved_indicators():
     """读取已保存的品项指标配置"""
     from backend.app.api.config import _load_json_config
     return _load_json_config("product_indicators.json", {})
 
 @router.put("/products/saved-indicators/{product_code}")
-async def update_saved_indicators(product_code: str, body: dict):
+def update_saved_indicators(product_code: str, body: dict):
     """更新单个品项的指标编码列表"""
     codes = body.get("codes", [])
     from backend.app.api.config import _load_json_config, _save_json_config
@@ -126,11 +126,11 @@ async def update_saved_indicators(product_code: str, body: dict):
     return {"success": True}
 
 @router.get("/indicators")
-async def get_indicators():
+def get_indicators():
     return {"indicators": collector.get_indicators() if collector else []}
 
 @router.get("/data/recent")
-async def get_recent_data(
+def get_recent_data(
     indicator_code: str = Query(...),
     product_code: str = Query(...),
     limit: int = Query(100, le=500),

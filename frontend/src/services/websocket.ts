@@ -1,4 +1,4 @@
-type MessageHandler = (data: any) => void
+type MessageHandler = (data: Record<string, unknown>) => void
 
 class WebSocketService {
   private ws: WebSocket | null = null
@@ -19,7 +19,8 @@ class WebSocketService {
 
     const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${wsHost}/api/ws`
+    const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
+    const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`
 
     try {
       this.ws = new WebSocket(wsUrl)
@@ -58,13 +59,7 @@ class WebSocketService {
 
       this.ws.onerror = (error) => {
         this._connected = false
-        this.retryCount++
-        if (this.retryCount > this.maxRetries) {
-          console.log('WebSocket 重连次数超限，停止重连')
-          this.ws?.close()
-          return
-        }
-        console.warn(`WebSocket 连接失败 (${this.retryCount}/${this.maxRetries})`)
+        console.warn('WebSocket 连接错误')
         this.ws?.close()
       }
     } catch (e) {
@@ -101,7 +96,7 @@ class WebSocketService {
     }
   }
 
-  private emit(event: string, data: any) {
+  private emit(event: string, data: Record<string, unknown>) {
     const handlers = this.handlers.get(event)
     if (handlers) {
       handlers.forEach(handler => handler(data))

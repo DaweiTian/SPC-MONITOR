@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
-import { useProducts, useIndicators } from '../../hooks'
+import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import type { MonitorData } from '../../types'
 import styles from './Data.module.css'
 
@@ -9,28 +9,19 @@ const PAGE_SIZE = 20
 export const DataPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
+  const { aliases, productStatus, specLimits } = useAppMetadata()
 
   const today = new Date().toISOString().split('T')[0]
   const [data, setData] = useState<MonitorData[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
-  const [productStatus, setProductStatus] = useState<Record<string, string>>({})
-  const [specLimits, setSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number }>>>({})
 
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
     date: today,
   })
-
-  // Load aliases, product status, and spec limits
-  useEffect(() => {
-    api.getAliases().then(setAliases).catch(() => {})
-    api.getProductStatus().then(setProductStatus).catch(() => {})
-    api.getSpecLimits().then(setSpecLimits).catch(() => {})
-  }, [])
 
   // Filter out disabled products
   const enabledProducts = products.filter(p => productStatus[p.code] !== 'disabled')
@@ -131,6 +122,7 @@ export const DataPage: React.FC = () => {
               className={styles.select}
               value={filter.product_code}
               onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
+              aria-label="筛选品项"
             >
               <option value="">全部品项</option>
               {enabledProducts.map(p => (
@@ -141,6 +133,7 @@ export const DataPage: React.FC = () => {
               className={styles.select}
               value={filter.indicator_code}
               onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))}
+              aria-label="筛选指标"
             >
               <option value="">全部指标</option>
               {indicators.map(i => (
@@ -152,6 +145,7 @@ export const DataPage: React.FC = () => {
               type="date"
               value={filter.date}
               onChange={e => setFilter(f => ({ ...f, date: e.target.value }))}
+              aria-label="筛选日期"
             />
             <button className={styles.btnGhost} onClick={() => handleExport('csv')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -170,7 +164,7 @@ export const DataPage: React.FC = () => {
 
         {/* Data table */}
         <div className={styles.tableWrap}>
-          <table className={styles.table}>
+          <table className={styles.table} aria-label="检测数据表">
             <thead>
               <tr>
                 <th>序号</th>
@@ -240,3 +234,5 @@ export const DataPage: React.FC = () => {
     </div>
   )
 }
+
+export default DataPage

@@ -291,6 +291,13 @@
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
+.tagSmallWarning {
+  composes: tagSmall;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--accent-red, #ef4444);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
 .valueGreen {
   color: var(--accent-green);
 }

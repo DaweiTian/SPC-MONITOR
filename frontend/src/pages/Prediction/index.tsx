@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { api } from '../../services'
-import { useProducts, useIndicators } from '../../hooks'
+import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import styles from './Prediction.module.css'
 
 const HORIZON_MAP: Record<string, number> = { '1h': 12, '2h': 24, 'shift': 60 }
@@ -58,8 +58,7 @@ const IconClipboard = () => (
 export const PredictionPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const [productStatus, setProductStatus] = useState<Record<string, string> | null>(null)
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
+  const { aliases, productStatus, specLimits: hookSpecLimits, getIndicatorName } = useAppMetadata()
   const [initialized, setInitialized] = useState(false)
   const [product, setProduct] = useState('')
   const [indicator, setIndicator] = useState('')
@@ -68,32 +67,23 @@ export const PredictionPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
 
-  // Load product status and aliases
-  useEffect(() => {
-    Promise.all([
-      api.getProductStatus(),
-      api.getAliases(),
-    ]).then(([status, aliasData]) => {
-      setProductStatus(status)
-      setAliases(aliasData)
-    }).catch(console.error)
-  }, [])
-
   // Filter out disabled products
   const enabledProducts = useMemo(() =>
-    productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled'),
+    products.filter(p => productStatus[p.code] !== 'disabled'),
     [products, productStatus]
   )
 
   // Initialize product/indicator from Dashboard or first enabled
   useEffect(() => {
-    if (initialized || enabledProducts.length === 0 || productStatus === null) return
-    const dashboardProduct = localStorage.getItem('dashboard_selected_product')
+    if (initialized || enabledProducts.length === 0) return
+    let dashboardProduct: string | null = null
+    try { dashboardProduct = localStorage.getItem('dashboard_selected_product') } catch { /* ignore */ }
     const savedProduct = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
     const initProduct = savedProduct ? savedProduct.code : enabledProducts[0].code
     setProduct(initProduct)
 
-    const savedIndicator = localStorage.getItem('prediction_indicator')
+    let savedIndicator: string | null = null
+    try { savedIndicator = localStorage.getItem('prediction_indicator') } catch { /* ignore */ }
     const initIndicator = savedIndicator && indicators.find(i => i.code === savedIndicator)
       ? savedIndicator
       : (indicators.length > 0 ? indicators[0].code : '')
@@ -148,9 +138,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [initialized, product, indicator, model, horizon, fetchPrediction])
 
-  // Helper: get alias or original name
-  const getIndicatorName = (code: string) =>
-    aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
+  // getIndicatorName provided by useAppMetadata hook
 
   // ====== Prediction Trend Chart ======
   const predictionOption = useMemo(() => {
@@ -241,9 +229,22 @@ export const PredictionPage: React.FC = () => {
 
   const { containerRef: residualChartRef } = useChart(residualOption)
 
+  // ====== Compute risk based on spec limits ======
+  const riskAssessment = useMemo(() => {
+    if (!result || !result.predictions.length) return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
+    const limits = hookSpecLimits[product]?.[indicator]
+    if (limits) {
+      const hasViolation = result.predictions.some(v =>
+        (limits.usl != null && v > limits.usl) || (limits.lsl != null && v < limits.lsl)
+      )
+      if (hasViolation) return { label: '越限风险评估', value: '高风险', tag: 'warning' as const }
+    }
+    return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
+  }, [result, hookSpecLimits, product, indicator])
+
   // ====== Model evaluation data ======
   const modelLabels: Record<string, string> = { ets: '指数平滑 (ETS)', ma: '移动平均 (MA)', arima: 'ARIMA' }
-  const modelEvalRows = result ? [
+  const modelEvalRows: { label: string; value: string; color?: string; tag?: string }[] | null = result ? [
     { label: '预测模型', value: modelLabels[result.model] || result.model },
     { label: 'MAPE (平均绝对百分比误差)', value: result.accuracy.mape != null ? `${result.accuracy.mape.toFixed(2)}%` : 'N/A', color: 'green' },
     { label: 'RMSE (均方根误差)', value: result.accuracy.rmse.toFixed(4), color: 'cyan' },
@@ -251,7 +252,7 @@ export const PredictionPage: React.FC = () => {
     { label: 'R² (决定系数)', value: result.accuracy.r_squared != null ? result.accuracy.r_squared.toFixed(4) : 'N/A', color: 'green' },
     { label: '预测步长', value: `${result.horizon} 步` },
     { label: '历史窗口', value: `${result.historical.length} 个数据点` },
-    { label: '越限风险评估', value: '低风险', tag: 'success' },
+    riskAssessment,
   ] : null
 
   return (
@@ -400,7 +401,7 @@ export const PredictionPage: React.FC = () => {
           </div>
           <div className={styles.panelBody}>
             {modelEvalRows ? (
-            <table className={styles.dataTable}>
+            <table className={styles.dataTable} aria-label="预测模型评估表">
               <tbody>
                 {modelEvalRows.map((row) => (
                   <tr key={row.label}>
@@ -416,6 +417,10 @@ export const PredictionPage: React.FC = () => {
                     >
                       {row.tag === 'success' ? (
                         <span className={styles.tagSmallSuccess}>
+                          {row.value}
+                        </span>
+                      ) : row.tag === 'warning' ? (
+                        <span className={styles.tagSmallWarning}>
                           {row.value}
                         </span>
                       ) : (
@@ -437,3 +442,5 @@ export const PredictionPage: React.FC = () => {
     </div>
   )
 }
+
+export default PredictionPage

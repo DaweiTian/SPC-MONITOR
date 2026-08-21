@@ -19,6 +19,16 @@ const http = axios.create({
   timeout: 120000,
 })
 
+// API key authentication – read from localStorage with fallback to default key
+const DEFAULT_API_KEY = 'ft1-monitor-default-key'
+let apiKey: string
+try {
+  apiKey = localStorage.getItem('ft1_api_key') || DEFAULT_API_KEY
+} catch {
+  apiKey = DEFAULT_API_KEY
+}
+http.defaults.headers.common['X-API-Key'] = apiKey
+
 export const api = {
   getDashboard: () => http.get<DashboardData>('/monitor/dashboard').then(r => r.data),
   getStatus: () => http.get<SchedulerStatus>('/monitor/status').then(r => r.data),
@@ -84,6 +94,13 @@ export const api = {
   exploreMDBStructure: (config: MDBConfig) => http.post('/config/mdb/explore', config).then(r => r.data),
   getMDBTableColumns: (tableName: string) => http.get(`/config/mdb/table/${tableName}/columns`).then(r => r.data),
   getMDBInitStatus: () => http.get('/config/mdb/init-status').then(r => r.data),
+
+  // FTA (Perten) configuration
+  getFTAConfig: () => http.get('/config/fta').then(r => r.data),
+  updateFTAConfig: (config: { server: string; database: string; auth_type: string; driver: string; username: string; password: string; timeout: number }) =>
+    http.put('/config/fta', config).then(r => r.data),
+  testFTAConnection: (config: { server: string; database: string; auth_type: string; driver: string; username: string; password: string; timeout: number }) =>
+    http.post('/config/fta/test', config).then(r => r.data),
 
   // SQL Server relational (4-table) test
   testRelationalConnection: (dbConfig: DBConfig, mappingConfig: FieldMapping) =>

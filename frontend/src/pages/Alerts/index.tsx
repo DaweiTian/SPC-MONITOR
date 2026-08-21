@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useChart } from '../../components/Charts/useChart'
 import { tooltipStyle } from '../../components/Charts/theme'
 import { api } from '../../services'
-import type { Alert } from '../../types'
-import type { EChartsOption } from 'echarts'
+import { escapeHtml } from '../../utils/html'
+import { useAppMetadata } from '../../hooks'
+import type { Alert, EChartsParam } from '../../types'
+import type { EChartsOption, DefaultLabelFormatterCallbackParams } from 'echarts'
 import styles from './Alerts.module.css'
 
 /* ---------- 工具函数 ---------- */
@@ -23,6 +25,7 @@ function dayKey(date: Date): string {
 }
 
 const SEVERITY_CN: Record<string, string> = { CRITICAL: '严重警告', WARNING: '警告', INFO: '提示' }
+// 默认映射（当未配置 alert_rules.json 时使用）
 const RULE_TYPE_CN: Record<string, string> = {
   spc_violation: 'SPC失控',
   out_of_spec: '超规格限',
@@ -30,14 +33,28 @@ const RULE_TYPE_CN: Record<string, string> = {
   mean_shift: '均值偏移',
   high_variation: '变异过大',
   low_cpk: '能力不足',
-  nelson_1: '连续7点同侧',
-  nelson_2: '连续7点递增/递减',
-  nelson_3: '连续14点交替升降',
-  nelson_4: '连续14点同侧',
-  nelson_5: '连续3点中有2点超出2σ',
-  nelson_6: '连续5点中有4点超出1σ',
-  nelson_7: '连续15点在1σ内',
-  nelson_8: '连续8点超出1σ',
+  cpk_below_target: 'CPK预警',
+  cpk_low: 'CPK预警',
+  spec_limit_breach: '规格越限',
+  above_usl: '规格越限',
+  below_lsl: '规格越限',
+  nelson_1: 'Nelson规则1',
+  nelson_2: 'Nelson规则2',
+  nelson_3: 'Nelson规则3',
+  nelson_4: 'Nelson规则4',
+  nelson_5: 'Nelson规则5',
+  nelson_6: 'Nelson规则6',
+  nelson_7: 'Nelson规则7',
+  nelson_8: 'Nelson规则8',
+}
+
+interface AlertRule {
+  id: number
+  rule: string
+  description: string
+  severity: string
+  enabled: boolean
+  rule_type: string
 }
 
 /* ---------- SVG Icons ---------- */
@@ -122,7 +139,7 @@ function TrendChart({ alerts }: { alerts: Alert[] }) {
   )
 }
 
-function PieChart({ alerts }: { alerts: Alert[] }) {
+function PieChart({ alerts, ruleMap }: { alerts: Alert[]; ruleMap: Record<string, AlertRule> }) {
   const distribution = useMemo(() => {
     const map: Record<string, number> = {}
     alerts.forEach((a) => {
@@ -131,15 +148,26 @@ function PieChart({ alerts }: { alerts: Alert[] }) {
     })
     const colors = ['#00d4ff', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
     return Object.entries(map).map(([name, value], idx) => ({
-      name: RULE_TYPE_CN[name] || name,
+      name: ruleMap[name]?.rule || RULE_TYPE_CN[name] || name,
       value,
       itemStyle: { color: colors[idx % colors.length] },
+      description: ruleMap[name]?.description || '',
     }))
-  }, [alerts])
+  }, [alerts, ruleMap])
 
   const option: EChartsOption = useMemo(
     () => ({
-      tooltip: { ...tooltipStyle, trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      tooltip: {
+        ...tooltipStyle,
+        trigger: 'item',
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
+          const desc = p.data?.description as string | undefined
+          return desc
+            ? `<strong>${escapeHtml(p.name)}</strong><br/>${escapeHtml(String(p.value))} 条 (${escapeHtml(String(p.percent))}%)<br/><span style="color:#94a3b8;font-size:12px">${escapeHtml(desc)}</span>`
+            : `<strong>${escapeHtml(p.name)}</strong><br/>${escapeHtml(String(p.value))} 条 (${escapeHtml(String(p.percent))}%)`
+        },
+      },
       legend: { orient: 'vertical', right: 8, top: 'center', textStyle: { color: '#8b95a7', fontSize: 11 }, itemWidth: 10, itemHeight: 10, itemGap: 12 },
       series: [{
         type: 'pie', radius: ['48%', '78%'], center: ['38%', '50%'],
@@ -168,6 +196,7 @@ function PieChart({ alerts }: { alerts: Alert[] }) {
 
 export const AlertsPage: React.FC = () => {
   const navigate = useNavigate()
+  const { aliases } = useAppMetadata()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [overviewAlerts, setOverviewAlerts] = useState<Alert[]>([])
   const [total, setTotal] = useState(0)
@@ -182,16 +211,16 @@ export const AlertsPage: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [batchConfirm, setBatchConfirm] = useState(false)
   const [batchNote, setBatchNote] = useState('')
-  const [aliases, setAliases] = useState<{ products: Record<string, string>; indicators: Record<string, string> }>({ products: {}, indicators: {} })
   const [alertProducts, setAlertProducts] = useState<string[]>([])
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([])
 
-  // Load aliases and alert product list
+  // Load alert product list and alert rules
   useEffect(() => {
     Promise.all([
-      api.getAliases(),
       api.getAlertProducts(),
-    ]).then(([aliasData, prodData]) => {
-      setAliases(aliasData)
+      api.getAlertRules().catch(() => ({ rules: [] })),
+    ]).then(([prodData, rulesData]) => {
+      setAlertRules(rulesData.rules || [])
       setAlertProducts(prodData.products || [])
     }).catch(console.error)
   }, [])
@@ -297,6 +326,13 @@ export const AlertsPage: React.FC = () => {
   const getProductName = (code: string) => aliases.products[code] || code || '-'
   const getIndicatorName = (code: string) => aliases.indicators[code] || code || '-'
 
+  /* ---- 规则映射 ---- */
+  const ruleMap = useMemo(() => {
+    const map: Record<string, AlertRule> = {}
+    alertRules.forEach(r => { map[r.rule_type] = r })
+    return map
+  }, [alertRules])
+
   /* ---- 渲染 ---- */
   const renderSeverity = (severity: string) => {
     const cls = severity === 'CRITICAL' ? styles.badgeCritical : severity === 'WARNING' ? styles.badgeWarning : styles.badgeInfo
@@ -304,13 +340,16 @@ export const AlertsPage: React.FC = () => {
   }
 
   const renderRuleType = (ruleType: string) => {
-    const label = RULE_TYPE_CN[ruleType] || ruleType || '-'
-    const cls = ruleType === 'spc_violation' || ruleType === 'out_of_spec' || ruleType?.startsWith('nelson_')
+    const rule = ruleMap[ruleType]
+    const label = rule?.rule || RULE_TYPE_CN[ruleType] || ruleType || '-'
+    const desc = rule?.description || ''
+    const severity = rule?.severity || ''
+    const cls = severity === 'CRITICAL' || ruleType?.startsWith('nelson_')
       ? styles.ruleCritical
-      : ruleType === 'trend_detected' || ruleType === 'mean_shift'
+      : severity === 'WARNING'
         ? styles.ruleWarning
         : styles.ruleInfo
-    return <span className={`${styles.ruleBadge} ${cls}`}>{label}</span>
+    return <span className={`${styles.ruleBadge} ${cls}`} title={desc || undefined}>{label}</span>
   }
 
   const renderStatus = (alert: Alert) => {
@@ -353,23 +392,23 @@ export const AlertsPage: React.FC = () => {
       {/* ---- 图表 ---- */}
       <div className={styles.chartsRow}>
         <TrendChart alerts={overviewAlerts} />
-        <PieChart alerts={overviewAlerts} />
+        <PieChart alerts={overviewAlerts} ruleMap={ruleMap} />
       </div>
 
       {/* ---- 筛选栏 ---- */}
       <div className={styles.filterBar}>
-        <select className={styles.filterSelect} value={filter.severity} onChange={(e) => setFilter({ ...filter, severity: e.target.value })}>
+        <select className={styles.filterSelect} value={filter.severity} onChange={(e) => setFilter({ ...filter, severity: e.target.value })} aria-label="筛选严重程度">
           <option value="">全部严重程度</option>
           <option value="CRITICAL">严重警告</option>
           <option value="WARNING">警告</option>
           <option value="INFO">提示</option>
         </select>
-        <select className={styles.filterSelect} value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
+        <select className={styles.filterSelect} value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} aria-label="筛选状态">
           <option value="">全部状态</option>
           <option value="pending">待处理</option>
           <option value="resolved">已处理</option>
         </select>
-        <select className={styles.filterSelect} value={filter.product} onChange={(e) => setFilter({ ...filter, product: e.target.value })}>
+        <select className={styles.filterSelect} value={filter.product} onChange={(e) => setFilter({ ...filter, product: e.target.value })} aria-label="筛选品项">
           <option value="">全部品项</option>
           {alertProducts.map(p => <option key={p} value={p}>{getProductName(p)}</option>)}
         </select>
@@ -379,6 +418,7 @@ export const AlertsPage: React.FC = () => {
           placeholder="搜索品项/指标/描述..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
+          aria-label="搜索预警"
         />
         <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '' }); setSearchInput('') }}>重置</button>
         {selected.size > 0 && (
@@ -390,7 +430,7 @@ export const AlertsPage: React.FC = () => {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <span className={styles.tableTitle}>预警记录</span>
-          <span className={styles.tableCount}>共 {total} 条</span>
+          <span className={styles.tableCount} aria-live="polite">共 {total} 条</span>
         </div>
         {loading ? (
           <div className={styles.loadingOverlay}><div className={styles.spinner} />加载中...</div>
@@ -398,7 +438,7 @@ export const AlertsPage: React.FC = () => {
           <div className={styles.emptyState}>暂无预警记录</div>
         ) : (
           <div className={styles.tableWrapper}>
-            <table className={styles.table}>
+            <table className={styles.table} aria-label="预警记录表">
               <thead>
                 <tr>
                   <th style={{ width: 36 }}><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
@@ -460,11 +500,11 @@ export const AlertsPage: React.FC = () => {
       {/* ---- 单条处理弹窗 ---- */}
       {confirmId && (
         <div className={styles.modalOverlay} onClick={() => setConfirmId(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="处理预警">
             <div className={styles.modalTitle}>处理预警</div>
             <div className={styles.modalBody}>
               <p>确认处理此预警？处理后状态将变更为已处理。</p>
-              <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} />
+              <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} aria-label="处理备注" />
             </div>
             <div className={styles.modalActions}>
               <button className={styles.modalCancel} onClick={() => setConfirmId(null)}>取消</button>
@@ -477,11 +517,11 @@ export const AlertsPage: React.FC = () => {
       {/* ---- 批量处理弹窗 ---- */}
       {batchConfirm && (
         <div className={styles.modalOverlay} onClick={() => setBatchConfirm(false)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="批量处理预警">
             <div className={styles.modalTitle}>批量处理预警</div>
             <div className={styles.modalBody}>
               <p>确认批量处理选中的 {selected.size} 条预警？</p>
-              <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={batchNote} onChange={(e) => setBatchNote(e.target.value)} rows={3} />
+              <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={batchNote} onChange={(e) => setBatchNote(e.target.value)} rows={3} aria-label="批量处理备注" />
             </div>
             <div className={styles.modalActions}>
               <button className={styles.modalCancel} onClick={() => setBatchConfirm(false)}>取消</button>
@@ -493,3 +533,5 @@ export const AlertsPage: React.FC = () => {
     </div>
   )
 }
+
+export default AlertsPage
