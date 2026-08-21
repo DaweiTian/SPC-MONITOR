@@ -1,5 +1,10 @@
 # 液奶过程监控系统 — Tauri v2 升级 + 桌面小组件 设计规格
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/tauri-v2-upgrade.md)
+
 > **版本**: 1.0 | **日期**: 2026-08-21 | **状态**: 待审批
 
 ---

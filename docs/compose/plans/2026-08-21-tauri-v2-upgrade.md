@@ -1,5 +1,10 @@
 # Tauri v2 升级 + 桌面小组件 实施计划
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/tauri-v2-upgrade.md)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将 FT1-MONITOR 启动器从 Tauri v1 升级到 v2，实现 Mica 窗口特效、桌面半透明小组件、启动等待动画，后端打包从 PyInstaller 切换到 Nuitka。
