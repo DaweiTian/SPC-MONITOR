@@ -100,16 +100,22 @@
       valCpk.textContent = typeof cpk === 'number' ? cpk.toFixed(2) : cpk;
       // Trend arrow
       const cpkTrend = data.cpk_trend ?? data.cpk_change ?? 0;
+      trendCpk.replaceChildren();
+      const trendSpan = document.createElement('span');
       if (cpkTrend > 0) {
-        trendCpk.innerHTML = '<span class="trend-up">&#9650; +' + cpkTrend.toFixed(2) + '</span>';
+        trendSpan.className = 'trend-up';
+        trendSpan.textContent = '▲ +' + cpkTrend.toFixed(2);
       } else if (cpkTrend < 0) {
-        trendCpk.innerHTML = '<span class="trend-down">&#9660; ' + cpkTrend.toFixed(2) + '</span>';
+        trendSpan.className = 'trend-down';
+        trendSpan.textContent = '▼ ' + cpkTrend.toFixed(2);
       } else {
-        trendCpk.innerHTML = '<span class="trend-flat">&#9644;</span>';
+        trendSpan.className = 'trend-flat';
+        trendSpan.textContent = '▬';
       }
+      trendCpk.appendChild(trendSpan);
     } else {
       valCpk.textContent = '--';
-      trendCpk.innerHTML = '';
+      trendCpk.replaceChildren();
     }
 
     // CV%
@@ -144,7 +150,11 @@
 
   function renderAlerts(alerts) {
     if (!alerts || alerts.length === 0) {
-      alertsList.innerHTML = '<div class="alert-empty">暂无预警</div>';
+      alertsList.replaceChildren();
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'alert-empty';
+      emptyDiv.textContent = '暂无预警';
+      alertsList.appendChild(emptyDiv);
       return;
     }
 
@@ -376,9 +386,17 @@
     try {
       var eventApi = await getTauriEvent();
       if (eventApi && eventApi.listen) {
-        await eventApi.listen('toggle-widget', function () {
-          // The Rust toggle_widget command handles show/hide,
-          // but if the event reaches us directly, toggle visibility
+        await eventApi.listen('toggle-widget', async function () {
+          var Window = await getTauriWindow();
+          if (Window) {
+            var current = Window.getCurrent();
+            if (await current.isVisible()) {
+              await current.hide();
+            } else {
+              await current.show();
+              await current.setFocus();
+            }
+          }
         });
       }
     } catch (e) {

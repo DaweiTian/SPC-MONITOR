@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -51,6 +51,14 @@
     transition: color 0.2s, background 0.2s;
   }
   .btn-icon:hover { color: #e2e8f0; background: rgba(255,255,255,0.08); }
+  .btn-icon:focus-visible {
+    outline: 2px solid #00d4ff;
+    outline-offset: 2px;
+  }
+  input[type="range"]:focus-visible {
+    outline: 2px solid #00d4ff;
+    outline-offset: 2px;
+  }
 
   /* ── Content ── */
   .content {
@@ -95,8 +103,8 @@
     margin-top: 2px;
     height: 14px;
   }
-  .trend-up { color: #ff6b6b; }
-  .trend-down { color: #51cf66; }
+  .trend-up { color: #51cf66; }
+  .trend-down { color: #ff6b6b; }
   .trend-flat { color: #8b95a7; }
 
   /* ── Status Row ── */
@@ -288,8 +296,8 @@
   <div class="header" data-tauri-drag-region>
     <span class="header-title">FT1 实时看板</span>
     <div class="header-actions">
-      <button class="btn-icon" id="btnSettings" title="设置">&#9881;</button>
-      <button class="btn-icon" id="btnClose" title="关闭">&times;</button>
+      <button class="btn-icon" id="btnSettings" title="设置" aria-label="设置">&#9881;</button>
+      <button class="btn-icon" id="btnClose" title="关闭" aria-label="关闭">&times;</button>
     </div>
   </div>
 
@@ -339,7 +347,7 @@
     <div class="spc-section">
       <div class="section-title">SPC 控制图</div>
       <div class="spc-canvas-wrap">
-        <canvas id="spcCanvas" height="110"></canvas>
+        <canvas id="spcCanvas" height="110" role="img" aria-label="SPC 控制图"></canvas>
       </div>
     </div>
   </div>
@@ -350,7 +358,7 @@
     <div class="setting-item">
       <div class="setting-label">透明度</div>
       <div class="slider-wrap">
-        <input type="range" id="opacitySlider" min="10" max="100" value="85">
+        <input type="range" id="opacitySlider" min="10" max="100" value="85" aria-label="窗口透明度">
         <span class="slider-value" id="opacityValue">85%</span>
       </div>
     </div>
