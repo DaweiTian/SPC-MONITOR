@@ -20,9 +20,9 @@ python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mo
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 if exist "%BACKEND_DIST%" rmdir /s /q "%BACKEND_DIST%"
-if not exist "ft1-backend-dist\backend\run.dist\run.exe" (echo Nuitka 编译产物不存在 & pause & exit /b 1)
-move /Y "ft1-backend-dist\backend\run.dist\run.exe" "ft1-backend-dist\backend\run.dist\ft1-backend.exe" >nul
-xcopy /E /I /Q /Y ft1-backend-dist\backend\run.dist "%BACKEND_DIST%" >nul
+if not exist "ft1-backend-dist\run.dist\run.exe" (echo Nuitka 编译产物不存在 & pause & exit /b 1)
+move /Y "ft1-backend-dist\run.dist\run.exe" "ft1-backend-dist\run.dist\ft1-backend.exe" >nul
+xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
 REM 复制配置文件
 for %%f in ("%PROJECT_DIR%*.json") do copy /Y "%%f" "%BACKEND_DIST%\" >nul 2>nul
