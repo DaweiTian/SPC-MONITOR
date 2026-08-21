@@ -6,11 +6,14 @@ use tauri::{
 };
 
 pub fn create_system_tray() -> SystemTray {
-    let quit = CustomMenuItem::new("quit".to_string(), "退出");
     let show = CustomMenuItem::new("show".to_string(), "显示窗口");
     let start = CustomMenuItem::new("start".to_string(), "启动服务");
     let stop = CustomMenuItem::new("stop".to_string(), "停止服务");
     let open_browser = CustomMenuItem::new("open_browser".to_string(), "打开浏览器");
+    let opacity_100 = CustomMenuItem::new("opacity_100".to_string(), "不透明");
+    let opacity_80 = CustomMenuItem::new("opacity_80".to_string(), "80%");
+    let opacity_60 = CustomMenuItem::new("opacity_60".to_string(), "60%");
+    let quit = CustomMenuItem::new("quit".to_string(), "退出");
 
     let tray_menu = SystemTrayMenu::new()
         .add_item(show)
@@ -18,6 +21,10 @@ pub fn create_system_tray() -> SystemTray {
         .add_item(start)
         .add_item(stop)
         .add_item(open_browser)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(opacity_100)
+        .add_item(opacity_80)
+        .add_item(opacity_60)
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(quit);
 
@@ -35,12 +42,8 @@ pub fn create_tray_handler(
             }
             "show" => {
                 if let Some(window) = app.get_window("main") {
-                    if let Err(e) = window.show() {
-                        error!("显示窗口失败: {}", e);
-                    }
-                    if let Err(e) = window.set_focus() {
-                        error!("窗口聚焦失败: {}", e);
-                    }
+                    let _ = window.show();
+                    let _ = window.set_focus();
                 }
             }
             "start" => {
@@ -60,16 +63,27 @@ pub fn create_tray_handler(
                     error!("打开浏览器失败: {}", e);
                 }
             }
+            "opacity_100" => {
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.set_opacity(1.0);
+                }
+            }
+            "opacity_80" => {
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.set_opacity(0.8);
+                }
+            }
+            "opacity_60" => {
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.set_opacity(0.6);
+                }
+            }
             _ => {}
         },
         SystemTrayEvent::LeftClick { .. } => {
             if let Some(window) = app.get_window("main") {
-                if let Err(e) = window.show() {
-                    error!("显示窗口失败: {}", e);
-                }
-                if let Err(e) = window.set_focus() {
-                    error!("窗口聚焦失败: {}", e);
-                }
+                let _ = window.show();
+                let _ = window.set_focus();
             }
         }
         _ => {}

@@ -13,6 +13,7 @@ use service::ServiceManager;
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::fs::File;
 use std::sync::Arc;
+use tauri::Manager;
 
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
@@ -48,8 +49,22 @@ fn main() {
             start_server,
             stop_server,
             is_server_running,
+            set_window_opacity,
         ])
-        .setup(move |_app| {
+        .setup(move |app| {
+            // 拦截关闭事件：关闭时隐藏到托盘，不停止后端
+            let window = app.get_window("main").unwrap();
+            let window_clone = window.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    if let Err(e) = window_clone.hide() {
+                        error!("隐藏窗口失败: {}", e);
+                    }
+                }
+            });
+
+            // 启动后端健康检查线程
             std::thread::spawn(move || {
                 let mut failures = 0u32;
                 loop {
@@ -90,4 +105,11 @@ fn stop_server(service: tauri::State<Arc<ServiceManager>>) -> Result<(), String>
 #[tauri::command]
 fn is_server_running(service: tauri::State<Arc<ServiceManager>>) -> bool {
     service.is_running()
+}
+
+#[tauri::command]
+fn set_window_opacity(window: tauri::Window, opacity: f64) -> Result<(), String> {
+    window
+        .set_opacity(opacity)
+        .map_err(|e| format!("设置透明度失败: {}", e))
 }
