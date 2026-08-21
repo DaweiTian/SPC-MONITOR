@@ -9,6 +9,7 @@ class WebSocketService {
   private readonly maxReconnectDelay = 30000
   private retryCount = 0
   private readonly maxRetries = 5
+  private waitingForFirstSuccess = false
 
   get connected() {
     return this._connected
@@ -20,6 +21,7 @@ class WebSocketService {
     // 每次 connect 重置重连状态
     this.retryCount = 0
     this.reconnectDelay = 1000
+    this.waitingForFirstSuccess = true
 
     // 开发模式走 vite 代理，生产模式用当前页面地址，Tauri 环境直连后端
     const isTauri = '__TAURI__' in window
@@ -36,6 +38,7 @@ class WebSocketService {
         this._connected = true
         this.reconnectDelay = 1000
         this.retryCount = 0
+        this.waitingForFirstSuccess = false
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null
@@ -55,17 +58,19 @@ class WebSocketService {
         this._connected = false
         this.retryCount++
         if (this.retryCount > this.maxRetries) {
-          console.log('WebSocket 重连次数超限，停止重连')
+          if (!this.waitingForFirstSuccess) console.log('WebSocket 重连次数超限，停止重连')
           return
         }
-        console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
+        if (!this.waitingForFirstSuccess) {
+          console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
+        }
         this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
       }
 
-      this.ws.onerror = (error) => {
+      this.ws.onerror = () => {
         this._connected = false
-        console.warn('WebSocket 连接错误')
+        if (!this.waitingForFirstSuccess) console.warn('WebSocket 连接错误')
         this.ws?.close()
       }
     } catch (e) {
