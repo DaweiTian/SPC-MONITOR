@@ -3,6 +3,9 @@ name = "ft1-monitor-launcher"
 version = "1.5.1"
 edition = "2021"
 
+[build-dependencies]
+tauri-build = { version = "1", features = [] }
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 
