@@ -178,3 +178,14 @@ sqlserver_breakpoint.json
 monitor_start.json
 frontend/dist/
 runtime_config.json
+
+# PyInstaller build artifacts
+backend/build/
+backend/dist/
+backend/*.spec.bak
+
+# Bundled backend in launcher (build artifact)
+launcher/ft1-backend/
+
+# Rust build output
+launcher/target/
