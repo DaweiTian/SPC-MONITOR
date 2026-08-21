@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "默认权限",
+  "windows": ["main", "splash", "widget"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:default",
+    "window:default",
+    "window:allow-show",
+    "window:allow-hide",
+    "window:allow-close",
+    "window:allow-set-focus",
+    "window:allow-set-always-on-top",
+    "window:allow-set-size",
+    "window:allow-set-position",
+    "window:allow-create",
+    "window:allow-destroy",
+    "window:allow-set-opacity",
+    "event:default",
+    "tray:default",
+    "menu:default"
+  ]
+}

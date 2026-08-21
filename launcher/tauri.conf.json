@@ -1,58 +1,68 @@
 {
+  "productName": "液奶过程监控系统",
+  "version": "2.0.0",
+  "identifier": "com.ft1.monitor",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devPath": "../frontend/dist",
-    "distDir": "../frontend/dist"
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:5173"
   },
-  "package": {
-    "productName": "液奶过程监控系统",
-    "version": "1.0.0"
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "resources": ["ft1-backend/*"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "header": "nsis/header.bmp",
+        "sidebar": "nsis/sidebar.bmp"
+      }
+    }
   },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
+  "app": {
+    "windows": [
+      {
+        "label": "splash",
+        "title": "正在启动...",
+        "url": "splash.html",
+        "width": 400,
+        "height": 300,
+        "center": true,
+        "decorations": false,
+        "resizable": false,
+        "transparent": true
+      },
+      {
+        "label": "main",
+        "title": "液奶过程监控系统",
+        "url": "index.html",
+        "width": 1200,
+        "height": 800,
+        "visible": false,
+        "resizable": true,
+        "transparent": true,
+        "decorations": true
+      },
+      {
+        "label": "widget",
+        "title": "FT1 看板",
+        "url": "widget.html",
+        "width": 320,
+        "height": 480,
+        "visible": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "skipTaskbar": true
       }
-    },
-    "bundle": {
-      "active": true,
-      "targets": ["nsis"],
-      "identifier": "com.ft1.monitor",
-      "icon": [
-        "icons/icon.ico",
-        "icons/icon.png"
-      ],
-      "resources": [
-        "ft1-backend/*"
-      ],
-      "windows": {
-        "nsis": {
-          "installerIcon": "icons/icon.ico",
-          "header": "nsis/header.bmp",
-          "sidebar": "nsis/sidebar.bmp"
-        }
-      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; connect-src 'self' http://127.0.0.1:*"
-    },
-    "windows": [
-      {
-        "fullscreen": false,
-        "resizable": true,
-        "visible": false,
-        "title": "液奶过程监控系统",
-        "width": 1200,
-        "height": 800,
-        "decorations": true
-      }
-    ],
-    "systemTray": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": false
     }
   }
 }
