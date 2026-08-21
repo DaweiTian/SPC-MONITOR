@@ -121,7 +121,7 @@ impl ServiceManager {
             }
         }
 
-        let url = format!("http://127.0.0.1:{}/health", self.server_port);
+        let url = format!("http://127.0.0.1:{}/api/health", self.server_port);
         let healthy = reqwest::blocking::get(&url)
             .map(|r| r.status().is_success())
             .unwrap_or(false);
