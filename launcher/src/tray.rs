@@ -7,6 +7,12 @@ use tauri::{
     Emitter, Manager,
 };
 
+/// Menu items whose enabled state must reflect server status.
+pub struct TrayMenuItems {
+    pub start: MenuItem<tauri::Wry>,
+    pub stop: MenuItem<tauri::Wry>,
+}
+
 pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
     let start = MenuItem::with_id(app, "start", "启动服务", true, None::<&str>)?;
@@ -14,6 +20,11 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
     let open_browser = MenuItem::with_id(app, "open_browser", "打开浏览器", true, None::<&str>)?;
     let toggle_widget = MenuItem::with_id(app, "toggle_widget", "桌面小组件", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+
+    // Reflect initial server state in menu items
+    let is_running = service_manager.is_running();
+    start.set_enabled(!is_running)?;
+    stop.set_enabled(is_running)?;
 
     let menu = Menu::with_items(
         app,
@@ -28,6 +39,12 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
             &quit,
         ],
     )?;
+
+    // Store menu items in managed state so they can be updated later
+    app.manage(TrayMenuItems {
+        start: start.clone(),
+        stop: stop.clone(),
+    });
 
     let sm = service_manager.clone();
     let _tray = TrayIconBuilder::new("main")
@@ -48,11 +65,17 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
                 "start" => {
                     if let Err(e) = sm.start_server() {
                         error!("启动服务失败: {}", e);
+                    } else if let Some(items) = app.try_state::<TrayMenuItems>() {
+                        items.start.set_enabled(false).ok();
+                        items.stop.set_enabled(true).ok();
                     }
                 }
                 "stop" => {
                     if let Err(e) = sm.stop_server() {
                         error!("停止服务失败: {}", e);
+                    } else if let Some(items) = app.try_state::<TrayMenuItems>() {
+                        items.start.set_enabled(true).ok();
+                        items.stop.set_enabled(false).ok();
                     }
                 }
                 "open_browser" => {

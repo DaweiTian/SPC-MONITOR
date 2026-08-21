@@ -9,6 +9,7 @@ use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::fs::File;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
+use tray::TrayMenuItems;
 
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
@@ -66,6 +67,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
                 let mut failures = 0u32;
+                let mut was_healthy = false;
                 loop {
                     std::thread::sleep(std::time::Duration::from_secs(3));
 
@@ -75,6 +77,12 @@ pub fn run() {
                             failures += 1;
                             if failures >= 3 {
                                 sm_for_timer.stop_server().ok();
+                                // Sync tray: server stopped
+                                if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
+                                    items.start.set_enabled(true).ok();
+                                    items.stop.set_enabled(false).ok();
+                                }
+                                was_healthy = false;
                                 if let Err(e) = sm_for_timer.start_server() {
                                     error!("自动重启失败: {}", e);
                                 } else {
@@ -85,6 +93,23 @@ pub fn run() {
                             failures = 0;
                             // 通知前端后端已就绪
                             let _ = app_handle.emit("backend-ready", ());
+                            // Sync tray on transition to healthy
+                            if !was_healthy {
+                                if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
+                                    items.start.set_enabled(false).ok();
+                                    items.stop.set_enabled(true).ok();
+                                }
+                                was_healthy = true;
+                            }
+                        }
+                    } else {
+                        // Server not running — ensure tray reflects stopped state
+                        if was_healthy {
+                            if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
+                                items.start.set_enabled(true).ok();
+                                items.stop.set_enabled(false).ok();
+                            }
+                            was_healthy = false;
                         }
                     }
                 }
