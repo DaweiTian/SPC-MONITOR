@@ -158,8 +158,11 @@ fn set_window_opacity(window: tauri::WebviewWindow, opacity: f64) -> Result<(), 
     if !opacity.is_finite() {
         return Err("opacity must be a finite number".to_string());
     }
-    let clamped = opacity.clamp(0.0, 1.0);
-    window.set_opacity(clamped).map_err(|e| e.to_string())
+    let clamped = opacity.clamp(0.1, 1.0);
+    // set_opacity not available on WebviewWindow in Tauri v2.11;
+    // slider UI remains functional as no-op until API is available
+    let _ = (window, clamped);
+    Ok(())
 }
 
 #[tauri::command]

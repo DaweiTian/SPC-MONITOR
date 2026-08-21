@@ -47,7 +47,7 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
     });
 
     let sm = service_manager.clone();
-    let _tray = TrayIconBuilder::new("main")
+    let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
         .on_menu_event(move |app, event| {
