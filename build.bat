@@ -15,7 +15,7 @@ call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 
 echo [2/5] Nuitka 编译后端...
 cd /d "%PROJECT_DIR%backend"
-python -m nuitka --standalone --onefile --output-filename=ft1-backend.exe --windows-console-mode=disable --enable-plugin=numpy --enable-plugin=scipy --include-package=fastapi --include-package=uvicorn --include-package=backend --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-data-dir=../data=data --nofollow-import-to=tkinter --nofollow-import-to=matplotlib --nofollow-import-to=PIL --nofollow-import-to=pytest --nofollow-import-to=unittest run.py || (echo 后端编译失败 & pause & exit /b 1)
+python -m nuitka --standalone --onefile --output-filename=ft1-backend.exe --windows-console-mode=disable --enable-plugin=numpy --include-package=fastapi --include-package=uvicorn --include-package=backend --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-data-dir=../data=data --nofollow-import-to=tkinter --nofollow-import-to=matplotlib --nofollow-import-to=PIL --nofollow-import-to=pytest --nofollow-import-to=unittest run.py || (echo 后端编译失败 & pause & exit /b 1)
 
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
