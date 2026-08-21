@@ -2,18 +2,31 @@
 # FT1-MONITOR 后端 PyInstaller 打包配置
 
 import os
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 project_root = os.path.dirname(os.path.abspath(SPEC))
 
+# 收集科学计算库的完整依赖（数据文件 + 二进制 + 隐藏导入）
+libs_to_collect = ['numpy', 'scipy', 'statsmodels', 'pandas', 'sqlalchemy', 'pydantic']
+all_datas = []
+all_binaries = []
+all_hidden = []
+
+for lib in libs_to_collect:
+    try:
+        datas, binaries, hidden = collect_all(lib)
+        all_datas += datas
+        all_binaries += binaries
+        all_hidden += hidden
+    except Exception:
+        pass  # 库未安装时跳过
+
 a = Analysis(
     [os.path.join(project_root, 'run.py')],
     pathex=[project_root],
-    binaries=[],
-    datas=[
-        # 如果有静态数据文件需要打包，在这里添加
-        # (os.path.join(project_root, 'data'), 'data'),
-    ],
+    binaries=all_binaries,
+    datas=all_datas,
     hiddenimports=[
         'uvicorn.logging',
         'uvicorn.loops',
@@ -54,11 +67,11 @@ a = Analysis(
         'backend.app.engine.alert',
         'backend.app.engine.alert.engine',
         'engineio.async_drivers.threading',
-    ],
+    ] + all_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'PIL'],
+    excludes=['tkinter', 'matplotlib', 'PIL', 'pytest', 'unittest'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -77,7 +90,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # 需要控制台输出日志
+    console=True,
     icon=None,
 )
 
