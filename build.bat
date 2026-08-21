@@ -15,7 +15,7 @@ call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 
 echo [2/5] Nuitka 编译后端...
 cd /d "%PROJECT_DIR%backend"
-python -m nuitka --config-file=nuitka.config || (echo 后端编译失败 & pause & exit /b 1)
+python -m nuitka @nuitka.config || (echo 后端编译失败 & pause & exit /b 1)
 
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
