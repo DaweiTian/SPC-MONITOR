@@ -158,6 +158,12 @@ product_status.json
 # Data directory
 data/
 
+# Build tools (NSIS zip)
+launcher/tools/*.zip
+
+# Rust build output
+launcher/target/
+
 # Vite cache
 .vite/
 
