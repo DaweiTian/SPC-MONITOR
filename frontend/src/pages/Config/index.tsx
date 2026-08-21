@@ -774,7 +774,7 @@ export const ConfigPage: React.FC = () => {
                   自适应降级阶梯
                 </div>
                 <div className={styles.freqLadder}>
-                  {frequencyStatus.frequency_ladder.map((freq: number, idx: number) => {
+                  {(frequencyStatus.frequency_ladder || []).map((freq: number, idx: number) => {
                     const isActive = idx === frequencyStatus.current_level
                     const isPast = idx < frequencyStatus.current_level
                     return (
@@ -1497,7 +1497,7 @@ export const ConfigPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {initStatus.recent_records.slice(0, 10).map((record, index) => (
+                      {(initStatus.recent_records || []).slice(0, 10).map((record, index) => (
                         <tr key={index}>
                           <td>{record.product_name}</td>
                           <td>{record.indicator_name}</td>

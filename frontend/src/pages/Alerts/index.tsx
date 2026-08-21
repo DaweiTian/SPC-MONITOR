@@ -229,7 +229,7 @@ export const AlertsPage: React.FC = () => {
   const fetchOverview = useCallback(async () => {
     try {
       const data = await api.getAlerts({ page: 1, page_size: 500 })
-      setOverviewAlerts(data.alerts)
+      setOverviewAlerts(data?.alerts || [])
     } catch (e) {
       console.error('获取总览数据失败:', e)
     }
@@ -255,8 +255,8 @@ export const AlertsPage: React.FC = () => {
         page,
         page_size: pageSize,
       })
-      setAlerts(data.alerts)
-      setTotal(data.total)
+      setAlerts(data?.alerts || [])
+      setTotal(data?.total || 0)
     } catch (e) {
       console.error('获取预警失败:', e)
     } finally {
