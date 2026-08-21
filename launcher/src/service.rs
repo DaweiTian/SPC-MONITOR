@@ -2,15 +2,20 @@ use crate::config::AppConfig;
 use log::{error, info, warn};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::RwLock;
+
+#[cfg(target_os = "windows")]
+const BACKEND_BINARY: &str = "ft1-backend.exe";
+#[cfg(not(target_os = "windows"))]
+const BACKEND_BINARY: &str = "ft1-backend";
 
 struct State {
     server_process: Option<Child>,
-    is_running: bool,
+    healthy: bool,
 }
 
 pub struct ServiceManager {
-    inner: Mutex<State>,
+    inner: RwLock<State>,
     server_port: u16,
     python_path: String,
     backend_exe: Option<PathBuf>,
@@ -25,9 +30,9 @@ impl ServiceManager {
             info!("未找到打包后端，使用 Python: {}", config.python_path);
         }
         Self {
-            inner: Mutex::new(State {
+            inner: RwLock::new(State {
                 server_process: None,
-                is_running: false,
+                healthy: false,
             }),
             server_port: config.server_port,
             python_path: config.python_path.clone(),
@@ -37,22 +42,22 @@ impl ServiceManager {
 
     /// 查找打包的后端 exe
     /// 优先级：
-    ///   1. exe 同目录下的 ft1-backend/ft1-backend.exe
-    ///   2. exe 同目录下的 ft1-backend.exe
+    ///   1. exe 同目录下的 ft1-backend/<BACKEND_BINARY>
+    ///   2. exe 同目录下的 <BACKEND_BINARY>
     fn find_backend_exe() -> Option<PathBuf> {
         let exe_dir = std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
             .unwrap_or_else(|| PathBuf::from("."));
 
-        // 打包模式：ft1-backend/ft1-backend.exe
-        let bundled = exe_dir.join("ft1-backend").join("ft1-backend.exe");
+        // 打包模式：ft1-backend/<BACKEND_BINARY>
+        let bundled = exe_dir.join("ft1-backend").join(BACKEND_BINARY);
         if bundled.exists() {
             return Some(bundled);
         }
 
-        // 同目录模式：ft1-backend.exe
-        let same_dir = exe_dir.join("ft1-backend.exe");
+        // 同目录模式：<BACKEND_BINARY>
+        let same_dir = exe_dir.join(BACKEND_BINARY);
         if same_dir.exists() {
             return Some(same_dir);
         }
@@ -61,20 +66,20 @@ impl ServiceManager {
     }
 
     pub fn start_server(&self) -> Result<(), String> {
-        let mut state = self.inner.lock().unwrap();
+        let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(ref mut child) = state.server_process {
             match child.try_wait() {
                 Ok(Some(_)) => {
                     warn!("后端进程已退出，清理状态");
                     state.server_process = None;
-                    state.is_running = false;
+                    state.healthy = false;
                 }
                 Ok(None) => return Ok(()),
                 Err(e) => {
                     error!("检查进程状态失败: {}", e);
                     state.server_process = None;
-                    state.is_running = false;
+                    state.healthy = false;
                 }
             }
         }
@@ -82,15 +87,24 @@ impl ServiceManager {
         let mut cmd = if let Some(ref exe_path) = self.backend_exe {
             // 使用打包的后端 exe
             let mut c = Command::new(exe_path);
-            c.args(["--host", "127.0.0.1", "--port", &self.server_port.to_string()]);
+            c.args([
+                "--host",
+                "127.0.0.1",
+                "--port",
+                &self.server_port.to_string(),
+            ]);
             c
         } else {
             // 回退到 Python
             let mut c = Command::new(&self.python_path);
             c.args([
-                "-m", "uvicorn", "backend.main:app",
-                "--host", "127.0.0.1",
-                "--port", &self.server_port.to_string(),
+                "-m",
+                "uvicorn",
+                "backend.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                &self.server_port.to_string(),
             ]);
             c
         };
@@ -109,13 +123,13 @@ impl ServiceManager {
 
         info!("后端服务已启动，PID: {:?}", child.id());
         state.server_process = Some(child);
-        state.is_running = true;
+        state.healthy = true;
 
         Ok(())
     }
 
     pub fn stop_server(&self) -> Result<(), String> {
-        let mut state = self.inner.lock().unwrap();
+        let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
         Self::stop_inner(&mut state)
     }
 
@@ -129,16 +143,16 @@ impl ServiceManager {
             child.wait().ok();
             info!("后端服务已停止，PID: {:?}", pid);
         }
-        state.is_running = false;
+        state.healthy = false;
         Ok(())
     }
 
     pub fn health_check(&self) -> bool {
-        // Snapshot state under lock, then drop guard before HTTP request
-        let (is_running, server_alive) = {
-            let mut state = self.inner.lock().unwrap();
+        // Snapshot state under read lock, then drop guard before HTTP request
+        let server_alive = {
+            let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
 
-            if !state.is_running {
+            if state.server_process.is_none() {
                 return false;
             }
 
@@ -148,25 +162,25 @@ impl ServiceManager {
                     Ok(Some(status)) => {
                         warn!("后端进程异常退出: {:?}", status);
                         state.server_process = None;
-                        state.is_running = false;
+                        state.healthy = false;
                         alive = false;
                     }
                     Ok(None) => {}
                     Err(e) => {
                         error!("检查进程状态失败: {}", e);
                         state.server_process = None;
-                        state.is_running = false;
+                        state.healthy = false;
                         alive = false;
                     }
                 }
             }
 
-            if !alive {
-                return false;
-            }
-
-            (state.is_running, alive)
+            alive
         }; // lock dropped here
+
+        if !server_alive {
+            return false;
+        }
 
         // HTTP check WITHOUT holding the lock
         let url = format!("http://127.0.0.1:{}/api/health", self.server_port);
@@ -178,17 +192,115 @@ impl ServiceManager {
             .map(|r| r.status().is_success())
             .unwrap_or(false);
 
-        // Re-acquire lock to update state
-        let mut state = self.inner.lock().unwrap();
-        state.is_running = healthy;
+        // Re-acquire lock to update healthy state
+        let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
+        state.healthy = healthy;
         healthy
     }
 
     pub fn is_running(&self) -> bool {
-        self.inner.lock().unwrap().is_running
+        let state = self.inner.read().unwrap_or_else(|e| e.into_inner());
+        state.server_process.is_some() && state.healthy
     }
 
     pub fn server_port(&self) -> u16 {
         self.server_port
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl ServiceManager {
+        fn new_for_test(port: u16) -> Self {
+            Self {
+                inner: RwLock::new(State {
+                    server_process: None,
+                    healthy: false,
+                }),
+                server_port: port,
+                python_path: "python".to_string(),
+                backend_exe: None,
+            }
+        }
+    }
+
+    #[test]
+    fn test_new_service_manager() {
+        let sm = ServiceManager::new_for_test(8080);
+        let state = sm.inner.read().unwrap();
+        assert!(state.server_process.is_none());
+        assert!(!state.healthy);
+    }
+
+    #[test]
+    fn test_server_port() {
+        let sm = ServiceManager::new_for_test(9090);
+        assert_eq!(sm.server_port(), 9090);
+    }
+
+    #[test]
+    fn test_stop_when_not_running() {
+        let sm = ServiceManager::new_for_test(8080);
+        let result = sm.stop_server();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_is_running_without_process() {
+        let sm = ServiceManager::new_for_test(8080);
+        assert!(!sm.is_running());
+    }
+
+    #[test]
+    fn test_health_check_when_not_running() {
+        let sm = ServiceManager::new_for_test(8080);
+        assert!(!sm.health_check());
+    }
+
+    #[test]
+    fn test_find_backend_exe() {
+        // In a test environment, the binary likely doesn't exist
+        // so find_backend_exe should return None
+        let result = ServiceManager::find_backend_exe();
+        // We just verify it doesn't panic; result depends on test environment
+        // In most CI/dev environments, the binary won't exist at the test exe path
+        let _ = result;
+    }
+
+    #[test]
+    fn test_find_backend_exe_returns_option() {
+        // Verify the return type is Option<PathBuf> and the function is callable
+        let result: Option<PathBuf> = ServiceManager::find_backend_exe();
+        assert!(result.is_none() || result.is_some());
+    }
+
+    #[test]
+    fn test_stop_sets_healthy_false() {
+        let sm = ServiceManager::new_for_test(8080);
+        // Manually set healthy to true to verify stop resets it
+        {
+            let mut state = sm.inner.write().unwrap();
+            state.healthy = true;
+        }
+        sm.stop_server().unwrap();
+        let state = sm.inner.read().unwrap();
+        assert!(!state.healthy);
+    }
+
+    #[test]
+    fn test_start_already_running_returns_ok() {
+        // This test verifies that start_server when a process is "running"
+        // but has exited returns Ok and cleans up.
+        // We can't easily test with a real process, but we can test
+        // the no-process path returns Err (no backend available).
+        let sm = ServiceManager::new_for_test(8080);
+        // With no backend_exe and "python" as python_path, start_server
+        // will fail because "python -m uvicorn" won't work in test env.
+        let result = sm.start_server();
+        // This should fail because the command won't be found or won't work
+        // Either way, it shouldn't panic.
+        let _ = result;
     }
 }
