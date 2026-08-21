@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: rgba(10,14,26,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    overflow: hidden;
+    user-select: none;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 6px;
+    -webkit-app-region: drag;
+    app-region: drag;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0;
+    letter-spacing: 0.5px;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  .btn-icon {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none;
+    color: #8b95a7; cursor: pointer;
+    border-radius: 4px; font-size: 14px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .btn-icon:hover { color: #e2e8f0; background: rgba(255,255,255,0.08); }
+
+  /* ── Content ── */
+  .content {
+    flex: 1;
+    padding: 0 14px 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* ── Cards Row ── */
+  .cards-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .card:hover { background: rgba(255,255,255,0.08); }
+  .card-label {
+    font-size: 10px;
+    color: #8b95a7;
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .card-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #00d4ff;
+    line-height: 1.2;
+  }
+  .card-value.warn { color: #ff6b6b; }
+  .card-trend {
+    font-size: 10px;
+    margin-top: 2px;
+    height: 14px;
+  }
+  .trend-up { color: #ff6b6b; }
+  .trend-down { color: #51cf66; }
+  .trend-flat { color: #8b95a7; }
+
+  /* ── Status Row ── */
+  .status-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .status-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .status-label { font-size: 10px; color: #8b95a7; }
+  .status-value { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .status-dot.ok { background: #51cf66; box-shadow: 0 0 4px #51cf66; }
+  .status-dot.err { background: #ff6b6b; box-shadow: 0 0 4px #ff6b6b; }
+
+  /* ── Section Title ── */
+  .section-title {
+    font-size: 11px;
+    color: #8b95a7;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* ── Alerts ── */
+  .alerts-section { margin-bottom: 10px; }
+  .alert-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    transition: background 0.2s;
+  }
+  .alert-item:hover { background: rgba(255,255,255,0.06); }
+  .alert-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .alert-dot.critical { background: #ff6b6b; box-shadow: 0 0 4px #ff6b6b; }
+  .alert-dot.warning { background: #ffd43b; box-shadow: 0 0 4px #ffd43b; }
+  .alert-dot.info { background: #00d4ff; }
+  .alert-text {
+    flex: 1;
+    color: #c0c8d4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .alert-time { color: #4a5568; font-size: 10px; flex-shrink: 0; }
+  .alert-empty {
+    text-align: center;
+    color: #4a5568;
+    font-size: 11px;
+    padding: 12px;
+  }
+
+  /* ── SPC Chart ── */
+  .spc-section { margin-bottom: 6px; }
+  .spc-canvas-wrap {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 8px;
+    position: relative;
+  }
+  #spcCanvas { display: block; width: 100%; }
+
+  /* ── Settings Panel ── */
+  .settings-panel {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10,14,26,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 10;
+    padding: 14px;
+    display: none;
+    flex-direction: column;
+    border-radius: 12px;
+  }
+  .settings-panel.open { display: flex; }
+  .settings-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #e2e8f0;
+  }
+  .setting-item {
+    margin-bottom: 14px;
+  }
+  .setting-label {
+    font-size: 11px;
+    color: #8b95a7;
+    margin-bottom: 6px;
+  }
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(0,212,255,0.2);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    background: #00d4ff;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .slider-value {
+    font-size: 12px;
+    color: #00d4ff;
+    min-width: 36px;
+    text-align: right;
+  }
+  .settings-close {
+    margin-top: auto;
+    padding: 8px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px;
+    color: #00d4ff;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .settings-close:hover { background: rgba(0,212,255,0.2); }
+
+  /* ── Error / Loading ── */
+  .error-banner {
+    background: rgba(255,100,100,0.1);
+    border: 1px solid rgba(255,100,100,0.2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: #ff6b6b;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .error-banner.show { display: block; }
+
+  /* ── Hover expand tooltip ── */
+  .card[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,14,26,0.95);
+    color: #e2e8f0;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .card { position: relative; }
+</style>
+</head>
+<body>
+  <!-- Header with drag region -->
+  <div class="header" data-tauri-drag-region>
+    <span class="header-title">FT1 实时看板</span>
+    <div class="header-actions">
+      <button class="btn-icon" id="btnSettings" title="设置">&#9881;</button>
+      <button class="btn-icon" id="btnClose" title="关闭">&times;</button>
+    </div>
+  </div>
+
+  <!-- Main scrollable content -->
+  <div class="content">
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner">数据获取失败，显示缓存数据</div>
+
+    <!-- Summary cards -->
+    <div class="cards-row">
+      <div class="card" id="cardInspections">
+        <div class="card-label">今日检测量</div>
+        <div class="card-value" id="valInspections">--</div>
+      </div>
+      <div class="card" id="cardAlerts">
+        <div class="card-label">预警数</div>
+        <div class="card-value" id="valAlerts">--</div>
+      </div>
+      <div class="card" id="cardCpk">
+        <div class="card-label">平均 Cpk</div>
+        <div class="card-value" id="valCpk">--</div>
+        <div class="card-trend" id="trendCpk"></div>
+      </div>
+    </div>
+
+    <!-- Status row -->
+    <div class="status-row">
+      <div class="status-card">
+        <span class="status-label">变异系数 CV%</span>
+        <span class="status-value" id="valCv">--</span>
+      </div>
+      <div class="status-card">
+        <span class="status-label">采集状态</span>
+        <span class="status-value"><span class="status-dot" id="collectDot"></span><span id="collectStatus">--</span></span>
+      </div>
+    </div>
+
+    <!-- Recent alerts -->
+    <div class="alerts-section">
+      <div class="section-title">最近预警</div>
+      <div id="alertsList">
+        <div class="alert-empty">暂无预警</div>
+      </div>
+    </div>
+
+    <!-- SPC mini control chart -->
+    <div class="spc-section">
+      <div class="section-title">SPC 控制图</div>
+      <div class="spc-canvas-wrap">
+        <canvas id="spcCanvas" height="110"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings overlay -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-title">小组件设置</div>
+    <div class="setting-item">
+      <div class="setting-label">透明度</div>
+      <div class="slider-wrap">
+        <input type="range" id="opacitySlider" min="10" max="100" value="85">
+        <span class="slider-value" id="opacityValue">85%</span>
+      </div>
+    </div>
+    <div class="settings-close" id="settingsClose">关闭设置</div>
+  </div>
+
+  <script src="widget.js"></script>
+</body>
+</html>
