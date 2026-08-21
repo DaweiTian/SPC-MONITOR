@@ -30,52 +30,63 @@ class WebSocketService {
     const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
     const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`
 
-    try {
-      this.ws = new WebSocket(wsUrl)
+    // 非 Tauri 环境首次连接延迟，等 vite 代理就绪
+    const delay = !isTauri && this.retryCount === 0 ? 500 : 0
 
-      this.ws.onopen = () => {
-        console.log('WebSocket 已连接')
-        this._connected = true
-        this.reconnectDelay = 1000
-        this.retryCount = 0
-        this.waitingForFirstSuccess = false
-        if (this.reconnectTimer) {
-          clearTimeout(this.reconnectTimer)
-          this.reconnectTimer = null
+    const doConnect = () => {
+      try {
+        this.ws = new WebSocket(wsUrl)
+
+        this.ws.onopen = () => {
+          console.log('WebSocket 已连接')
+          this._connected = true
+          this.reconnectDelay = 1000
+          this.retryCount = 0
+          this.waitingForFirstSuccess = false
+          if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer)
+            this.reconnectTimer = null
+          }
         }
-      }
 
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.emit(data.type, data)
-        } catch (e) {
-          console.error('解析 WebSocket 消息失败:', e)
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            this.emit(data.type, data)
+          } catch (e) {
+            console.error('解析 WebSocket 消息失败:', e)
+          }
         }
-      }
 
-      this.ws.onclose = () => {
+        this.ws.onclose = () => {
+          this._connected = false
+          this.retryCount++
+          if (this.retryCount > this.maxRetries) {
+            if (!this.waitingForFirstSuccess) console.log('WebSocket 重连次数超限，停止重连')
+            return
+          }
+          if (!this.waitingForFirstSuccess) {
+            console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
+          }
+          this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
+          this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
+        }
+
+        this.ws.onerror = () => {
+          this._connected = false
+          if (!this.waitingForFirstSuccess) console.warn('WebSocket 连接错误')
+          this.ws?.close()
+        }
+      } catch (e) {
+        console.warn('WebSocket 初始化失败:', e)
         this._connected = false
-        this.retryCount++
-        if (this.retryCount > this.maxRetries) {
-          if (!this.waitingForFirstSuccess) console.log('WebSocket 重连次数超限，停止重连')
-          return
-        }
-        if (!this.waitingForFirstSuccess) {
-          console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
-        }
-        this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
-        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
       }
+    }
 
-      this.ws.onerror = () => {
-        this._connected = false
-        if (!this.waitingForFirstSuccess) console.warn('WebSocket 连接错误')
-        this.ws?.close()
-      }
-    } catch (e) {
-      console.warn('WebSocket 初始化失败:', e)
-      this._connected = false
+    if (delay > 0) {
+      this.reconnectTimer = window.setTimeout(doConnect, delay)
+    } else {
+      doConnect()
     }
   }
 
