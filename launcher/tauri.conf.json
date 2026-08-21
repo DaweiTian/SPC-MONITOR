@@ -10,7 +10,7 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.ico", "icons/icon.png"],
-    "resources": ["ft1-backend/*", "ft1-backend/**/*"],
+    "resources": ["ft1-backend/"],
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",
