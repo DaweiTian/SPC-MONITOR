@@ -15,3 +15,6 @@ apscheduler>=3.10.0
 pyodbc>=5.0.0
 pymssql>=2.2.0
 access-parser>=0.0.6
+nuitka>=2.0.0
+ordered-set>=4.1.0
+zstandard>=0.22.0
