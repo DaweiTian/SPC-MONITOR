@@ -19,6 +19,7 @@
     },
     "bundle": {
       "active": true,
+      "targets": ["nsis"],
       "identifier": "com.ft1.monitor",
       "icon": [
         "icons/icon.ico",
