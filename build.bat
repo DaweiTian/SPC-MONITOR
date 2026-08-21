@@ -10,7 +10,7 @@ set NSIS_CACHE=%LOCALAPPDATA%\tauri\NSIS
 set BACKEND_DIR=%PROJECT_DIR%backend
 set FRONTEND_DIR=%PROJECT_DIR%frontend
 set LAUNCHER_DIR=%PROJECT_DIR%launcher
-set BACKEND_DIST=%LAUNCHER_DIR%ft1-backend
+set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 
 echo ==========================================
 echo   液奶过程监控系统 - 一键构建
