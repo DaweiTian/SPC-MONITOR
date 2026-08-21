@@ -145,6 +145,12 @@
   gap: 10px;
 }
 
+.footerStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .footerPoweredBy {
   display: flex;
   justify-content: center;
@@ -197,11 +203,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.footerVersion {
-  display: flex;
-  align-items: center;
 }
 
 .footerVersionBadge {
