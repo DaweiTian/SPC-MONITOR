@@ -15,8 +15,6 @@
     "window:allow-set-always-on-top",
     "window:allow-set-size",
     "window:allow-set-position",
-    "window:allow-create",
-    "window:allow-destroy",
     "window:allow-set-opacity",
     "event:default",
     "tray:default",

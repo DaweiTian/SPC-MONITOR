@@ -20,8 +20,11 @@ echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 if exist "%BACKEND_DIST%" rmdir /s /q "%BACKEND_DIST%"
 mkdir "%BACKEND_DIST%"
+if not exist "ft1-backend.exe" (echo Nuitka 编译产物 ft1-backend.exe 不存在 & pause & exit /b 1)
 copy /Y ft1-backend.exe "%BACKEND_DIST%\" >nul
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
+REM 复制配置文件
+for %%f in ("%PROJECT_DIR%*.json") do copy /Y "%%f" "%BACKEND_DIST%\" >nul 2>nul
 
 echo [4/5] 构建 Tauri...
 cd /d "%LAUNCHER_DIR%"
