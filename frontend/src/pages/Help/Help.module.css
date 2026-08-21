@@ -185,24 +185,24 @@
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
-  padding: 4px;
+  padding: 4px 24px;
   background: var(--bg-secondary);
-  border-radius: 10px;
   border: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 10;
+  margin-left: -24px;
+  margin-right: -24px;
 }
 
 .tabBar::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -24px;
-  height: 24px;
+  left: -1px;
+  right: -1px;
+  top: 100%;
+  height: 25px;
   background: var(--bg-secondary);
-  z-index: -1;
 }
 
 .tab {
