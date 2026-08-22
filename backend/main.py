@@ -39,6 +39,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="液奶过程监控系统", version="1.5.1")
 
+# Serve frontend static files (for browser access via http://localhost:18080/)
+import pathlib
+_frontend_dist = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
+if not _frontend_dist.exists():
+    # Nuitka compiled: look in data/frontend relative to exe
+    _frontend_dist = pathlib.Path(os.path.dirname(os.path.abspath(sys.executable if '__compiled__' in globals() or getattr(__builtins__, '__import__', None) else __file__))) / "data" / "frontend"
+if _frontend_dist.exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+
 # Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
 _main_loop: asyncio.AbstractEventLoop | None = None
 
