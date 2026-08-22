@@ -108,7 +108,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     source: string
     connected: boolean
     instrument_type: string
-  }>({ source: 'mock', connected: false, instrument_type: 'mock' })
+    backendReachable: boolean
+  }>({ source: 'mock', connected: false, instrument_type: 'mock', backendReachable: false })
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -134,14 +135,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   useEffect(() => {
     const fetchStatus = async () => {
       try {
+        // First check if backend is reachable
+        const resp = await fetch('http://127.0.0.1:18080/api/health')
+        if (!resp.ok) throw new Error('unhealthy')
+
         const status = await api.getStatus()
         setSourceStatus({
           source: status.source || 'mock',
           connected: status.connected ?? false,
           instrument_type: status.instrument_type || 'mock',
+          backendReachable: true,
         })
       } catch {
-        // keep default
+        setSourceStatus(prev => ({ ...prev, backendReachable: false, connected: false }))
       }
     }
     fetchStatus()
@@ -160,6 +166,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }))
 
   const getStatusDisplay = () => {
+    if (!sourceStatus.backendReachable) {
+      return { text: '后端未连接', color: 'red' as const }
+    }
     if (sourceStatus.source === 'mock') {
       return { text: '模拟数据运行中', color: 'blue' as const }
     }
@@ -230,14 +239,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           <div className={styles.topbarInfo}>
             <div className={styles.topbarInfoItem}>
               <span className={styles.topbarInfoLabel}>采集频率:</span>
-              <span className={styles.topbarInfoValue}>{collectionFrequency}</span>
+              <span className={styles.topbarInfoValue}>{sourceStatus.backendReachable ? (collectionFrequency || '获取中...') : '未连接'}</span>
             </div>
             <div className={styles.topbarInfoItem}>
               <span className={styles.topbarInfoLabel}>监测品项:</span>
-              <span className={styles.topbarInfoValue}>{currentProduct}</span>
+              <span className={styles.topbarInfoValue}>{sourceStatus.backendReachable ? (currentProduct || '获取中...') : '未连接'}</span>
             </div>
-            <div className={styles.topbarStatus}>
-              <span className={styles.topbarDot} /> 系统正常
+            <div className={styles.topbarStatus} style={{ color: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }}>
+              <span className={styles.topbarDot} style={{ background: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }} /> {statusDisplay.text}
             </div>
             <div className={styles.topbarClock}>{clock}</div>
           </div>
