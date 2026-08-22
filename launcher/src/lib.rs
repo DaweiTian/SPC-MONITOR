@@ -6,6 +6,7 @@ use config::AppConfig;
 use log::{error, warn};
 use service::ServiceManager;
 use simplelog::{CombinedLogger, Config, WriteLogger};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tray::TrayMenuItems;
@@ -35,6 +36,8 @@ pub fn run() {
 
     let sm_for_handler = service_manager.clone();
     let sm_for_timer = service_manager.clone();
+    let shutdown_flag = Arc::new(AtomicBool::new(false));
+    let shutdown_for_thread = shutdown_flag.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -67,11 +70,13 @@ pub fn run() {
             std::thread::spawn(move || {
                 let mut failures = 0u32;
                 let mut was_healthy = false;
-                loop {
+                while !shutdown_for_thread.load(Ordering::Relaxed) {
                     std::thread::sleep(std::time::Duration::from_secs(3));
 
-                    // 健康检查 — use has_process() (checks process existence only)
-                    // instead of is_running() (requires healthy=true, which creates a deadlock)
+                    if shutdown_for_thread.load(Ordering::Relaxed) {
+                        break;
+                    }
+
                     if sm_for_timer.has_process() {
                         if !sm_for_timer.health_check() {
                             failures += 1;
@@ -90,7 +95,6 @@ pub fn run() {
                             }
                         } else {
                             failures = 0;
-                            // Only emit on transition from unhealthy to healthy
                             if !was_healthy {
                                 let _ = app_handle.emit("backend-ready", ());
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
@@ -115,10 +119,12 @@ pub fn run() {
             Ok(())
         })
         .manage(service_manager)
+        .manage(shutdown_flag)
         .invoke_handler(tauri::generate_handler![
             start_server,
             stop_server,
             is_server_running,
+            check_backend_health,
             set_window_opacity,
             get_widget_data,
             toggle_widget,
@@ -150,61 +156,74 @@ fn is_server_running(service: tauri::State<Arc<ServiceManager>>) -> bool {
     service.is_running()
 }
 
+/// 轮询后端健康状态（前端 splash 用于替代 backend-ready 事件）
 #[tauri::command]
-fn set_window_opacity(window: tauri::WebviewWindow, opacity: f64) -> Result<(), String> {
-    if !opacity.is_finite() {
-        return Err("opacity must be a finite number".to_string());
-    }
-    let clamped = opacity.clamp(0.1, 1.0);
-    // set_opacity not available on WebviewWindow in Tauri v2.11;
-    // slider UI remains functional as no-op until API is available
-    let _ = (window, clamped);
-    Ok(())
+fn check_backend_health(service: tauri::State<Arc<ServiceManager>>) -> bool {
+    service.health_check()
 }
 
 #[tauri::command]
-fn get_widget_data(
-    service: tauri::State<Arc<ServiceManager>>,
+fn set_window_opacity(opacity: f64) -> Result<(), String> {
+    if !opacity.is_finite() {
+        return Err("opacity must be a finite number".to_string());
+    }
+    let _clamped = opacity.clamp(0.1, 1.0);
+    // Tauri v2 WebviewWindow 无 set_opacity API，CSS 已处理透明度
+    Ok(())
+}
+
+/// 获取小组件数据（异步，不阻塞 UI）
+#[tauri::command(async)]
+async fn get_widget_data(
+    service: tauri::State<'_, Arc<ServiceManager>>,
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
     let base = format!("http://127.0.0.1:{}", port);
-    let key = "ft1-monitor-default-key";
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let key = "ft1-monitor-default-key".to_string();
+    let base_clone = base.clone();
+    let key_clone = key.clone();
 
-    // Fetch dashboard data
-    let mut data: serde_json::Value = client
-        .get(format!("{}/api/monitor/dashboard", base))
-        .header("X-API-Key", key)
-        .send()
-        .map_err(|e| e.to_string())?
-        .json()
-        .map_err(|e| e.to_string())?;
+    // 在线程池中执行阻塞 HTTP 请求，不阻塞 UI
+    let data = tokio::task::spawn_blocking(move || {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| e.to_string())?;
 
-    // Fetch instrument config and merge instrument_name into response
-    if let Ok(resp) = client
-        .get(format!("{}/api/config/instrument", base))
-        .header("X-API-Key", key)
-        .send()
-    {
-        if let Ok(instrument) = resp.json::<serde_json::Value>() {
-            if let Some(obj) = data.as_object_mut() {
-                let inst_name = instrument
-                    .pointer("/current_instrument")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("mock");
-                let display = instrument
-                    .pointer(&format!("/instruments/{}/name", inst_name))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(inst_name);
-                obj.insert("instrument_name".into(), serde_json::json!(display));
+        let mut data: serde_json::Value = client
+            .get(format!("{}/api/monitor/dashboard", base_clone))
+            .header("X-API-Key", &key_clone)
+            .send()
+            .map_err(|e| e.to_string())?
+            .json()
+            .map_err(|e| e.to_string())?;
+
+        if let Ok(resp) = client
+            .get(format!("{}/api/config/instrument", base_clone))
+            .header("X-API-Key", &key_clone)
+            .send()
+        {
+            if let Ok(instrument) = resp.json::<serde_json::Value>() {
+                if let Some(obj) = data.as_object_mut() {
+                    let inst_name = instrument
+                        .pointer("/current_instrument")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("mock");
+                    let display = instrument
+                        .pointer(&format!("/instruments/{}/name", inst_name))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(inst_name);
+                    obj.insert("instrument_name".into(), serde_json::json!(display));
+                }
             }
         }
-    }
 
-    Ok(data)
+        Ok(data)
+    })
+    .await
+    .map_err(|e| format!("task join error: {}", e))?;
+
+    data
 }
 
 #[tauri::command]

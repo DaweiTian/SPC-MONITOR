@@ -128,6 +128,7 @@ export const HelpPage: React.FC = () => {
           src="/docs/数据分析名词手册.html"
           className={styles.docIframe}
           title="数据分析名词手册"
+          sandbox="allow-scripts allow-same-origin allow-popups"
         />
       )}
 
@@ -136,6 +137,7 @@ export const HelpPage: React.FC = () => {
           src="/docs/数据分析名词可视化手册.html"
           className={styles.docIframe}
           title="数据分析名词可视化手册"
+          sandbox="allow-scripts allow-same-origin allow-popups"
         />
       )}
     </div>

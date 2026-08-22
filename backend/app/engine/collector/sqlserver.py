@@ -233,7 +233,7 @@ class SQLServerCollector(BaseCollector):
             from sqlalchemy import text
             with self.engine.connect() as conn:
                 result = conn.execute(text(sql), params)
-                rows = result.fetchmany(100)
+                rows = result.fetchmany(self.init_limit)
                 column_names = result.keys()
 
                 for row in rows:

@@ -146,7 +146,7 @@ export const Dashboard: React.FC = () => {
         map[r.rule_type] = { rule: r.rule, description: r.description }
       })
       setAlertRules(map)
-    }).catch(() => {})
+    }).catch(() => { console.warn('获取预警规则失败，使用默认映射') })
   }, [])
 
   useEffect(() => {
@@ -351,7 +351,7 @@ export const Dashboard: React.FC = () => {
     : 0
 
   const avgCpk = useMemo(() => {
-    if (capMatrix.length === 0) return 0
+    if (capMatrix.length === 0) return null
     const sum = capMatrix.reduce((s, c) => s + c.result.cpk, 0)
     return +(sum / capMatrix.length).toFixed(2)
   }, [capMatrix])
@@ -553,7 +553,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className={styles.kpiValue}>
-            {avgCpk || '-'}<span className={styles.kpiUnit} />
+            {avgCpk != null ? avgCpk : '-'}<span className={styles.kpiUnit} />
           </div>
           <div className={`${styles.kpiTrend} ${avgCpk >= 1.33 ? styles.kpiTrendFlat : styles.kpiTrendDown}`}>
             {avgCpk >= 1.33 ? '→ 能力充足' : avgCpk >= 1.0 ? '→ 能力勉强' : '→ 能力不足'}
@@ -845,7 +845,7 @@ export const Dashboard: React.FC = () => {
                         <td title={rule?.description || undefined}>{ruleName}</td>
                         <td>{fmtTime(alert.created_at)}</td>
                         <td>
-                          <span className={`${styles.tag} ${isPending ? styles.tagCritical : ''}`}>
+                          <span className={`${styles.tag} ${isPending ? styles.tagCritical : styles.tagInfo}`}>
                             {isPending ? '待处理' : '已处理'}
                           </span>
                         </td>

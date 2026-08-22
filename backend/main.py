@@ -115,7 +115,7 @@ _collector_lock = threading.Lock()
 def collect_with_alert():
     with _collector_lock:
         current_collector = collector
-    result = current_collector.collect()
+        result = current_collector.collect()
     all_new_alerts = []
     
     # Log collection attempt
@@ -457,7 +457,7 @@ def _auto_switch_on_startup():
                             logger.warning("MDB 文件连接失败，保持 Mock 数据源")
                 
                 # Update all references
-                _update_all_references(source, is_connected, current)
+                _update_all_references(source, is_connected, current if is_connected else "mock")
                 
                 # Update modules
                 monitor_module.collector = collector

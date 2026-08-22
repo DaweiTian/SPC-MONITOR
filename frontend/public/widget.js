@@ -146,7 +146,7 @@
     collectStatus.textContent = isCollecting ? '采集中' : '已停止';
 
     // Recent alerts
-    const alerts = data.recent_alerts ?? data.alerts ?? data.latest_alerts ?? [];
+    const alerts = Array.isArray(data.recent_alerts) ? data.recent_alerts : Array.isArray(data.alerts) ? data.alerts : [];
     renderAlerts(alerts);
 
     // SPC data

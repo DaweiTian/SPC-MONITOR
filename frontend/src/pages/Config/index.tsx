@@ -438,6 +438,8 @@ export const ConfigPage: React.FC = () => {
     try {
       // Auto-match products from MDB if available
       if (initStatus?.recent_records) {
+        // Fetch latest products first to avoid stale closure
+        await fetchProducts()
         const mdbProducts = initStatus.recent_records.reduce((acc, record) => {
           if (!acc.find(p => p.name === record.product_name)) {
             acc.push({ name: record.product_name, code: record.product_name })
@@ -456,9 +458,12 @@ export const ConfigPage: React.FC = () => {
         return
       }
       
-      // Perform first collection
+      // Perform first collection (with 60s timeout)
       setCollectResult({ success: true, message: '正在采集数据...' })
-      const collectResult = await api.manualCollect()
+      const collectResult = await Promise.race([
+        api.manualCollect(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('采集超时（60秒）')), 60000))
+      ])
       
       if (collectResult?.status === 'success') {
         const newRecords = collectResult.new_records || 0

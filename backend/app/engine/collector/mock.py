@@ -19,8 +19,8 @@ MOCK_INDICATORS = [
 class MockCollector(BaseCollector):
     """Mock 数据采集器"""
     
-    def __init__(self, storage=None):
-        super().__init__(storage)
+    def __init__(self, storage=None, init_limit: int = 100):
+        super().__init__(storage, init_limit=init_limit)
         self._last_collect_time = datetime.now() - timedelta(hours=1)
         self._collect_count = 0
     
