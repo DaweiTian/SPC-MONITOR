@@ -15,7 +15,7 @@ call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 
 echo [2/5] Nuitka 编译后端...
 cd /d "%PROJECT_DIR%"
-python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-data-dir=data=data --noinclude-pytest-mode=nofollow --noinclude-setuptools-mode=nofollow backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
+python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-package=scipy._external --include-package=scipy._external.array_api_compat --include-package=scipy._external.array_api_compat.numpy --include-package=scipy._lib --include-package=numpy --include-package=numpy.fft --include-package=numpy.linalg --include-package=numpy._core --include-data-dir=data=data --noinclude-pytest-mode=nofollow --noinclude-setuptools-mode=nofollow backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
 
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
