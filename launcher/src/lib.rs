@@ -93,7 +93,7 @@ pub fn run() {
                             failures = 0;
                             // Only emit on transition from unhealthy to healthy
                             if !was_healthy {
-                                let _ = app_handle.emit_to("splash", "backend-ready", ());
+                                let _ = app_handle.emit("backend-ready", ());
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
                                     items.start.set_enabled(false).ok();
                                     items.stop.set_enabled(true).ok();

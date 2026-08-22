@@ -23,27 +23,13 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "label": "splash",
-        "title": "正在启动...",
-        "url": "splash.html",
-        "width": 400,
-        "height": 300,
-        "center": true,
-        "decorations": false,
-        "resizable": false,
-        "transparent": true,
-        "skipTaskbar": true
-      },
-      {
         "label": "main",
         "title": "液奶过程监控系统",
         "url": "index.html",
         "width": 1200,
         "height": 800,
         "maximized": true,
-        "visible": false,
         "resizable": true,
-        "transparent": true,
         "decorations": true
       },
       {
