@@ -136,14 +136,24 @@
         : '--';
     }
 
-    // Current product (监测品项)
+    // Current product (监测品项) — read from localStorage (set by main window)
     if (currentProduct) {
-      currentProduct.textContent = data.current_product ?? data.product_name ?? '--';
+      try {
+        var saved = localStorage.getItem('app_current_product');
+        currentProduct.textContent = saved || data.current_product || '--';
+      } catch (e) {
+        currentProduct.textContent = data.current_product || '--';
+      }
     }
 
-    // Current indicator (监测项目)
+    // Current indicator (监测项目) — read from localStorage
     if (currentIndicator) {
-      currentIndicator.textContent = data.current_indicator ?? data.indicator_name ?? '--';
+      try {
+        var savedIndicator = localStorage.getItem('app_current_indicator');
+        currentIndicator.textContent = savedIndicator || data.current_indicator || '--';
+      } catch (e) {
+        currentIndicator.textContent = data.current_indicator || '--';
+      }
     }
 
     // Instrument name (监测仪器)

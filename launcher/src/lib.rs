@@ -184,7 +184,7 @@ fn get_widget_data(
         .json()
         .map_err(|e| e.to_string())?;
 
-    // Fetch instrument config
+    // Fetch instrument config and merge instrument_name into response
     if let Ok(resp) = client
         .get(format!("{}/api/config/instrument", base))
         .header("X-API-Key", key)
@@ -201,44 +201,6 @@ fn get_widget_data(
                     .and_then(|v| v.as_str())
                     .unwrap_or(inst_name);
                 obj.insert("instrument_name".into(), serde_json::json!(display));
-            }
-        }
-    }
-
-    // Fetch products list
-    if let Ok(resp) = client
-        .get(format!("{}/api/monitor/products", base))
-        .header("X-API-Key", key)
-        .send()
-    {
-        if let Ok(products) = resp.json::<serde_json::Value>() {
-            if let Some(arr) = products.get("products").and_then(|v| v.as_array()) {
-                if let Some(first) = arr.first() {
-                    if let Some(name) = first.get("name").and_then(|v| v.as_str()) {
-                        if let Some(obj) = data.as_object_mut() {
-                            obj.insert("current_product".into(), serde_json::json!(name));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Fetch indicators list
-    if let Ok(resp) = client
-        .get(format!("{}/api/monitor/indicators", base))
-        .header("X-API-Key", key)
-        .send()
-    {
-        if let Ok(indicators) = resp.json::<serde_json::Value>() {
-            if let Some(arr) = indicators.get("indicators").and_then(|v| v.as_array()) {
-                if let Some(first) = arr.first() {
-                    if let Some(name) = first.get("name").and_then(|v| v.as_str()) {
-                        if let Some(obj) = data.as_object_mut() {
-                            obj.insert("current_indicator".into(), serde_json::json!(name));
-                        }
-                    }
-                }
             }
         }
     }

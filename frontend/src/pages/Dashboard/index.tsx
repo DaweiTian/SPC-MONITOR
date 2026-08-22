@@ -107,6 +107,12 @@ export const Dashboard: React.FC = () => {
   }, [currentProduct, productMode, setCurrentProduct])
 
   useEffect(() => {
+    if (currentIndicator) {
+      try { localStorage.setItem('app_current_indicator', currentIndicator.name) } catch {}
+    }
+  }, [currentIndicator])
+
+  useEffect(() => {
     if (status) {
       const freqLabel = `L${status.current_level} · ${status.current_interval_minutes}min`
       setCollectionFrequency(freqLabel)
