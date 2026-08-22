@@ -39,6 +39,7 @@
         "url": "index.html",
         "width": 1200,
         "height": 800,
+        "maximized": true,
         "visible": false,
         "resizable": true,
         "transparent": true,
