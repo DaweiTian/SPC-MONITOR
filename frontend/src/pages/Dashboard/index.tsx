@@ -40,6 +40,16 @@ const severityLabel: Record<string, string> = {
   WARNING: '警告',
   INFO: '信息',
 }
+const ruleTypeLabel: Record<string, string> = {
+  nelson_1: 'Nelson规则1',
+  nelson_2: 'Nelson规则2',
+  nelson_3: 'Nelson规则3',
+  nelson_4: 'Nelson规则4',
+  nelson_5: 'Nelson规则5',
+  nelson_6: 'Nelson规则6',
+  nelson_7: 'Nelson规则7',
+  nelson_8: 'Nelson规则8',
+}
 
 /* ────────── 时间格式化 ────────── */
 function fmtTime(iso?: string): string {
@@ -783,27 +793,31 @@ export const Dashboard: React.FC = () => {
             <table className={styles.dataTable} aria-label="监控数据表">
               <thead>
                 <tr>
-                  <th>级别</th>
-                  <th>描述</th>
-                  <th>时间</th>
+                  <th>品项</th>
+                  <th>项目</th>
+                  <th>预警级别</th>
+                  <th>规则类型</th>
+                  <th>预警时间</th>
                 </tr>
               </thead>
               <tbody>
                 {dashboard?.recent_alerts && dashboard.recent_alerts.length > 0 ? (
                   dashboard.recent_alerts.map(alert => (
                     <tr key={alert.id}>
+                      <td>{aliases.products[alert.product_code || ''] || alert.product_code || '-'}</td>
+                      <td>{aliases.indicators[alert.indicator_code || ''] || alert.indicator_code || '-'}</td>
                       <td>
                         <span className={`${styles.tag} ${severityTagClass[alert.severity] || ''}`}>
                           {severityLabel[alert.severity] || alert.severity}
                         </span>
                       </td>
-                      <td>{alert.rule_desc || alert.message}</td>
+                      <td>{ruleTypeLabel[alert.rule_type || ''] || alert.rule_type || alert.alert_type || '-'}</td>
                       <td>{fmtTime(alert.created_at)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
                       暂无预警
                     </td>
                   </tr>
