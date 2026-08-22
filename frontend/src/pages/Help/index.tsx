@@ -128,7 +128,7 @@ export const HelpPage: React.FC = () => {
 
       {activeTab === 'glossary' && (
         <iframe
-          src={`${docsBase}数据分析名词手册.html`}
+          src={`${docsBase}glossary.html`}
           className={styles.docIframe}
           title="数据分析名词手册"
         />
@@ -136,7 +136,7 @@ export const HelpPage: React.FC = () => {
 
       {activeTab === 'visual' && (
         <iframe
-          src={`${docsBase}数据分析名词可视化手册.html`}
+          src={`${docsBase}visual-guide.html`}
           className={styles.docIframe}
           title="数据分析名词可视化手册"
         />
