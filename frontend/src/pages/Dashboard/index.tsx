@@ -314,14 +314,14 @@ export const Dashboard: React.FC = () => {
         soundEnabled: cfg.alert_sound_enabled ?? true,
         popupEnabled: cfg.alert_popup_enabled ?? true,
       }
-    }).catch(() => {})
+    }).catch(e => console.warn('获取通知配置失败:', e))
     websocketService.connect()
 
     const onData = () => { fetchDashboard(); fetchTrendRef.current() }
-    const onAlert = (data: any) => {
+    const onAlert = (data: Record<string, unknown>) => {
       fetchDashboard()
       handleAlertNotification(
-        data,
+        data as any,
         notifConfigRef.current,
         addToast,
         () => navigate('/alerts'),
@@ -335,6 +335,7 @@ export const Dashboard: React.FC = () => {
       websocketService.off('new_alert', onAlert)
       websocketService.disconnect()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /* ── 品项变化时获取活跃指标 ── */

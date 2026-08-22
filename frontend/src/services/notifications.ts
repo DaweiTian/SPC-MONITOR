@@ -12,14 +12,15 @@ interface AlertPayload {
 
 const isTauri = '__TAURI__' in window
 
-// Sound: base64-encoded short beep tone (440Hz, 0.3s)
-const BEEP_DATA_URL = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-
 let audioCtx: AudioContext | null = null
 
 function playAlertSound(severity: string) {
   try {
     if (!audioCtx) audioCtx = new AudioContext()
+    // Browser autoplay policy: resume suspended context
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume()
+    }
     const oscillator = audioCtx.createOscillator()
     const gainNode = audioCtx.createGain()
 
@@ -42,8 +43,14 @@ function playAlertSound(severity: string) {
 async function showSystemNotification(title: string, body: string) {
   if (!isTauri) {
     // Browser Notification API fallback
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body })
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body })
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') new Notification(title, { body })
+        })
+      }
     }
     return
   }
@@ -72,6 +79,14 @@ export interface NotificationConfig {
   popupEnabled: boolean
 }
 
+const VALID_SEVERITIES = ['CRITICAL', 'WARNING', 'INFO'] as const
+type Severity = typeof VALID_SEVERITIES[number]
+
+function normalizeSeverity(raw: string): Severity {
+  const upper = (raw || 'INFO').toUpperCase()
+  return VALID_SEVERITIES.includes(upper as Severity) ? (upper as Severity) : 'INFO'
+}
+
 export function handleAlertNotification(
   payload: AlertPayload,
   config: NotificationConfig,
@@ -80,22 +95,22 @@ export function handleAlertNotification(
 ) {
   if (!payload.alerts || payload.alerts.length === 0) return
 
-  const alert = payload.alerts[0] // Show first/most severe alert
-  const severity = (alert.severity || 'INFO').toUpperCase() as 'CRITICAL' | 'WARNING' | 'INFO'
-  const title = severity === 'CRITICAL' ? '严重预警' : severity === 'WARNING' ? '警告' : '提示'
+  const count = payload.alerts.length
+  const alert = payload.alerts[0]
+  const severity = normalizeSeverity(alert.severity)
+  const title = count > 1
+    ? `${severity === 'CRITICAL' ? '严重预警' : severity === 'WARNING' ? '警告' : '提示'} (${count}条)`
+    : severity === 'CRITICAL' ? '严重预警' : severity === 'WARNING' ? '警告' : '提示'
   const message = alert.message || alert.rule_desc || `${alert.product_code ?? ''} ${alert.indicator_code ?? ''}`.trim() || '新的预警信息'
 
-  // Sound
   if (config.soundEnabled) {
     playAlertSound(severity)
   }
 
-  // System notification (works even when minimized)
   if (config.popupEnabled) {
     showSystemNotification(`液奶监控 - ${title}`, message)
   }
 
-  // In-app toast (always show when app is visible)
   addToast({
     title,
     message,

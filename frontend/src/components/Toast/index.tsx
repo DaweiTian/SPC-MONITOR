@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import styles from './Toast.module.css'
 
 export interface ToastItem {
@@ -21,23 +21,35 @@ export const useToast = () => React.useContext(ToastContext)
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const counterRef = useRef(0)
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => { timersRef.current.forEach(t => clearTimeout(t)) }
+  }, [])
 
   const addToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
     const id = `toast-${++counterRef.current}`
     setToasts(prev => [...prev, { ...toast, id }])
-    // Auto-dismiss
     const duration = toast.duration ?? (toast.severity === 'CRITICAL' ? 8000 : 5000)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      timersRef.current.delete(id)
       setToasts(prev => prev.filter(t => t.id !== id))
     }, duration)
+    timersRef.current.set(id, timer)
   }, [])
 
   const removeToast = useCallback((id: string) => {
+    const timer = timersRef.current.get(id)
+    if (timer) { clearTimeout(timer); timersRef.current.delete(id) }
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({ addToast }), [addToast])
+
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className={styles.container}>
         {toasts.map(toast => (
@@ -67,10 +79,11 @@ const ToastItem: React.FC<{ toast: ToastItem; onClose: () => void }> = ({ toast,
     onClose()
   }
 
+  // C1 fix: borderColor BEFORE borderLeftColor so shorthand doesn't override
   return (
     <div
       className={`${styles.toast} ${visible ? styles.toastVisible : ''}`}
-      style={{ borderLeftColor: config.color, background: config.bg, borderColor: config.border }}
+      style={{ background: config.bg, borderColor: config.border, borderLeftColor: config.color }}
       onClick={handleClick}
     >
       <div className={styles.severityDot} style={{ background: config.color }}>
