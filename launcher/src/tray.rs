@@ -6,6 +6,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
+use tauri_plugin_autostart::ManagerExt;
 
 /// Menu items whose enabled state must reflect server status.
 pub struct TrayMenuItems {
@@ -19,6 +20,13 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
     let stop = MenuItem::with_id(app, "stop", "停止服务", true, None::<&str>)?;
     let open_browser = MenuItem::with_id(app, "open_browser", "打开浏览器", true, None::<&str>)?;
     let toggle_widget = MenuItem::with_id(app, "toggle_widget", "桌面小组件", true, None::<&str>)?;
+
+    // Auto-start menu item — show current state
+    let autostart_manager = app.autolaunch();
+    let is_autostart = autostart_manager.is_enabled().unwrap_or(false);
+    let autostart_label = if is_autostart { "开机自启 ✓" } else { "开机自启" };
+    let autostart_item = MenuItem::with_id(app, "autostart", autostart_label, true, None::<&str>)?;
+
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
     // Reflect initial server state in menu items
@@ -36,6 +44,8 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
             &open_browser,
             &toggle_widget,
             &PredefinedMenuItem::separator(app)?,
+            &autostart_item,
+            &PredefinedMenuItem::separator(app)?,
             &quit,
         ],
     )?;
@@ -45,6 +55,7 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
         start: start.clone(),
         stop: stop.clone(),
     });
+    app.manage(autostart_item.clone());
 
     let sm = service_manager.clone();
     let _tray = TrayIconBuilder::new()
@@ -87,6 +98,21 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
                 }
                 "toggle_widget" => {
                     let _ = app.emit("toggle-widget", ());
+                }
+                "autostart" => {
+                    let autostart = app.autolaunch();
+                    if let Ok(enabled) = autostart.is_enabled() {
+                        if enabled {
+                            autostart.disable().ok();
+                        } else {
+                            autostart.enable().ok();
+                        }
+                        // Update menu label
+                        if let Some(item) = app.try_state::<MenuItem<tauri::Wry>>() {
+                            let new_label = if enabled { "开机自启" } else { "开机自启 ✓" };
+                            item.set_text(new_label).ok();
+                        }
+                    }
                 }
                 _ => {}
             }
