@@ -90,13 +90,13 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     position: 'sticky',
     top: 8,
-    zIndex: 50,
+    zIndex: 200,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 6,
     float: 'left',
-    marginLeft: -33,
+    marginLeft: -35,
     marginBottom: -60,
   },
   toggle: {
