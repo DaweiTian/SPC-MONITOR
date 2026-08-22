@@ -18,10 +18,15 @@ class WebSocketService {
   connect() {
     if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
 
-    // 每次 connect 重置重连状态
+    // 只在显式调用时重置重连状态
     this.retryCount = 0
     this.reconnectDelay = 1000
     this.waitingForFirstSuccess = true
+    this._doConnect()
+  }
+
+  private _doConnect() {
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
 
     // 开发模式走 vite 代理，生产模式用当前页面地址，Tauri 环境直连后端
     const isTauri = '__TAURI__' in window
@@ -29,9 +34,6 @@ class WebSocketService {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
     const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`
-
-    // 非 Tauri 环境首次连接延迟，等 vite 代理就绪
-    const delay = !isTauri && this.retryCount === 0 ? 500 : 0
 
     const doConnect = () => {
       try {
@@ -68,7 +70,7 @@ class WebSocketService {
           if (!this.waitingForFirstSuccess) {
             console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
           }
-          this.reconnectTimer = window.setTimeout(() => this.connect(), this.reconnectDelay)
+          this.reconnectTimer = window.setTimeout(() => this._doConnect(), this.reconnectDelay)
           this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
         }
 
@@ -83,11 +85,7 @@ class WebSocketService {
       }
     }
 
-    if (delay > 0) {
-      this.reconnectTimer = window.setTimeout(doConnect, delay)
-    } else {
-      doConnect()
-    }
+    doConnect()
   }
 
   disconnect() {

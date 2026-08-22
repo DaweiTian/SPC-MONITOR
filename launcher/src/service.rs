@@ -116,15 +116,20 @@ impl ServiceManager {
         }
 
         // 设置工作目录为 exe 所在目录（NSIS 启动时 CWD 不确定）
+        let exe_dir = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()));
         if let Some(ref exe_path) = self.backend_exe {
             if let Some(parent) = exe_path.parent() {
                 cmd.current_dir(parent);
             }
+        } else if let Some(ref dir) = exe_dir {
+            cmd.current_dir(dir);
         }
 
         // 后端 stderr 输出到日志文件，方便排查启动失败
         let log_file = crate::config::AppConfig::log_dir().join("backend-stderr.log");
-        let stderr_file = std::fs::File::create(&log_file)
+        let stderr_file = std::fs::OpenOptions::new().create(true).append(true).open(&log_file)
             .map(Stdio::from)
             .unwrap_or(Stdio::null());
 

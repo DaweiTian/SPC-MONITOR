@@ -159,7 +159,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     const fetchStatus = async () => {
       try {
         // First check if backend is reachable
-        const resp = await fetch('http://127.0.0.1:18080/api/health')
+        const isTauri = !!window.__TAURI__
+        const healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health'
+        const resp = await fetch(healthUrl)
         if (!resp.ok) throw new Error('unhealthy')
 
         const status = await api.getStatus()

@@ -102,8 +102,11 @@ else:
     cleared = storage.clear_pending_alerts()
     if cleared > 0:
         logger.info(f"First start: cleared {cleared} historical alerts")
-    with open(MONITOR_START_FILE, 'w') as f:
-        json.dump({'started_at': alert_engine.monitoring_start.isoformat()}, f)
+    try:
+        with open(MONITOR_START_FILE, 'w') as f:
+            json.dump({'started_at': alert_engine.monitoring_start.isoformat()}, f)
+    except OSError as e:
+        logger.warning(f"写入监控开始时间失败: {e}")
     logger.info(f"Monitoring started at {alert_engine.monitoring_start}")
 
 # 初始化调度器

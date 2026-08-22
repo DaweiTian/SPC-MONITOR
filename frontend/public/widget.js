@@ -26,7 +26,6 @@
   const valInspections = $('valInspections');
   const valAlerts = $('valAlerts');
   const valCpk = $('valCpk');
-  const trendCpk = $('trendCpk');
   const valCv = $('valCv');
   const valShift = $('valShift');
   const currentProduct = $('currentProduct');
@@ -100,27 +99,7 @@
 
     // Cpk
     const cpk = data.avg_cpk ?? data.cpk ?? data.average_cpk;
-    if (cpk !== undefined && cpk !== null) {
-      valCpk.textContent = typeof cpk === 'number' ? cpk.toFixed(2) : cpk;
-      // Trend arrow
-      const cpkTrend = data.cpk_trend ?? data.cpk_change ?? 0;
-      trendCpk.replaceChildren();
-      const trendSpan = document.createElement('span');
-      if (cpkTrend > 0) {
-        trendSpan.className = 'trend-up';
-        trendSpan.textContent = '▲ +' + cpkTrend.toFixed(2);
-      } else if (cpkTrend < 0) {
-        trendSpan.className = 'trend-down';
-        trendSpan.textContent = '▼ ' + cpkTrend.toFixed(2);
-      } else {
-        trendSpan.className = 'trend-flat';
-        trendSpan.textContent = '▬';
-      }
-      trendCpk.appendChild(trendSpan);
-    } else {
-      valCpk.textContent = '--';
-      trendCpk.replaceChildren();
-    }
+    valCpk.textContent = (cpk !== undefined && cpk !== null) ? (typeof cpk === 'number' ? cpk.toFixed(2) : cpk) : '--';
 
     // CV%
     const cv = data.cv_percent ?? data.cv ?? data.coefficient_variation;

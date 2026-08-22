@@ -6,14 +6,13 @@ use config::AppConfig;
 use log::{error, warn};
 use service::ServiceManager;
 use simplelog::{CombinedLogger, Config, WriteLogger};
-use std::fs::File;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tray::TrayMenuItems;
 
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
-    if let Ok(log_file) = File::create(&log_path) {
+    if let Ok(log_file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
         let _ = CombinedLogger::init(vec![WriteLogger::new(
             log::LevelFilter::Info,
             Config::default(),

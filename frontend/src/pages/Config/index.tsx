@@ -458,7 +458,6 @@ export const ConfigPage: React.FC = () => {
       
       // Perform first collection
       setCollectResult({ success: true, message: '正在采集数据...' })
-      setImportProgress({ current: Math.floor(initLimit * 0.3), total: initLimit, elapsed: Math.floor((Date.now() - startTime) / 1000) })
       const collectResult = await api.manualCollect()
       
       if (collectResult?.status === 'success') {

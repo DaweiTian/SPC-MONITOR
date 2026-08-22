@@ -296,12 +296,15 @@ export const Dashboard: React.FC = () => {
   }, [activeIndicators])
 
   /* ── lifecycle ── */
+  const fetchTrendRef = useRef(fetchTrend)
+  fetchTrendRef.current = fetchTrend
+
   useEffect(() => {
     fetchDashboard()
     fetchMeta()
     websocketService.connect()
 
-    const onData = () => { fetchDashboard(); fetchTrend() }
+    const onData = () => { fetchDashboard(); fetchTrendRef.current() }
     const onAlert = () => { fetchDashboard() }
     websocketService.on('data_update', onData)
     websocketService.on('new_alert', onAlert)
@@ -311,7 +314,6 @@ export const Dashboard: React.FC = () => {
       websocketService.off('new_alert', onAlert)
       websocketService.disconnect()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /* ── 品项变化时获取活跃指标 ── */
