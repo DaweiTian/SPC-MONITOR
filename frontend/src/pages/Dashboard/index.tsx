@@ -41,6 +41,17 @@ const severityLabel: Record<string, string> = {
   INFO: '信息',
 }
 const ruleTypeLabel: Record<string, string> = {
+  spc_violation: 'SPC失控',
+  out_of_spec: '超规格限',
+  trend_detected: '趋势异常',
+  mean_shift: '均值偏移',
+  high_variation: '变异过大',
+  low_cpk: '能力不足',
+  cpk_below_target: 'CPK预警',
+  cpk_low: 'CPK预警',
+  spec_limit_breach: '规格越限',
+  above_usl: '规格越限',
+  below_lsl: '规格越限',
   nelson_1: 'Nelson规则1',
   nelson_2: 'Nelson规则2',
   nelson_3: 'Nelson规则3',
@@ -72,6 +83,7 @@ export const Dashboard: React.FC = () => {
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [recentData, setRecentData] = useState<MonitorData[]>([])
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
+  const [alertRules, setAlertRules] = useState<Record<string, { rule: string; description: string }>>({})
   const [collecting, setCollecting] = useState(false)
   
   /* ── 品项选择状态（从 localStorage 恢复） ── */
@@ -126,6 +138,16 @@ export const Dashboard: React.FC = () => {
       try { localStorage.setItem('app_current_indicator', currentIndicator.name) } catch {}
     }
   }, [currentIndicator])
+
+  useEffect(() => {
+    api.getAlertRules().then((res) => {
+      const map: Record<string, { rule: string; description: string }> = {}
+      ;(res.rules || []).forEach((r: { rule_type: string; rule: string; description: string }) => {
+        map[r.rule_type] = { rule: r.rule, description: r.description }
+      })
+      setAlertRules(map)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (status) {
@@ -795,6 +817,7 @@ export const Dashboard: React.FC = () => {
                 <tr>
                   <th>品项</th>
                   <th>项目</th>
+                  <th>检测值</th>
                   <th>预警级别</th>
                   <th>规则类型</th>
                   <th>预警时间</th>
@@ -802,22 +825,27 @@ export const Dashboard: React.FC = () => {
               </thead>
               <tbody>
                 {dashboard?.recent_alerts && dashboard.recent_alerts.length > 0 ? (
-                  dashboard.recent_alerts.map(alert => (
-                    <tr key={alert.id}>
-                      <td>{aliases.products[alert.product_code || ''] || alert.product_code || '-'}</td>
-                      <td>{aliases.indicators[alert.indicator_code || ''] || alert.indicator_code || '-'}</td>
-                      <td>
-                        <span className={`${styles.tag} ${severityTagClass[alert.severity] || ''}`}>
-                          {severityLabel[alert.severity] || alert.severity}
-                        </span>
-                      </td>
-                      <td>{ruleTypeLabel[alert.rule_type || ''] || alert.rule_type || alert.alert_type || '-'}</td>
-                      <td>{fmtTime(alert.created_at)}</td>
-                    </tr>
-                  ))
+                  dashboard.recent_alerts.map(alert => {
+                    const rule = alertRules[alert.rule_type || '']
+                    const ruleName = rule?.rule || ruleTypeLabel[alert.rule_type || ''] || alert.rule_type || alert.alert_type || '-'
+                    return (
+                      <tr key={alert.id}>
+                        <td>{aliases.products[alert.product_code || ''] || alert.product_code || '-'}</td>
+                        <td>{aliases.indicators[alert.indicator_code || ''] || alert.indicator_code || '-'}</td>
+                        <td>{alert.test_value != null ? Number(alert.test_value).toFixed(2) : '-'}</td>
+                        <td>
+                          <span className={`${styles.tag} ${severityTagClass[alert.severity] || ''}`}>
+                            {severityLabel[alert.severity] || alert.severity}
+                          </span>
+                        </td>
+                        <td title={rule?.description || undefined}>{ruleName}</td>
+                        <td>{fmtTime(alert.created_at)}</td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
                       暂无预警
                     </td>
                   </tr>
