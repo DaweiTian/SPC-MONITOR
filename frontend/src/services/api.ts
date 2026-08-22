@@ -14,8 +14,9 @@ import type {
   InstrumentConfig,
 } from '../types'
 
+const isTauri = '__TAURI__' in window
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: isTauri ? 'http://127.0.0.1:18080/api' : '/api',
   timeout: 120000,
 })
 

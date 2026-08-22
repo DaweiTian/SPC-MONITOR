@@ -28,9 +28,11 @@
       @keyframes spin { to { transform: rotate(360deg); } }
       #splash-overlay .text { margin-top: 24px; font-size: 14px; color: #8b95a7; }
       #splash-overlay .sub { margin-top: 6px; font-size: 12px; color: #64748b; }
+      #splash-overlay .error { margin-top: 12px; font-size: 13px; color: #ef4444; display: none; }
       #splash-overlay .bar-wrap {
         margin-top: 16px; width: 180px; height: 3px;
         background: rgba(0,212,255,0.1); border-radius: 2px;
+        overflow: hidden;
       }
       #splash-overlay .bar {
         height: 100%; width: 30%;
@@ -50,21 +52,36 @@
       <div class="text">正在启动后端服务</div>
       <div class="sub">首次启动可能需要几秒钟...</div>
       <div class="bar-wrap"><div class="bar"></div></div>
+      <div class="error" id="splash-error"></div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Poll backend health, hide splash when ready
-      (function checkBackend() {
-        fetch('http://127.0.0.1:18080/api/health')
-          .then(function(r) { if (r.ok) return r.json(); throw new Error('not ok'); })
-          .then(function() {
-            var el = document.getElementById('splash-overlay');
-            if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
-          })
-          .catch(function() {
-            setTimeout(checkBackend, 1500);
-          });
+      // Poll backend health with timeout and max retries
+      (function() {
+        var retries = 0, maxRetries = 40;
+        function checkBackend() {
+          if (retries >= maxRetries) {
+            var err = document.getElementById('splash-error');
+            if (err) { err.textContent = '后端服务启动超时，请检查日志'; err.style.display = 'block'; }
+            var sub = document.querySelector('.sub');
+            if (sub) sub.style.display = 'none';
+            var bar = document.querySelector('.bar-wrap');
+            if (bar) bar.style.display = 'none';
+            return;
+          }
+          retries++;
+          var ctrl = new AbortController();
+          var timer = setTimeout(function() { ctrl.abort(); }, 5000);
+          fetch('http://127.0.0.1:18080/api/health', { signal: ctrl.signal })
+            .then(function(r) { clearTimeout(timer); if (r.ok) return r.json(); throw new Error('not ok'); })
+            .then(function() {
+              var el = document.getElementById('splash-overlay');
+              if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
+            })
+            .catch(function() { clearTimeout(timer); setTimeout(checkBackend, 1500); });
+        }
+        checkBackend();
       })();
     </script>
   </body>

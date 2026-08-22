@@ -25,7 +25,7 @@ class WebSocketService {
 
     // 开发模式走 vite 代理，生产模式用当前页面地址，Tauri 环境直连后端
     const isTauri = '__TAURI__' in window
-    const wsHost = isTauri ? 'localhost:18080' : window.location.host
+    const wsHost = isTauri ? '127.0.0.1:18080' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
     const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`

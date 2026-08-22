@@ -115,9 +115,22 @@ impl ServiceManager {
             cmd.creation_flags(0x08000000);
         }
 
+        // 设置工作目录为 exe 所在目录（NSIS 启动时 CWD 不确定）
+        if let Some(ref exe_path) = self.backend_exe {
+            if let Some(parent) = exe_path.parent() {
+                cmd.current_dir(parent);
+            }
+        }
+
+        // 后端 stderr 输出到日志文件，方便排查启动失败
+        let log_file = crate::config::AppConfig::log_dir().join("backend-stderr.log");
+        let stderr_file = std::fs::File::create(&log_file)
+            .map(Stdio::from)
+            .unwrap_or(Stdio::null());
+
         let child = cmd
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(stderr_file)
             .spawn()
             .map_err(|e| format!("启动服务失败: {}", e))?;
 
@@ -194,7 +207,10 @@ impl ServiceManager {
 
         // Re-acquire lock to update healthy state
         let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
-        state.healthy = healthy;
+        // 防止竞态：如果进程已被 stop_server() 杀死，不覆盖状态
+        if state.server_process.is_some() {
+            state.healthy = healthy;
+        }
         healthy
     }
 
