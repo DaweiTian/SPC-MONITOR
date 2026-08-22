@@ -14,6 +14,30 @@ if getattr(sys, 'frozen', False) or '__compiled__' in globals():
     if os.path.isdir(exe_dir):
         os.chdir(exe_dir)
 
+# Windows: 隐藏后端进程所有窗口，避免任务栏出现两个图标
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        import ctypes.wintypes as wintypes
+
+        _pid = os.getpid()
+        _EnumWindows = ctypes.windll.user32.EnumWindows
+        _GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
+        _IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+        _ShowWindow = ctypes.windll.user32.ShowWindow
+
+        def _hide_pid_windows(hwnd, _lparam):
+            pid = wintypes.DWORD()
+            _GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if pid.value == _pid and _IsWindowVisible(hwnd):
+                _ShowWindow(hwnd, 0)  # SW_HIDE
+            return True
+
+        _WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        _EnumWindows(_WNDENUMPROC(_hide_pid_windows), 0)
+    except Exception:
+        pass
+
 # 确保 data 目录存在
 os.makedirs('data', exist_ok=True)
 os.makedirs('logs', exist_ok=True)

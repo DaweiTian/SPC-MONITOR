@@ -32,6 +32,7 @@ def get_dashboard():
         "today_unqualified_count": today_stats['unqualified_count'],
         "pending_alerts": alerts_by_severity,
         "recent_alerts": recent_alerts,
+        "collecting": scheduler.scheduler.running if scheduler else False,
     }
 
 @router.get("/status")
@@ -48,6 +49,39 @@ def get_status():
 def manual_collect():
     result = scheduler.trigger_manual() if scheduler else {"status": "no_scheduler"}
     return result
+
+@router.get("/widget_spc")
+def get_widget_spc():
+    """小组件用的 SPC 数据（自动选取最近有数据的指标）"""
+    if not storage or not collector:
+        return {"spc_points": [], "spc_mean": 0, "spc_ucl": 0, "spc_lcl": 0}
+
+    try:
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+
+        for product in products[:3]:
+            for indicator in indicators[:10]:
+                data = storage.get_recent_data(
+                    indicator_code=indicator['code'],
+                    product_code=product['code'],
+                    limit=20,
+                )
+                if len(data) >= 5:
+                    import numpy as np
+                    values = np.array([d['value'] for d in data], dtype=float)
+                    mean = float(np.mean(values))
+                    std = float(np.std(values, ddof=1)) if len(values) > 1 else 1.0
+                    return {
+                        "spc_points": [round(float(v), 4) for v in values],
+                        "spc_mean": round(mean, 4),
+                        "spc_ucl": round(mean + 3 * std, 4),
+                        "spc_lcl": round(mean - 3 * std, 4),
+                    }
+    except Exception as e:
+        logger.warning(f"Widget SPC 数据获取失败: {e}")
+
+    return {"spc_points": [], "spc_mean": 0, "spc_ucl": 0, "spc_lcl": 0}
 
 @router.get("/products")
 def get_products():

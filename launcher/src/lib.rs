@@ -221,6 +221,30 @@ async fn get_widget_data(
             }
         }
 
+        // Fetch SPC data for widget chart
+        if let Ok(resp) = client
+            .get(format!("{}/api/monitor/widget_spc", base_clone))
+            .header("X-API-Key", &key_clone)
+            .send()
+        {
+            if let Ok(spc) = resp.json::<serde_json::Value>() {
+                if let Some(obj) = data.as_object_mut() {
+                    if let Some(points) = spc.get("spc_points") {
+                        obj.insert("spc_points".into(), points.clone());
+                    }
+                    if let Some(mean) = spc.get("spc_mean") {
+                        obj.insert("spc_mean".into(), mean.clone());
+                    }
+                    if let Some(ucl) = spc.get("spc_ucl") {
+                        obj.insert("spc_ucl".into(), ucl.clone());
+                    }
+                    if let Some(lcl) = spc.get("spc_lcl") {
+                        obj.insert("spc_lcl".into(), lcl.clone());
+                    }
+                }
+            }
+        }
+
         Ok(data)
     })
     .await

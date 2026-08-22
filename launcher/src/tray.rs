@@ -69,6 +69,7 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
                 }
                 "show" => {
                     if let Some(w) = app.get_webview_window("main") {
+                        let _ = w.unminimize();
                         let _ = w.show();
                         let _ = w.set_focus();
                     }

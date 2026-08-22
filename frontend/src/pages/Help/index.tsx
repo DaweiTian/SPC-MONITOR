@@ -1,6 +1,9 @@
 import React, { useState } from 'react'
 import styles from './Help.module.css'
 
+const isTauri = !!(window as any).__TAURI_INTERNALS__
+const docsBase = isTauri ? 'docs/' : '/app/docs/'
+
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
   { title: 'SPC控制图', desc: '：支持I-MR和X-bar R控制图，自动计算控制限，标注Nelson判异规则违规点' },
@@ -125,7 +128,7 @@ export const HelpPage: React.FC = () => {
 
       {activeTab === 'glossary' && (
         <iframe
-          src="/docs/数据分析名词手册.html"
+          src={`${docsBase}数据分析名词手册.html`}
           className={styles.docIframe}
           title="数据分析名词手册"
         />
@@ -133,7 +136,7 @@ export const HelpPage: React.FC = () => {
 
       {activeTab === 'visual' && (
         <iframe
-          src="/docs/数据分析名词可视化手册.html"
+          src={`${docsBase}数据分析名词可视化手册.html`}
           className={styles.docIframe}
           title="数据分析名词可视化手册"
         />
