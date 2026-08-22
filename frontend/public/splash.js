@@ -25,9 +25,27 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    // Fallback: poll health endpoint every 2 seconds in case event is missed
+    const pollInterval = setInterval(async () => {
+      if (backendReady) { clearInterval(pollInterval); return; }
+      try {
+        const resp = await fetch('http://127.0.0.1:18080/api/health');
+        if (resp.ok) {
+          clearInterval(pollInterval);
+          backendReady = true;
+          const mainWindow = new Window('main');
+          await mainWindow.show();
+          await mainWindow.setFocus();
+          const splashWindow = Window.getCurrent();
+          await splashWindow.close();
+        }
+      } catch (e) { /* backend not ready yet */ }
+    }, 2000);
+
     // Timeout after 30 seconds
     setTimeout(async () => {
       if (!backendReady) {
+        clearInterval(pollInterval);
         const textEl = document.querySelector('.text');
         const subEl = document.querySelector('.sub');
         if (textEl) textEl.textContent = '后端启动超时';
