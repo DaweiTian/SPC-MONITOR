@@ -61,7 +61,7 @@ const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
       })
       .then(html => {
         if (revoked) return
-        // Inject <base> tag for relative paths (vendor/echarts.min.js etc.)
+        // Resolve relative paths to absolute URLs (blob URL has opaque origin, <base> won't work)
         let baseHref: string
         if (isDev) {
           baseHref = '/docs/'
@@ -70,10 +70,11 @@ const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
         } else {
           baseHref = '/app/docs/'
         }
-        const baseTag = `<base href="${baseHref}">`
-        const fixed = html.includes('<head>')
-          ? html.replace('<head>', `<head>${baseTag}`)
-          : baseTag + html
+        // Rewrite relative src/href (vendor/xxx → /docs/vendor/xxx)
+        let fixed = html
+          .replace(/src="vendor\//g, `src="${baseHref}vendor/`)
+          .replace(/href="vendor\//g, `href="${baseHref}vendor/`)
+          .replace(/src='\.\/vendor\//g, `src='${baseHref}vendor/`)
 
         const blob = new Blob([fixed], { type: 'text/html; charset=utf-8' })
         url = URL.createObjectURL(blob)
