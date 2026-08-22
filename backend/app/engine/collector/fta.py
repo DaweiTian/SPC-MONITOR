@@ -25,8 +25,9 @@ class FTACollector(BaseCollector):
         storage=None,
         use_pymssql: bool = True,
         db_config: Optional[Dict[str, Any]] = None,
+        init_limit: int = 100,
     ):
-        super().__init__(storage)
+        super().__init__(storage, init_limit=init_limit)
         self.connection_string = connection_string
         self._use_pymssql = use_pymssql
         self._db_config = db_config or {}
@@ -36,12 +37,13 @@ class FTACollector(BaseCollector):
         self._indicators_cache: Optional[List[Dict[str, Any]]] = None
 
     @classmethod
-    def from_config(cls, db_config: dict, storage=None):
+    def from_config(cls, db_config: dict, storage=None, init_limit: int = 100):
         conn_str = build_connection_string(db_config)
         instance = cls(
             connection_string=conn_str,
             storage=storage,
             db_config=db_config,
+            init_limit=init_limit,
         )
         return instance
 
@@ -137,8 +139,9 @@ class FTACollector(BaseCollector):
                 where = "WHERE ee.AnalysisStartTime > %s"
                 params = (self._last_collect_time,)
 
+            top_n = self.init_limit if not self._last_collect_time else 200
             sql = f"""
-                SELECT TOP 200
+                SELECT TOP {top_n}
                     ee.EstimateEventID,
                     ee.AnalysisStartTime,
                     ee.ProductSpecProfileName,

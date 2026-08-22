@@ -191,11 +191,12 @@ import backend.app.api.predict as predict_module
 predict_module.storage = storage
 
 
-def switch_collector(instrument_id: str) -> dict:
+def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
     """Stop the scheduler, swap the collector, and restart.
 
     Args:
         instrument_id: "mock", "ft1", "ft120", or "fta"
+        init_limit: max records to import on first run (1-1000)
 
     Returns:
         dict with success flag and message.
@@ -243,6 +244,7 @@ def switch_collector(instrument_id: str) -> dict:
                     db_config=db_config,
                     mapping_config=mapping_config,
                     storage=storage,
+                    init_limit=init_limit,
                 )
 
                 # Verify connectivity before committing
@@ -275,6 +277,7 @@ def switch_collector(instrument_id: str) -> dict:
                 new_collector = FTACollector.from_config(
                     db_config=fta_config,
                     storage=storage,
+                    init_limit=init_limit,
                 )
 
                 # Verify connectivity before committing
@@ -307,6 +310,7 @@ def switch_collector(instrument_id: str) -> dict:
                 new_collector = MDBCollector.from_config(
                     config=mdb_config,
                     storage=storage,
+                    init_limit=init_limit,
                 )
 
                 # Verify connectivity before committing

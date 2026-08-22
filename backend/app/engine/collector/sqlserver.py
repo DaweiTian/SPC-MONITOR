@@ -41,8 +41,9 @@ class SQLServerCollector(BaseCollector):
         component_name_col: str = "Name",
         value_col: str = "Value",
         rep_no_ref: Optional[int] = 32000,
+        init_limit: int = 100,
     ):
-        super().__init__(storage)
+        super().__init__(storage, init_limit=init_limit)
         self.connection_string = connection_string
         self.mode = mode
         # flat mode
@@ -73,13 +74,14 @@ class SQLServerCollector(BaseCollector):
         self._components_cache: Optional[Dict[int, str]] = None
 
     @classmethod
-    def from_config(cls, db_config: dict, mapping_config: dict, storage=None):
+    def from_config(cls, db_config: dict, mapping_config: dict, storage=None, init_limit: int = 100):
         conn_str = cls._build_connection_string(db_config)
         mode = mapping_config.get("mode", "flat")
         instance = cls(
             connection_string=conn_str,
             storage=storage,
             mode=mode,
+            init_limit=init_limit,
             # flat mode
             table_name=mapping_config.get("table_name", ""),
             time_column=mapping_config.get("time_column", ""),
@@ -300,8 +302,9 @@ class SQLServerCollector(BaseCollector):
                     rep_filter = "AND p.[RepNoRef] = :rep_no_ref"
                     params["rep_no_ref"] = self.rep_no_ref
 
+            top_n = self.init_limit if not self._last_collect_time else 200
             sql = f"""
-                SELECT TOP 200
+                SELECT TOP {top_n}
                     s.[SampNo],
                     s.[{self.product_ref_col}],
                     s.[{self.time_col}],

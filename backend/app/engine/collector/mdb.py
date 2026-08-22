@@ -41,8 +41,9 @@ class MDBCollector(BaseCollector):
         component_name_column: str = "Name",
         value_column: str = "Value",
         indicators: Optional[Dict[str, str]] = None,
+        init_limit: int = 100,
     ):
-        super().__init__(storage)
+        super().__init__(storage, init_limit=init_limit)
         self.mdb_path = mdb_path
         self.sample_table = sample_table
         self.product_table = product_table
@@ -63,7 +64,7 @@ class MDBCollector(BaseCollector):
         self._predictions_cache: Optional[Dict[int, Dict[int, float]]] = None
     
     @classmethod
-    def from_config(cls, config: dict, storage=None):
+    def from_config(cls, config: dict, storage=None, init_limit: int = 100):
         """从配置创建采集器"""
         return cls(
             mdb_path=config.get("mdb_path", ""),
@@ -79,6 +80,7 @@ class MDBCollector(BaseCollector):
             component_name_column=config.get("component_name_column", "Name"),
             value_column=config.get("value_column", "Value"),
             indicators=config.get("indicators", {}),
+            init_limit=init_limit,
         )
     
     def _load_breakpoint(self) -> Optional[datetime]:
@@ -201,10 +203,10 @@ class MDBCollector(BaseCollector):
                     'timestamp': now.isoformat(),
                 }
             
-            # If no breakpoint (first run), only take the last 50 samples
+            # If no breakpoint (first run), only take the last N samples
             if not self._last_collect_time:
-                samples = samples[-50:]
-                logger.info(f"首次采集，仅处理最近 {len(samples)} 条样本")
+                samples = samples[-self.init_limit:]
+                logger.info(f"首次采集，仅处理最近 {len(samples)} 条样本（init_limit={self.init_limit}）")
             else:
                 # Filter samples by breakpoint
                 filtered_samples = []

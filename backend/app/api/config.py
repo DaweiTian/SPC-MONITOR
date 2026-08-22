@@ -397,7 +397,7 @@ def switch_instrument(body: InstrumentSwitchRequest):
         return {"success": False, "message": "采集器切换功能未初始化"}
     
     try:
-        result = _switch_collector_func(instrument_id)
+        result = _switch_collector_func(instrument_id, init_limit=body.init_limit)
         
         # Update instrument config
         instrument_config["current_instrument"] = instrument_id

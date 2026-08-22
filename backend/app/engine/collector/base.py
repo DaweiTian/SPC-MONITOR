@@ -4,8 +4,9 @@ from typing import Dict, Any, List, Optional
 class BaseCollector(ABC):
     """采集器基类"""
     
-    def __init__(self, storage=None):
+    def __init__(self, storage=None, init_limit: int = 100):
         self.storage = storage
+        self.init_limit = init_limit
     
     @abstractmethod
     def collect(self) -> Dict[str, Any]:

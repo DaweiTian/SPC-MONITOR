@@ -184,6 +184,9 @@ export const ConfigPage: React.FC = () => {
   const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null)
   const [initStatus, setInitStatus] = useState<InitStatus | null>(null)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [initLimit, setInitLimit] = useState(100)
+  const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, elapsed: 0 })
   const [collectResult, setCollectResult] = useState<{ success: boolean; message: string } | null>(null)
   const [showProductDialog, setShowProductDialog] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null)
@@ -429,6 +432,9 @@ export const ConfigPage: React.FC = () => {
     setShowConfirmDialog(false)
     setConfigLoading(true)
     setCollectResult(null)
+    setImporting(true)
+    setImportProgress({ current: 0, total: initLimit, elapsed: 0 })
+    const startTime = Date.now()
     try {
       // Auto-match products from MDB if available
       if (initStatus?.recent_records) {
@@ -442,21 +448,25 @@ export const ConfigPage: React.FC = () => {
         handleAutoMatchProducts(mdbProducts)
       }
 
-      // Activate instrument
-      const activateResult = await api.switchInstrument(currentInstrument)
+      // Activate instrument with init_limit
+      const activateResult = await api.switchInstrument(currentInstrument, initLimit)
       if (!activateResult?.success) {
         setCollectResult({ success: false, message: activateResult?.message || '激活失败' })
+        setImporting(false)
         return
       }
       
       // Perform first collection
       setCollectResult({ success: true, message: '正在采集数据...' })
+      setImportProgress({ current: Math.floor(initLimit * 0.3), total: initLimit, elapsed: Math.floor((Date.now() - startTime) / 1000) })
       const collectResult = await api.manualCollect()
       
       if (collectResult?.status === 'success') {
+        const newRecords = collectResult.new_records || 0
+        setImportProgress({ current: newRecords, total: initLimit, elapsed: Math.floor((Date.now() - startTime) / 1000) })
         setCollectResult({
           success: true,
-          message: `采集成功！新增 ${collectResult.new_records || 0} 条数据`
+          message: `采集成功！新增 ${newRecords} 条数据`
         })
         // Snapshot product indicators (one-time per initialization)
         try {
@@ -467,6 +477,8 @@ export const ConfigPage: React.FC = () => {
         } catch {}
         // Refresh products after collection
         await fetchProducts()
+        // Brief delay to show completion before hiding overlay
+        await new Promise(r => setTimeout(r, 1500))
       } else {
         setCollectResult({ 
           success: false, 
@@ -477,6 +489,7 @@ export const ConfigPage: React.FC = () => {
       setCollectResult({ success: false, message: '操作失败' })
     } finally {
       setConfigLoading(false)
+      setImporting(false)
     }
   }
 
@@ -1495,6 +1508,38 @@ export const ConfigPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Import Limit */}
+              {!initStatus.breakpoint && (
+                <div className={styles.confirmSection}>
+                  <h4>初始导入数量</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+                    <input
+                      type="range"
+                      min={10}
+                      max={1000}
+                      step={10}
+                      value={initLimit}
+                      onChange={e => setInitLimit(Number(e.target.value))}
+                      style={{ flex: 1 }}
+                      aria-label="初始导入数量"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={initLimit}
+                      onChange={e => setInitLimit(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
+                      style={{ width: 70, textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', padding: '4px 8px' }}
+                      aria-label="导入数量"
+                    />
+                    <span style={{ color: '#8b95a7', fontSize: 12, minWidth: 30 }}>条</span>
+                  </div>
+                  <p style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
+                    首次导入将从最新数据开始，最多 {initStatus.total_samples} 条可用
+                  </p>
+                </div>
+              )}
+
               {/* Recent Records Preview */}
               <div className={styles.confirmSection}>
                 <h4>最近数据预览 (共 {initStatus.recent_records.length} 条)</h4>
@@ -1538,6 +1583,48 @@ export const ConfigPage: React.FC = () => {
               >
                 {configLoading ? '采集中...' : '确认并开始采集'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import Progress Overlay ── */}
+      {importing && (
+        <div className={styles.confirmOverlay} style={{ zIndex: 10001 }}>
+          <div style={{
+            background: 'rgba(10,14,26,0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: 16,
+            padding: '40px 48px',
+            textAlign: 'center',
+            minWidth: 360,
+          }}>
+            <div style={{
+              width: 48, height: 48, margin: '0 auto 20px',
+              border: '3px solid rgba(0,212,255,0.15)',
+              borderTopColor: '#00d4ff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }} />
+            <div style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              正在导入数据...
+            </div>
+            <div style={{ color: '#8b95a7', fontSize: 13, marginBottom: 16 }}>
+              {collectResult?.message || '准备中...'}
+            </div>
+            {/* Progress bar */}
+            <div style={{ width: '100%', height: 6, background: 'rgba(0,212,255,0.1)', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+              <div style={{
+                height: '100%',
+                width: importProgress.total > 0 ? `${Math.min(100, (importProgress.current / importProgress.total) * 100)}%` : '30%',
+                background: 'linear-gradient(90deg, #00d4ff, #0066ff)',
+                borderRadius: 3,
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 12 }}>
+              <span>已导入: {importProgress.current} / {importProgress.total}</span>
+              <span>耗时: {importProgress.elapsed}s</span>
             </div>
           </div>
         </div>
