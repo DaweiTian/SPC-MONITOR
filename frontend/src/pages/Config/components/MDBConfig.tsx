@@ -53,10 +53,10 @@ export const MDBConfig = React.memo(function MDBConfig(props: MDBConfigProps) {
                 onChange={e => onMdbConfigChange('mdb_path', e.target.value)}
                 placeholder="例: /mnt/d/数据/ft120.mdb 或 C:\Data\ft120.mdb"
               />
-              <label className={`${styles.btn} ${styles.btnSecondary}`} style={{ cursor: 'pointer', whiteSpace: 'nowrap', margin: 0 }}
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (window.__TAURI__?.dialog) {
+              {window.__TAURI__ ? (
+                <label className={`${styles.btn} ${styles.btnSecondary}`} style={{ cursor: 'pointer', whiteSpace: 'nowrap', margin: 0 }}
+                  onClick={async (e) => {
+                    e.preventDefault();
                     try {
                       const { open } = window.__TAURI__.dialog;
                       const path = await open({
@@ -69,28 +69,32 @@ export const MDBConfig = React.memo(function MDBConfig(props: MDBConfigProps) {
                     } catch (err) {
                       console.warn('Tauri dialog failed', err);
                     }
-                  } else {
-                    const input = (e.currentTarget as HTMLElement).querySelector('input[type=file]') as HTMLInputElement;
-                    if (input) { input.value = ''; input.click(); }
-                  }
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                浏览
-                <input
-                  type="file"
-                  accept=".mdb,.accdb"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      onMdbConfigChange('mdb_path', file.name)
-                    }
                   }}
-                />
-              </label>
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  浏览
+                </label>
+              ) : (
+                <label className={`${styles.btn} ${styles.btnSecondary}`} style={{ cursor: 'pointer', whiteSpace: 'nowrap', margin: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  浏览
+                  <input
+                    type="file"
+                    accept=".mdb,.accdb"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        onMdbConfigChange('mdb_path', file.name)
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
             <span className={styles.formHint}>支持本地 .mdb 文件</span>
           </div>
