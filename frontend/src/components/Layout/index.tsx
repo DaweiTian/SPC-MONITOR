@@ -104,6 +104,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const { currentProduct, collectionFrequency } = useAppContext()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
+  const isTauri = !!window.__TAURI__
   const [sourceStatus, setSourceStatus] = useState<{
     source: string
     connected: boolean
@@ -250,6 +251,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </div>
             <div className={styles.topbarClock} data-tauri-drag-region>{clock}</div>
           </div>
+          {isTauri && (
           <div className={styles.topbarControls}>
             <button className={styles.topbarBtn} onClick={() => window.__TAURI__?.window.Window.getCurrent().minimize()} title="最小化">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect y="5" width="12" height="2" rx="1" fill="currentColor"/></svg>
@@ -261,6 +263,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </button>
           </div>
+          )}
         </header>
 
         {/* 内容区 */}
