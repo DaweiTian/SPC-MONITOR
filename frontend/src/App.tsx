@@ -13,11 +13,16 @@ const DataPage = React.lazy(() => import('./pages/Data'))
 const HelpPage = React.lazy(() => import('./pages/Help'))
 const PredictionPage = React.lazy(() => import('./pages/Prediction'))
 
+const isTauri = '__TAURI__' in window
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter
+          basename={isTauri ? undefined : '/app'}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <AppLayout>
             <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>}>
               <Routes>
