@@ -15,7 +15,6 @@
   z-index: 10;
   position: relative;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
   will-change: width;
 }
 
@@ -26,6 +25,7 @@
   padding: 0 20px;
   border-bottom: 1px solid var(--border-color);
   gap: 12px;
+  overflow: hidden;
 }
 
 .logoIcon {
@@ -71,7 +71,6 @@
   overflow-x: hidden;
 }
 
-/* Hide scrollbar when collapsed */
 .sidebarCollapsed .sidebarNav {
   overflow: hidden;
 }
@@ -448,7 +447,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 100;
   font-size: 11px;
   line-height: 1;
   padding: 0;
