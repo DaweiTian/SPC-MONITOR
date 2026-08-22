@@ -1267,18 +1267,23 @@ export const ConfigPage: React.FC = () => {
                       style={{ display: 'none' }}
                       onClick={async (e) => {
                         e.preventDefault();
-                        try {
-                          const { open } = window.__TAURI__!.dialog;
-                          const path = await open({
-                            filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
-                            multiple: false,
-                          });
-                          if (path) {
-                            handleMdbConfigChange('mdb_path', path as string);
+                        if (window.__TAURI__?.dialog) {
+                          try {
+                            const { open } = window.__TAURI__.dialog;
+                            const path = await open({
+                              filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
+                              multiple: false,
+                            });
+                            if (path) {
+                              handleMdbConfigChange('mdb_path', path as string);
+                            }
+                          } catch (err) {
+                            console.warn('Tauri dialog failed, falling back to native input', err);
                           }
-                        } catch (err) {
-                          // Fallback: use native file input
+                        } else {
+                          // Browser dev mode: use native file input
                           const input = e.target as HTMLInputElement;
+                          input.value = '';
                           input.click();
                         }
                       }}

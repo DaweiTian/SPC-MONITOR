@@ -64,17 +64,22 @@ export const MDBConfig = React.memo(function MDBConfig(props: MDBConfigProps) {
                   style={{ display: 'none' }}
                   onClick={async (e) => {
                     e.preventDefault();
-                    try {
-                      const { open } = window.__TAURI__!.dialog;
-                      const path = await open({
-                        filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
-                        multiple: false,
-                      });
-                      if (path) {
-                        onMdbConfigChange('mdb_path', path as string);
+                    if (window.__TAURI__?.dialog) {
+                      try {
+                        const { open } = window.__TAURI__.dialog;
+                        const path = await open({
+                          filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
+                          multiple: false,
+                        });
+                        if (path) {
+                          onMdbConfigChange('mdb_path', path as string);
+                        }
+                      } catch (err) {
+                        console.warn('Tauri dialog failed', err);
                       }
-                    } catch (err) {
+                    } else {
                       const input = e.target as HTMLInputElement;
+                      input.value = '';
                       input.click();
                     }
                   }}
