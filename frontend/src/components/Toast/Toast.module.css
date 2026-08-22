@@ -29,6 +29,12 @@
   transform: translateX(0);
 }
 
+.toastLeaving {
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.25s ease-in, opacity 0.25s ease-in;
+}
+
 .severityDot {
   width: 28px;
   height: 28px;

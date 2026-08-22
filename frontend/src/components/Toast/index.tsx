@@ -20,32 +20,35 @@ export const useToast = () => React.useContext(ToastContext)
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [leaving, setLeaving] = useState<Set<string>>(new Set())
   const counterRef = useRef(0)
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  // Cleanup all timers on unmount
   useEffect(() => {
     return () => { timersRef.current.forEach(t => clearTimeout(t)) }
+  }, [])
+
+  const startRemove = useCallback((id: string) => {
+    const timer = timersRef.current.get(id)
+    if (timer) { clearTimeout(timer); timersRef.current.delete(id) }
+    // Trigger exit animation
+    setLeaving(prev => new Set(prev).add(id))
+  }, [])
+
+  // Called by ToastItem after transition ends
+  const finalizeRemove = useCallback((id: string) => {
+    setLeaving(prev => { const next = new Set(prev); next.delete(id); return next })
+    setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
   const addToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
     const id = `toast-${++counterRef.current}`
     setToasts(prev => [...prev, { ...toast, id }])
     const duration = toast.duration ?? (toast.severity === 'CRITICAL' ? 8000 : 5000)
-    const timer = setTimeout(() => {
-      timersRef.current.delete(id)
-      setToasts(prev => prev.filter(t => t.id !== id))
-    }, duration)
+    const timer = setTimeout(() => startRemove(id), duration)
     timersRef.current.set(id, timer)
-  }, [])
+  }, [startRemove])
 
-  const removeToast = useCallback((id: string) => {
-    const timer = timersRef.current.get(id)
-    if (timer) { clearTimeout(timer); timersRef.current.delete(id) }
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({ addToast }), [addToast])
 
   return (
@@ -53,7 +56,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       <div className={styles.container}>
         {toasts.map(toast => (
-          <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
+          <ToastItemView
+            key={toast.id}
+            toast={toast}
+            isLeaving={leaving.has(toast.id)}
+            onClose={() => startRemove(toast.id)}
+            onTransitionEnd={() => finalizeRemove(toast.id)}
+          />
         ))}
       </div>
     </ToastContext.Provider>
@@ -66,12 +75,17 @@ const severityConfig = {
   INFO: { color: '#0891b2', bg: 'rgba(8,145,178,0.15)', border: 'rgba(8,145,178,0.4)', icon: 'i' },
 }
 
-const ToastItem: React.FC<{ toast: ToastItem; onClose: () => void }> = ({ toast, onClose }) => {
-  const [visible, setVisible] = useState(false)
+const ToastItemView: React.FC<{
+  toast: ToastItem
+  isLeaving: boolean
+  onClose: () => void
+  onTransitionEnd: () => void
+}> = ({ toast, isLeaving, onClose, onTransitionEnd }) => {
+  const [entered, setEntered] = useState(false)
   const config = severityConfig[toast.severity] || severityConfig.INFO
 
   useEffect(() => {
-    requestAnimationFrame(() => setVisible(true))
+    requestAnimationFrame(() => setEntered(true))
   }, [])
 
   const handleClick = () => {
@@ -79,12 +93,23 @@ const ToastItem: React.FC<{ toast: ToastItem; onClose: () => void }> = ({ toast,
     onClose()
   }
 
-  // C1 fix: borderColor BEFORE borderLeftColor so shorthand doesn't override
+  const handleTransitionEnd = (e: React.TransitionEvent) => {
+    // Only react to the transform transition on the root element
+    if (e.propertyName === 'transform' && isLeaving) {
+      onTransitionEnd()
+    }
+  }
+
+  let className = styles.toast
+  if (isLeaving) className += ` ${styles.toastLeaving}`
+  else if (entered) className += ` ${styles.toastVisible}`
+
   return (
     <div
-      className={`${styles.toast} ${visible ? styles.toastVisible : ''}`}
+      className={className}
       style={{ background: config.bg, borderColor: config.border, borderLeftColor: config.color }}
       onClick={handleClick}
+      onTransitionEnd={handleTransitionEnd}
     >
       <div className={styles.severityDot} style={{ background: config.color }}>
         <span className={styles.severityIcon}>{config.icon}</span>
