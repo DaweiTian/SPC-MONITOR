@@ -14,13 +14,17 @@ const HelpPage = React.lazy(() => import('./pages/Help'))
 const PredictionPage = React.lazy(() => import('./pages/Prediction'))
 
 const isTauri = '__TAURI__' in window
+// Vite dev: no basename (routes at /dashboard)
+// Tauri production: no basename (routes at /dashboard, served from tauri://localhost)
+// Browser production: basename='/app' (routes at /app/dashboard, served from /app/)
+const basename = import.meta.env.DEV ? undefined : (isTauri ? undefined : '/app')
 
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <AppProvider>
         <BrowserRouter
-          basename={isTauri ? undefined : '/app'}
+          basename={basename}
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
           <AppLayout>
