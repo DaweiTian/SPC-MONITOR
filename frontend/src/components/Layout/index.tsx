@@ -205,7 +205,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           onClick={toggleCollapsed}
           title={collapsed ? '展开侧边栏' : '收起侧边栏'}
         >
-          {collapsed ? '›' : '‹'}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {collapsed ? <polyline points="4 2 8 6 4 10" /> : <polyline points="8 2 4 6 8 10" />}
+          </svg>
         </button>
         <div className={styles.sidebarLogo}>
           <img src="/favicon.ico" alt="Logo" className={styles.logoIconImg} />

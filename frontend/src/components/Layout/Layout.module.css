@@ -14,7 +14,9 @@
   flex-shrink: 0;
   z-index: 10;
   position: relative;
-  transition: width 0.2s ease;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  will-change: width;
 }
 
 .sidebarLogo {
@@ -66,6 +68,12 @@
   flex: 1;
   padding: 16px 0;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Hide scrollbar when collapsed */
+.sidebarCollapsed .sidebarNav {
+  overflow: hidden;
 }
 
 .navGroupTitle {
@@ -208,14 +216,13 @@
 }
 
 .footerVersionBadge {
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(0, 212, 255, 0.08);
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  color: var(--text-muted);
-  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  padding: 0;
+  color: rgba(0, 212, 255, 0.5);
+  font-family: 'Orbitron', 'Courier New', monospace;
   white-space: nowrap;
+  letter-spacing: 1.5px;
+  text-align: center;
 }
 
 /* ========== 主区域 ========== */
@@ -389,8 +396,7 @@
 }
 
 .sidebarCollapsed .footerVersionBadge {
-  display: block;
-  text-align: center;
+  display: none;
 }
 
 .sidebarCollapsed .footerPoweredBy {
@@ -429,30 +435,39 @@
 /* ========== 侧边栏折叠按钮 ========== */
 .sidebarToggleBtn {
   position: absolute;
-  right: -10px;
+  right: -11px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #1a2332;
-  border: 1px solid var(--border-color);
+  background: #141a2e;
+  border: 1.5px solid rgba(64, 159, 255, 0.2);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 20;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
   padding: 0;
   outline: none;
-  transition: color 0.15s, border-color 0.15s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .sidebarToggleBtn:hover {
   color: var(--accent-cyan);
   border-color: var(--accent-cyan);
+  background: #1a2332;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+}
+
+.sidebarToggleBtn svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 /* ========== Nav item text wrapper ========== */
