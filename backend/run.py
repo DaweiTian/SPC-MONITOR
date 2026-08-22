@@ -16,6 +16,10 @@ if getattr(sys, 'frozen', False) or '__compiled__' in globals():
 os.makedirs('data', exist_ok=True)
 os.makedirs('logs', exist_ok=True)
 
+# Nuitka 编译时强制导入所有 scipy/numpy 子模块（它们使用动态导入，Nuitka 无法自动追踪）
+if '__compiled__' in globals():
+    import _nuitka_imports  # noqa: F401
+
 import uvicorn
 from backend.main import app
 
