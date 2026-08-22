@@ -1,6 +1,6 @@
 {
   "productName": "液奶过程监控系统",
-  "version": "2.0.0",
+  "version": "1.5.1",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",

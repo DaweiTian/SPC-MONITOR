@@ -28,6 +28,8 @@
   const valCpk = $('valCpk');
   const trendCpk = $('trendCpk');
   const valCv = $('valCv');
+  const valShift = $('valShift');
+  const currentProduct = $('currentProduct');
   const collectDot = $('collectDot');
   const collectStatus = $('collectStatus');
   const alertsList = $('alertsList');
@@ -123,6 +125,19 @@
     valCv.textContent = cv !== undefined && cv !== null
       ? (typeof cv === 'number' ? cv.toFixed(1) + '%' : cv)
       : '--';
+
+    // Shift (偏移)
+    const shift = data.shift_percent ?? data.deviation ?? data.offset_percent;
+    if (valShift) {
+      valShift.textContent = shift !== undefined && shift !== null
+        ? (typeof shift === 'number' ? (shift > 0 ? '+' : '') + shift.toFixed(2) + '%' : shift)
+        : '--';
+    }
+
+    // Current product (监测品项)
+    if (currentProduct) {
+      currentProduct.textContent = data.current_product ?? data.product_name ?? '--';
+    }
 
     // Collection status
     const isCollecting = data.collecting ?? data.is_collecting ?? data.collection_active ?? false;
@@ -369,11 +384,11 @@
     settingsPanel.classList.remove('open');
   }
 
-  // Opacity slider — apply via CSS (Tauri v2.11 has no set_opacity on WebviewWindow)
+  // Opacity slider — adjust window background opacity, not content opacity
   function handleOpacityChange(value) {
-    var clamped = Math.max(0.1, Math.min(1.0, value / 100));
+    var alpha = Math.max(0.1, Math.min(1.0, value / 100));
     opacityValue.textContent = value + '%';
-    document.body.style.opacity = clamped;
+    document.body.style.background = 'rgba(10,14,26,' + alpha + ')';
     try { localStorage.setItem('widget_opacity', value); } catch (e) {}
   }
 
@@ -444,8 +459,11 @@
       });
     }
 
-    // Double-click on body to show main window
-    document.body.addEventListener('dblclick', handleDoubleClick);
+    // Double-click on footer hint to show main window
+    var footerHint = document.querySelector('.footer-hint');
+    if (footerHint) {
+      footerHint.addEventListener('dblclick', handleDoubleClick);
+    }
 
     // Window resize
     window.addEventListener('resize', handleResize);

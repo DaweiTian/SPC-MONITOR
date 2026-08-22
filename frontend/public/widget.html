@@ -18,6 +18,7 @@
     display: flex;
     flex-direction: column;
   }
+  html { background: transparent; }
 
   /* ── Header ── */
   .header {
@@ -306,7 +307,7 @@
 <body>
   <!-- Header with drag region -->
   <div class="header" data-tauri-drag-region>
-    <span class="header-title">FT1 实时看板</span>
+    <span class="header-title">过程监测</span>
     <div class="header-actions">
       <button class="btn-icon" id="btnPin" title="置顶切换" aria-label="置顶切换" style="color:#00d4ff;">&#128204;</button>
       <button class="btn-icon" id="btnSettings" title="设置" aria-label="设置">&#9881;</button>
@@ -319,10 +320,10 @@
     <!-- Error banner -->
     <div class="error-banner" id="errorBanner">数据获取失败，显示缓存数据</div>
 
-    <!-- Summary cards -->
-    <div class="cards-row">
+    <!-- Summary cards: 5 indicators matching dashboard -->
+    <div class="cards-row" style="grid-template-columns: repeat(5, 1fr);">
       <div class="card" id="cardInspections">
-        <div class="card-label">今日检测量</div>
+        <div class="card-label">今日检测</div>
         <div class="card-value" id="valInspections">--</div>
       </div>
       <div class="card" id="cardAlerts">
@@ -330,21 +331,28 @@
         <div class="card-value" id="valAlerts">--</div>
       </div>
       <div class="card" id="cardCpk">
-        <div class="card-label">平均 Cpk</div>
+        <div class="card-label">平均Cpk</div>
         <div class="card-value" id="valCpk">--</div>
-        <div class="card-trend" id="trendCpk"></div>
+      </div>
+      <div class="card" id="cardCv">
+        <div class="card-label">变异(CV%)</div>
+        <div class="card-value" id="valCv">--</div>
+      </div>
+      <div class="card" id="cardShift">
+        <div class="card-label">偏移</div>
+        <div class="card-value" id="valShift">--</div>
       </div>
     </div>
 
     <!-- Status row -->
     <div class="status-row">
       <div class="status-card">
-        <span class="status-label">变异系数 CV%</span>
-        <span class="status-value" id="valCv">--</span>
-      </div>
-      <div class="status-card">
         <span class="status-label">采集状态</span>
         <span class="status-value"><span class="status-dot" id="collectDot"></span><span id="collectStatus">--</span></span>
+      </div>
+      <div class="status-card">
+        <span class="status-label">监测品项</span>
+        <span class="status-value" id="currentProduct">--</span>
       </div>
     </div>
 
@@ -363,7 +371,7 @@
         <canvas id="spcCanvas" height="110" role="img" aria-label="SPC 控制图"></canvas>
       </div>
     </div>
-    <div class="footer-hint" data-tauri-drag-region>双击打开主界面</div>
+    <div class="footer-hint">双击打开主界面</div>
   </div>
 
   <!-- Settings overlay -->

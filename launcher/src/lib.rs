@@ -175,6 +175,7 @@ fn get_widget_data(
         .map_err(|e| e.to_string())?;
     client
         .get(&url)
+        .header("X-API-Key", "ft1-monitor-default-key")
         .send()
         .map_err(|e| e.to_string())?
         .json::<serde_json::Value>()

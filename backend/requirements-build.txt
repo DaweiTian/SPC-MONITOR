@@ -1,3 +1,4 @@
 nuitka>=2.0.0
 ordered-set>=4.1.0
 zstandard>=0.22.0
+pefile>=2023.2.7

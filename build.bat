@@ -6,7 +6,7 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   液奶过程监控系统 v2.0 - 一键构建
+echo   液奶过程监控系统 v1.5.1 - 一键构建
 echo ==========================================
 
 echo [1/5] 构建前端...
@@ -25,6 +25,8 @@ set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 if exist "%BACKEND_DIST%" rmdir /s /q "%BACKEND_DIST%"
 if not exist "ft1-backend-dist\run.dist\run.exe" (echo Nuitka 编译产物不存在 & pause & exit /b 1)
 move /Y "ft1-backend-dist\run.dist\run.exe" "ft1-backend-dist\run.dist\ft1-backend.exe" >nul
+REM 去除后端 exe 图标（避免任务栏出现两个图标）
+python -c "import pefile; pe=pefile.PE('ft1-backend-dist/run.dist/ft1-backend.exe'); d=pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']]; d.VirtualAddress=0;d.Size=0;pe.write('ft1-backend-dist/run.dist/ft1-backend.exe')" 2>nul
 xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
 REM 复制配置文件

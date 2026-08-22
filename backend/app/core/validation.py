@@ -27,15 +27,8 @@ def validate_identifier(name: str) -> str:
     return name
 
 
-# Allowed base directories for MDB files
-MDB_ALLOWED_DIRS = [
-    os.path.abspath("data"),
-    os.path.abspath("."),  # Project root
-]
-
-
 def validate_mdb_path(path: str) -> str:
-    """Validate MDB file path is within allowed directories."""
+    """Validate MDB file path."""
     if not path:
         raise ValueError("MDB path cannot be empty")
 
@@ -44,15 +37,5 @@ def validate_mdb_path(path: str) -> str:
     # Must end with .mdb
     if not abs_path.lower().endswith('.mdb'):
         raise ValueError(f"File must be a .mdb file: {path}")
-
-    # Check against allowed directories
-    allowed = False
-    for allowed_dir in MDB_ALLOWED_DIRS:
-        if abs_path.startswith(allowed_dir + os.sep) or abs_path == allowed_dir:
-            allowed = True
-            break
-
-    if not allowed:
-        raise ValueError(f"MDB path must be within allowed directories: {path}")
 
     return abs_path
