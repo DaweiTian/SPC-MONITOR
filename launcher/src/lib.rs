@@ -181,76 +181,62 @@ async fn get_widget_data(
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
     let base = format!("http://127.0.0.1:{}", port);
-    // 从环境变量读取 API key，有默认值
     let key = std::env::var("FT1_API_KEY").unwrap_or_else(|_| "ft1-monitor-default-key".to_string());
-    let base_clone = base.clone();
-    let key_clone = key.clone();
 
-    // 在线程池中执行阻塞 HTTP 请求，不阻塞 UI
-    let data = tokio::task::spawn_blocking(move || {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
-            .map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
 
-        let mut data: serde_json::Value = client
-            .get(format!("{}/api/monitor/dashboard", base_clone))
-            .header("X-API-Key", &key_clone)
-            .send()
-            .map_err(|e| e.to_string())?
-            .json()
-            .map_err(|e| e.to_string())?;
+    let mut data: serde_json::Value = client
+        .get(format!("{}/api/monitor/dashboard", base))
+        .header("X-API-Key", &key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
 
-        if let Ok(resp) = client
-            .get(format!("{}/api/config/instrument", base_clone))
-            .header("X-API-Key", &key_clone)
-            .send()
-        {
-            if let Ok(instrument) = resp.json::<serde_json::Value>() {
-                if let Some(obj) = data.as_object_mut() {
-                    let inst_name = instrument
-                        .pointer("/current_instrument")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("mock");
-                    let display = instrument
-                        .pointer(&format!("/instruments/{}/name", inst_name))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or(inst_name);
-                    obj.insert("instrument_name".into(), serde_json::json!(display));
-                }
+    if let Ok(resp) = client
+        .get(format!("{}/api/config/instrument", base))
+        .header("X-API-Key", &key)
+        .send()
+        .await
+    {
+        if let Ok(instrument) = resp.json::<serde_json::Value>().await {
+            if let Some(obj) = data.as_object_mut() {
+                let inst_name = instrument
+                    .pointer("/current_instrument")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("mock");
+                let display = instrument
+                    .pointer(&format!("/instruments/{}/name", inst_name))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(inst_name);
+                obj.insert("instrument_name".into(), serde_json::json!(display));
             }
         }
+    }
 
-        // Fetch SPC data for widget chart
-        if let Ok(resp) = client
-            .get(format!("{}/api/monitor/widget_spc", base_clone))
-            .header("X-API-Key", &key_clone)
-            .send()
-        {
-            if let Ok(spc) = resp.json::<serde_json::Value>() {
-                if let Some(obj) = data.as_object_mut() {
-                    if let Some(points) = spc.get("spc_points") {
-                        obj.insert("spc_points".into(), points.clone());
-                    }
-                    if let Some(mean) = spc.get("spc_mean") {
-                        obj.insert("spc_mean".into(), mean.clone());
-                    }
-                    if let Some(ucl) = spc.get("spc_ucl") {
-                        obj.insert("spc_ucl".into(), ucl.clone());
-                    }
-                    if let Some(lcl) = spc.get("spc_lcl") {
-                        obj.insert("spc_lcl".into(), lcl.clone());
+    if let Ok(resp) = client
+        .get(format!("{}/api/monitor/widget_spc", base))
+        .header("X-API-Key", &key)
+        .send()
+        .await
+    {
+        if let Ok(spc) = resp.json::<serde_json::Value>().await {
+            if let Some(obj) = data.as_object_mut() {
+                for field in &["spc_points", "spc_mean", "spc_ucl", "spc_lcl"] {
+                    if let Some(val) = spc.get(*field) {
+                        obj.insert((*field).into(), val.clone());
                     }
                 }
             }
         }
+    }
 
-        Ok(data)
-    })
-    .await
-    .map_err(|e| format!("task join error: {}", e))?;
-
-    data
+    Ok(data)
 }
 
 #[tauri::command]

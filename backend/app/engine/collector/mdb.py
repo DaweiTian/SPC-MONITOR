@@ -298,12 +298,30 @@ class MDBCollector(BaseCollector):
                     }
                     records.append(record)
             
-            # Limit records to init_limit (not samples, since each sample has multiple indicators)
+            # Limit records to init_limit, truncating at sample boundaries
+            # to avoid splitting a single sample's indicators across import/non-import
             if len(records) > self.init_limit:
-                # Sort by sample_time descending and take the most recent
                 records.sort(key=lambda r: r.get('sample_time', ''), reverse=True)
-                records = records[:self.init_limit]
-                logger.info(f"记录数超过 init_limit({self.init_limit})，截取最近的 {self.init_limit} 条")
+                # Group by sample_time, keep complete samples up to init_limit
+                kept, count = [], 0
+                current_time, current_group = None, []
+                for r in records:
+                    t = r.get('sample_time', '')
+                    if t != current_time:
+                        if current_group and count + len(current_group) <= self.init_limit:
+                            kept.extend(current_group)
+                            count += len(current_group)
+                        elif current_group:
+                            break  # adding this sample would exceed limit
+                        current_time = t
+                        current_group = [r]
+                    else:
+                        current_group.append(r)
+                # Handle last group
+                if current_group and count + len(current_group) <= self.init_limit:
+                    kept.extend(current_group)
+                records = kept
+                logger.info(f"记录数超过 init_limit({self.init_limit})，按样本边界截取 {len(records)} 条")
 
             # Save records
             saved_count = 0
