@@ -50,7 +50,7 @@ async def _capture_loop():
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,tauri://localhost,https://tauri.localhost,http://127.0.0.1:18080").split(",")
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
