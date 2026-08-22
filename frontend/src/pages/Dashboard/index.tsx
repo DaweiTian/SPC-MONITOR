@@ -555,8 +555,8 @@ export const Dashboard: React.FC = () => {
           <div className={styles.kpiValue}>
             {avgCpk != null ? avgCpk : '-'}<span className={styles.kpiUnit} />
           </div>
-          <div className={`${styles.kpiTrend} ${avgCpk >= 1.33 ? styles.kpiTrendFlat : styles.kpiTrendDown}`}>
-            {avgCpk >= 1.33 ? '→ 能力充足' : avgCpk >= 1.0 ? '→ 能力勉强' : '→ 能力不足'}
+          <div className={`${styles.kpiTrend} ${avgCpk != null && avgCpk >= 1.33 ? styles.kpiTrendFlat : styles.kpiTrendDown}`}>
+            {avgCpk != null ? (avgCpk >= 1.33 ? '→ 能力充足' : avgCpk >= 1.0 ? '→ 能力勉强' : '→ 能力不足') : '→ 无数据'}
           </div>
         </div>
 
