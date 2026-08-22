@@ -1260,6 +1260,23 @@ export const ConfigPage: React.FC = () => {
                       type="file"
                       accept=".mdb,.accdb"
                       style={{ display: 'none' }}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        try {
+                          const { open } = window.__TAURI__.dialog;
+                          const path = await open({
+                            filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
+                            multiple: false,
+                          });
+                          if (path) {
+                            handleMdbConfigChange('mdb_path', path as string);
+                          }
+                        } catch (err) {
+                          // Fallback: use native file input
+                          const input = e.target as HTMLInputElement;
+                          input.click();
+                        }
+                      }}
                       onChange={e => {
                         const file = e.target.files?.[0]
                         if (file) {

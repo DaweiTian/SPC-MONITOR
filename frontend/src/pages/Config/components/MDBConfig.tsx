@@ -62,6 +62,22 @@ export const MDBConfig = React.memo(function MDBConfig(props: MDBConfigProps) {
                   type="file"
                   accept=".mdb,.accdb"
                   style={{ display: 'none' }}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    try {
+                      const { open } = window.__TAURI__.dialog;
+                      const path = await open({
+                        filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
+                        multiple: false,
+                      });
+                      if (path) {
+                        onMdbConfigChange('mdb_path', path as string);
+                      }
+                    } catch (err) {
+                      const input = e.target as HTMLInputElement;
+                      input.click();
+                    }
+                  }}
                   onChange={e => {
                     const file = e.target.files?.[0]
                     if (file) {
