@@ -9,6 +9,7 @@ use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
+use tauri_plugin_autostart::MacosLauncher;
 use tray::TrayMenuItems;
 
 fn init_logging() {
@@ -42,6 +43,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .setup(move |app| {
             // Mica / Blur 窗口特效
             #[cfg(target_os = "windows")]

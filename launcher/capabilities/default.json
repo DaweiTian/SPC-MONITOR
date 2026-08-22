@@ -22,6 +22,7 @@
     "core:webview:allow-create-webview-window",
     "core:event:default",
     "core:tray:default",
-    "core:menu:default"
+    "core:menu:default",
+    "autostart:default"
   ]
 }
