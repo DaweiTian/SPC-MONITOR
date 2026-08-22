@@ -96,7 +96,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'flex-start',
     gap: 6,
     float: 'left',
-    marginLeft: -8,
+    marginLeft: -18,
     marginBottom: -60,
   },
   toggle: {
