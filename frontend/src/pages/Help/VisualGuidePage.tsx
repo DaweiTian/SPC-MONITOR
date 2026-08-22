@@ -93,7 +93,7 @@ const NormalDistChart: React.FC = () => {
   const opt = useMemo<EChartsOption>(() => {
     const mu = 3.9, sigma = 0.08
     const xs = Array.from({ length: 200 }, (_, i) => 3.4 + i * 0.005)
-    const pdf = (x: number) => (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    const pdf = (x: number) => (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
     const data = xs.map(x => [x, pdf(x)])
     return {
       tooltip: { trigger: 'axis' },
