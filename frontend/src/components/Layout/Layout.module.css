@@ -391,11 +391,13 @@
 
 .sidebarCollapsed .sidebarFooter {
   align-items: center;
-  padding: 12px 8px;
+  padding: 10px 4px;
 }
 
 .sidebarCollapsed .footerVersionBadge {
-  display: none;
+  display: block;
+  text-align: center;
+  padding: 0 4px;
 }
 
 .sidebarCollapsed .footerPoweredBy {
