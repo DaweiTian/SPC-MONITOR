@@ -821,6 +821,7 @@ export const Dashboard: React.FC = () => {
                   <th>预警级别</th>
                   <th>规则类型</th>
                   <th>预警时间</th>
+                  <th>状态</th>
                 </tr>
               </thead>
               <tbody>
@@ -828,6 +829,7 @@ export const Dashboard: React.FC = () => {
                   dashboard.recent_alerts.map(alert => {
                     const rule = alertRules[alert.rule_type || '']
                     const ruleName = rule?.rule || ruleTypeLabel[alert.rule_type || ''] || alert.rule_type || alert.alert_type || '-'
+                    const isPending = alert.status === 'pending'
                     return (
                       <tr key={alert.id}>
                         <td>{aliases.products[alert.product_code || ''] || alert.product_code || '-'}</td>
@@ -840,12 +842,17 @@ export const Dashboard: React.FC = () => {
                         </td>
                         <td title={rule?.description || undefined}>{ruleName}</td>
                         <td>{fmtTime(alert.created_at)}</td>
+                        <td>
+                          <span className={`${styles.tag} ${isPending ? styles.tagCritical : ''}`}>
+                            {isPending ? '待处理' : '已处理'}
+                          </span>
+                        </td>
                       </tr>
                     )
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
                       暂无预警
                     </td>
                   </tr>
