@@ -369,18 +369,12 @@
     settingsPanel.classList.remove('open');
   }
 
-  // Opacity slider
-  async function handleOpacityChange(value) {
+  // Opacity slider — apply via CSS (Tauri v2.11 has no set_opacity on WebviewWindow)
+  function handleOpacityChange(value) {
     var clamped = Math.max(0.1, Math.min(1.0, value / 100));
     opacityValue.textContent = value + '%';
-    try {
-      var invoke = await getTauriInvoke();
-      if (invoke) {
-        await invoke('set_window_opacity', { opacity: clamped });
-      }
-    } catch (e) {
-      console.error('Failed to set opacity:', e);
-    }
+    document.body.style.opacity = clamped;
+    try { localStorage.setItem('widget_opacity', value); } catch (e) {}
   }
 
   // ── Listen for tray toggle-widget event ──
@@ -420,6 +414,35 @@
     opacitySlider.addEventListener('input', function () {
       handleOpacityChange(parseInt(this.value, 10));
     });
+
+    // Restore saved opacity
+    try {
+      var savedOpacity = localStorage.getItem('widget_opacity');
+      if (savedOpacity) {
+        opacitySlider.value = savedOpacity;
+        handleOpacityChange(parseInt(savedOpacity, 10));
+      }
+    } catch (e) {}
+
+    // Pin (always-on-top) toggle
+    var btnPin = $('btnPin');
+    var isPinned = true; // default from tauri.conf.json
+    if (btnPin) {
+      btnPin.addEventListener('click', async function () {
+        try {
+          var Window = await getTauriWindow();
+          if (Window) {
+            var current = Window.getCurrent();
+            isPinned = !isPinned;
+            await current.setAlwaysOnTop(isPinned);
+            btnPin.style.color = isPinned ? '#00d4ff' : '#4a5568';
+            btnPin.title = isPinned ? '取消置顶' : '置顶';
+          }
+        } catch (e) {
+          console.error('Failed to toggle always-on-top:', e);
+        }
+      });
+    }
 
     // Double-click on body to show main window
     document.body.addEventListener('dblclick', handleDoubleClick);
