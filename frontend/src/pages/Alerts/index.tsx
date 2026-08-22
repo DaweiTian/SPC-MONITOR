@@ -289,6 +289,7 @@ export const AlertsPage: React.FC = () => {
       setResolveNote('')
       fetchAlerts()
       fetchOverview()
+      window.dispatchEvent(new Event('alerts-updated'))
     } catch (e) {
       console.error('处理失败:', e)
     }
@@ -303,6 +304,7 @@ export const AlertsPage: React.FC = () => {
       setSelected(new Set())
       fetchAlerts()
       fetchOverview()
+      window.dispatchEvent(new Event('alerts-updated'))
     } catch (e) {
       console.error('批量处理失败:', e)
     }

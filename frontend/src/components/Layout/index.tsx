@@ -145,8 +145,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       }
     }
     fetchAlertsCount()
-    const interval = setInterval(fetchAlertsCount, 30000) // Refresh every 30 seconds
-    return () => clearInterval(interval)
+    const interval = setInterval(fetchAlertsCount, 30000)
+    // Listen for immediate updates from Alerts page
+    const onAlertsUpdated = () => fetchAlertsCount()
+    window.addEventListener('alerts-updated', onAlertsUpdated)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('alerts-updated', onAlertsUpdated)
+    }
   }, [])
 
   useEffect(() => {

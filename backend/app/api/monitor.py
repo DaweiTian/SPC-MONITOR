@@ -16,7 +16,7 @@ def get_dashboard():
     
     today_stats = storage.get_today_stats()
     pending_alerts = storage.get_alerts(status='pending', limit=100).get('alerts', [])
-    recent_alerts = storage.get_alerts(status='pending', limit=5).get('alerts', [])
+    recent_alerts = storage.get_alerts(limit=5).get('alerts', [])
     
     alerts_by_severity = {'CRITICAL': 0, 'WARNING': 0, 'INFO': 0}
     for alert in pending_alerts:
