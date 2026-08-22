@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import { useChart } from '../../components/Charts'
+import { FloatingToc } from '../../components/FloatingToc'
 import s from './Manual.module.css'
 
 /* ─── Reusable bits ─── */
@@ -240,6 +241,27 @@ const ARIMAChart: React.FC = () => {
 
 /* ════════════════════ MAIN COMPONENT ════════════════════ */
 export const GlossaryPage: React.FC = () => {
+  const floatingTocItems = [
+    { id: 'spc', title: 'SPC 统计过程控制' },
+    { id: 'imr-chart', title: 'I-MR 控制图' },
+    { id: 'control-limits', title: '控制限' },
+    { id: 'nelson', title: 'Nelson 规则' },
+    { id: 'sigma', title: '3σ 原则' },
+    { id: 'cpk', title: 'Cpk / Cp / Ppk' },
+    { id: 'ppm', title: 'PPM 缺陷率' },
+    { id: 'spec-limits', title: '规格限' },
+    { id: 'zscore', title: 'Z-Score' },
+    { id: 'iqr', title: 'IQR 四分位距' },
+    { id: 'ewma', title: 'EWMA' },
+    { id: 'arima', title: 'ARIMA 模型' },
+    { id: 'mann-kendall', title: 'Mann-Kendall' },
+    { id: 'mean-std', title: '均值与标准差' },
+    { id: 'normal-dist', title: '正态分布' },
+    { id: 'confidence-interval', title: '置信区间' },
+    { id: 'sliding-window', title: '滑动窗口' },
+    { id: 'appendix', title: '术语速查表' },
+  ]
+
   /* ── TOC sections ── */
   const tocItems = [
     { id: 'spc', icon: svgBar, title: 'SPC 统计过程控制', desc: '控制图、控制限、Nelson规则' },
@@ -252,6 +274,7 @@ export const GlossaryPage: React.FC = () => {
 
   return (
     <div className={s.page}>
+      <FloatingToc items={floatingTocItems} />
       {/* Hero */}
       <div className={s.hero}>
         <div className={s.heroTitle}>液奶成品检验数据分析平台</div>

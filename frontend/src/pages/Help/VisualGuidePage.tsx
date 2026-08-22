@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import { useChart } from '../../components/Charts'
+import { FloatingToc } from '../../components/FloatingToc'
 import s from './Manual.module.css'
 
 /* ─── Reusable bits (same as GlossaryPage) ─── */
@@ -307,8 +308,25 @@ const ARIMAChart: React.FC = () => {
 
 /* ════════════════════ MAIN COMPONENT ════════════════════ */
 export const VisualGuidePage: React.FC = () => {
+  const floatingTocItems = [
+    { id: 'stats', title: '统计学基础' },
+    { id: 'normal', title: '正态分布与3σ' },
+    { id: 'spc', title: 'SPC 统计过程控制' },
+    { id: 'imr', title: 'I-MR 控制图' },
+    { id: 'nelson', title: 'Nelson 8条规则' },
+    { id: 'cpk', title: 'Cpk / Cp' },
+    { id: 'zscore', title: 'Z-Score' },
+    { id: 'iqr', title: 'IQR 四分位距' },
+    { id: 'ewma', title: 'EWMA' },
+    { id: 'arima', title: 'ARIMA 模型' },
+    { id: 'mk', title: 'Mann-Kendall' },
+    { id: 'compliance', title: '3σ合规判定' },
+    { id: 'products', title: '液奶指标体系' },
+  ]
+
   return (
     <div className={s.page}>
+      <FloatingToc items={floatingTocItems} />
       {/* Hero */}
       <div className={s.hero}>
         <div className={s.heroTitle}>📊 数据分析专有名词可视化手册</div>
