@@ -230,25 +230,36 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       {/* ===== 主区域 ===== */}
       <div className={styles.main} role="main">
         {/* 顶部栏 */}
-        <header className={styles.topbar}>
-          <div className={styles.topbarTitle}>
+        <header className={styles.topbar} data-tauri-drag-region>
+          <div className={styles.topbarTitle} data-tauri-drag-region>
             {currentPage.cn}{' '}
-            <span className={styles.topbarTitleSub}>{currentPage.en}</span>
+            <span className={styles.topbarTitleSub} data-tauri-drag-region>{currentPage.en}</span>
           </div>
-          <div className={styles.topbarSpacer} />
-          <div className={styles.topbarInfo}>
-            <div className={styles.topbarInfoItem}>
-              <span className={styles.topbarInfoLabel}>采集频率:</span>
-              <span className={styles.topbarInfoValue}>{sourceStatus.backendReachable ? (collectionFrequency || '获取中...') : '未连接'}</span>
+          <div className={styles.topbarSpacer} data-tauri-drag-region />
+          <div className={styles.topbarInfo} data-tauri-drag-region>
+            <div className={styles.topbarInfoItem} data-tauri-drag-region>
+              <span className={styles.topbarInfoLabel} data-tauri-drag-region>采集频率:</span>
+              <span className={styles.topbarInfoValue} data-tauri-drag-region>{sourceStatus.backendReachable ? (collectionFrequency || '获取中...') : '未连接'}</span>
             </div>
-            <div className={styles.topbarInfoItem}>
-              <span className={styles.topbarInfoLabel}>监测品项:</span>
-              <span className={styles.topbarInfoValue}>{sourceStatus.backendReachable ? (currentProduct || '获取中...') : '未连接'}</span>
+            <div className={styles.topbarInfoItem} data-tauri-drag-region>
+              <span className={styles.topbarInfoLabel} data-tauri-drag-region>监测品项:</span>
+              <span className={styles.topbarInfoValue} data-tauri-drag-region>{sourceStatus.backendReachable ? (currentProduct || '获取中...') : '未连接'}</span>
             </div>
-            <div className={styles.topbarStatus} style={{ color: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }}>
-              <span className={styles.topbarDot} style={{ background: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }} /> {statusDisplay.text}
+            <div className={styles.topbarStatus} style={{ color: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }} data-tauri-drag-region>
+              <span className={styles.topbarDot} style={{ background: statusDisplay.color === 'green' ? '#10b981' : statusDisplay.color === 'blue' ? '#3b82f6' : '#ef4444' }} data-tauri-drag-region /> {statusDisplay.text}
             </div>
-            <div className={styles.topbarClock}>{clock}</div>
+            <div className={styles.topbarClock} data-tauri-drag-region>{clock}</div>
+          </div>
+          <div className={styles.topbarControls}>
+            <button className={styles.topbarBtn} onClick={() => window.__TAURI__.window.Window.getCurrent().minimize()} title="最小化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect y="5" width="12" height="2" rx="1" fill="currentColor"/></svg>
+            </button>
+            <button className={styles.topbarBtn} onClick={() => window.__TAURI__.window.Window.getCurrent().toggleMaximize()} title="最大化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg>
+            </button>
+            <button className={`${styles.topbarBtn} ${styles.topbarBtnClose}`} onClick={() => window.__TAURI__.window.Window.getCurrent().close()} title="关闭">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
           </div>
         </header>
 

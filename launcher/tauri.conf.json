@@ -30,7 +30,7 @@
         "height": 800,
         "maximized": true,
         "resizable": true,
-        "decorations": true
+        "decorations": false
       },
       {
         "label": "widget",
