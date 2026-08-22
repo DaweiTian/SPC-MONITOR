@@ -2,69 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Help.module.css'
 
 const isTauri = !!(window as any).__TAURI_INTERNALS__
-const isDev = import.meta.env.DEV
-// In dev mode, files are at /docs/ (Vite public); in production browser mode, use /app/docs/
-// For the API endpoint, always use /api/docs/ which bypasses SPA fallback
-const docsBase = isDev ? '/docs/' : '/app/docs/'
-
-/** Fetch HTML doc via API endpoint and display via srcdoc */
-const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [html, setHtml] = useState<string>('')
-  const [loadError, setLoadError] = useState(false)
-
-  const fixRelativeUrls = useCallback((raw: string, base: string): string => {
-    const baseTag = `<base href="${base}">`
-    if (raw.includes('<head>')) {
-      return raw.replace('<head>', `<head>${baseTag}`)
-    }
-    return baseTag + raw
-  }, [])
-
-  useEffect(() => {
-    // Use API endpoint in production (bypasses SPA fallback), direct path in dev
-    const url = isDev ? `${docsBase}${filename}` : `/api/docs/${filename}`
-    fetch(url)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.text()
-      })
-      .then(text => {
-        // Check if we got the actual HTML doc (not the SPA page)
-        if (text.includes('<!DOCTYPE html>') && text.includes('echarts')) {
-          setHtml(fixRelativeUrls(text, docsBase))
-          setLoadError(false)
-        } else {
-          setLoadError(true)
-        }
-      })
-      .catch(() => setLoadError(true))
-  }, [filename, fixRelativeUrls])
-
-  if (loadError) {
-    return (
-      <iframe
-        ref={iframeRef}
-        src={`${docsBase}${filename}`}
-        className={styles.docIframe}
-        title={filename}
-      />
-    )
-  }
-
-  if (!html) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>加载中...</div>
-  }
-
-  return (
-    <iframe
-      ref={iframeRef}
-      srcDoc={html}
-      className={styles.docIframe}
-      title={filename}
-    />
-  )
-}
+// Detect dev mode by checking if Vite dev server is running (port 5173)
+const isDev = window.location.port === '5173' || window.location.hostname === 'localhost' && !window.location.port
 
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
@@ -88,6 +27,91 @@ const nelsonRules = [
 ]
 
 type TabKey = 'overview' | 'glossary' | 'visual'
+
+/**
+ * Fetch HTML doc and display via iframe blob URL.
+ * Uses blob: URL which bypasses all asset protocol / SPA fallback issues.
+ */
+const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [blobUrl, setBlobUrl] = useState<string>('')
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let revoked = false
+    let url = ''
+
+    // Determine the correct fetch URL based on environment
+    let fetchUrl: string
+    if (isDev) {
+      // Vite dev server: files in public/ are served at root
+      fetchUrl = `/docs/${filename}`
+    } else if (isTauri) {
+      // Tauri production: fetch from backend API endpoint
+      fetchUrl = `http://127.0.0.1:18080/api/docs/${filename}`
+    } else {
+      // Browser production: backend API endpoint
+      fetchUrl = `/api/docs/${filename}`
+    }
+
+    fetch(fetchUrl)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.text()
+      })
+      .then(html => {
+        if (revoked) return
+        // Inject <base> tag for relative paths (vendor/echarts.min.js etc.)
+        let baseHref: string
+        if (isDev) {
+          baseHref = '/docs/'
+        } else if (isTauri) {
+          baseHref = 'http://127.0.0.1:18080/app/docs/'
+        } else {
+          baseHref = '/app/docs/'
+        }
+        const baseTag = `<base href="${baseHref}">`
+        const fixed = html.includes('<head>')
+          ? html.replace('<head>', `<head>${baseTag}`)
+          : baseTag + html
+
+        const blob = new Blob([fixed], { type: 'text/html; charset=utf-8' })
+        url = URL.createObjectURL(blob)
+        setBlobUrl(url)
+        setError(false)
+      })
+      .catch(() => {
+        if (!revoked) setError(true)
+      })
+
+    return () => {
+      revoked = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [filename])
+
+  if (error) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+        手册加载失败，请确认后端服务正在运行。
+      </div>
+    )
+  }
+
+  if (!blobUrl) {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>加载中...</div>
+  }
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={blobUrl}
+      className={styles.docIframe}
+      title={filename}
+      sandbox="allow-scripts allow-same-origin"
+    />
+  )
+}
 
 export const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
