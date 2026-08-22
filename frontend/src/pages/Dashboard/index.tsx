@@ -35,6 +35,11 @@ const severityTagClass: Record<string, string> = {
   WARNING: styles.tagWarning,
   INFO: styles.tagInfo,
 }
+const severityLabel: Record<string, string> = {
+  CRITICAL: '严重',
+  WARNING: '警告',
+  INFO: '信息',
+}
 
 /* ────────── 时间格式化 ────────── */
 function fmtTime(iso?: string): string {
@@ -789,7 +794,7 @@ export const Dashboard: React.FC = () => {
                     <tr key={alert.id}>
                       <td>
                         <span className={`${styles.tag} ${severityTagClass[alert.severity] || ''}`}>
-                          {alert.severity}
+                          {severityLabel[alert.severity] || alert.severity}
                         </span>
                       </td>
                       <td>{alert.rule_desc || alert.message}</td>
