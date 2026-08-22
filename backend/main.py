@@ -494,6 +494,21 @@ app.include_router(ws_router, prefix="/api")  # No auth dependency; WS uses quer
 def health():
     return {"status": "ok"}
 
+# SPA catch-all: serve index.html for any non-API GET request (browser refresh support)
+if _frontend_dist.exists():
+    from starlette.responses import FileResponse as _FileResponse
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def _spa_catchall(path: str):
+        """Serve index.html for SPA routes when accessed via browser refresh."""
+        if path.startswith("api/"):
+            return _detail_not_found()
+        return _FileResponse(str(_frontend_dist / "index.html"))
+
+    def _detail_not_found():
+        from starlette.responses import JSONResponse
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=18080)

@@ -52,7 +52,7 @@ export const HelpPage: React.FC = () => {
       {activeTab === 'overview' && (
         <div className={styles.contentScroll}>
           <div className={styles.brandHeader}>
-            <img src="/icons/powered-by-yili2.svg" alt="YILI" className={styles.brandLogo} />
+            <img src="./icons/powered-by-yili2.svg" alt="YILI" className={styles.brandLogo} />
             <div className={styles.brandInfo}>
               <div className={styles.brandTitle}>液奶过程监控系统</div>
               <div className={styles.brandSub}>由液态奶中心实验室开发</div>

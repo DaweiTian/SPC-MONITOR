@@ -218,7 +218,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </svg>
         </button>
         <div className={styles.sidebarLogo}>
-          <img src="/favicon.ico" alt="Logo" className={styles.logoIconImg} />
+          <img src="./favicon.ico" alt="Logo" className={styles.logoIconImg} />
           <div className={styles.logoText}>
             液奶过程监控
             <span className={styles.logoSubTitle}>SPC实时分析平台</span>
@@ -251,7 +251,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         <div className={styles.sidebarFooter}>
           <span className={styles.footerVersionBadge}>v1.5.1</span>
           <div className={styles.footerPoweredBy}>
-            <img src="/icons/powered-by-yili2.svg" alt="Powered by YILI" className={styles.footerPoweredByImg} />
+            <img src="./icons/powered-by-yili2.svg" alt="Powered by YILI" className={styles.footerPoweredByImg} />
           </div>
         </div>
       </aside>
