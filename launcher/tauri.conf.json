@@ -4,8 +4,7 @@
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173",
-    "withGlobalTauri": true
+    "devUrl": "http://localhost:5173"
   },
   "bundle": {
     "active": true,
@@ -21,6 +20,7 @@
     }
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "splash",
