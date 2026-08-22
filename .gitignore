@@ -189,3 +189,4 @@ launcher/ft1-backend/
 
 # Rust build output
 launcher/target/
+data/monitor.db
