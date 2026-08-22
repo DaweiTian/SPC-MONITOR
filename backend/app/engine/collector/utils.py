@@ -21,6 +21,16 @@ def parse_datetime(time_str: str) -> Optional[datetime]:
         return None
 
 
+def clear_breakpoint(filepath: str) -> None:
+    """Delete breakpoint file if it exists."""
+    if os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+            logger.info(f"已清除断点文件: {filepath}")
+        except Exception as e:
+            logger.warning(f"清除断点文件失败: {e}")
+
+
 def load_breakpoint(filepath: str) -> Optional[str]:
     """Load breakpoint timestamp from file."""
     if os.path.exists(filepath):

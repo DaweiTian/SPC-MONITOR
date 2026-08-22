@@ -33,6 +33,7 @@ from backend.app.engine.collector.mock import MockCollector
 from backend.app.engine.collector.sqlserver import SQLServerCollector
 from backend.app.engine.collector.mdb import MDBCollector
 from backend.app.engine.collector.fta import FTACollector
+from backend.app.engine.collector.utils import clear_breakpoint
 from backend.app.engine.collector.scheduler import AdaptiveScheduler
 from backend.app.engine.alert.engine import AlertEngine
 
@@ -312,6 +313,9 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
 
                 with open(mdb_config_file, "r", encoding="utf-8") as f:
                     mdb_config = json.load(f)
+
+                # Clear breakpoint file so first collect imports fresh data
+                clear_breakpoint("mdb_breakpoint.json")
 
                 new_collector = MDBCollector.from_config(
                     config=mdb_config,

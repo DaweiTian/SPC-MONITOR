@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
-from .utils import parse_datetime, load_breakpoint, save_breakpoint, load_spec_limits
+from .utils import parse_datetime, load_breakpoint, save_breakpoint, clear_breakpoint, load_spec_limits
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +298,13 @@ class MDBCollector(BaseCollector):
                     }
                     records.append(record)
             
+            # Limit records to init_limit (not samples, since each sample has multiple indicators)
+            if len(records) > self.init_limit:
+                # Sort by sample_time descending and take the most recent
+                records.sort(key=lambda r: r.get('sample_time', ''), reverse=True)
+                records = records[:self.init_limit]
+                logger.info(f"记录数超过 init_limit({self.init_limit})，截取最近的 {self.init_limit} 条")
+
             # Save records
             saved_count = 0
             if self.storage and records:
