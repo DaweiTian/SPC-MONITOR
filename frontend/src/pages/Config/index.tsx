@@ -1263,7 +1263,7 @@ export const ConfigPage: React.FC = () => {
                       onClick={async (e) => {
                         e.preventDefault();
                         try {
-                          const { open } = window.__TAURI__.dialog;
+                          const { open } = window.__TAURI__!.dialog;
                           const path = await open({
                             filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
                             multiple: false,

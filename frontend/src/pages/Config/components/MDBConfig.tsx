@@ -65,7 +65,7 @@ export const MDBConfig = React.memo(function MDBConfig(props: MDBConfigProps) {
                   onClick={async (e) => {
                     e.preventDefault();
                     try {
-                      const { open } = window.__TAURI__.dialog;
+                      const { open } = window.__TAURI__!.dialog;
                       const path = await open({
                         filters: [{ name: 'MDB Files', extensions: ['mdb', 'accdb'] }],
                         multiple: false,
