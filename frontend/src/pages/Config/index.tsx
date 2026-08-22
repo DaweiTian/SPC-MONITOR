@@ -500,6 +500,7 @@ export const ConfigPage: React.FC = () => {
   const handleCancelConfirm = () => {
     setShowConfirmDialog(false)
     setInitStatus(null)
+    setInitLimit(100)
   }
 
   const handleAddProduct = () => {

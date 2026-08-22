@@ -179,7 +179,8 @@ async fn get_widget_data(
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
     let base = format!("http://127.0.0.1:{}", port);
-    let key = "ft1-monitor-default-key".to_string();
+    // 从环境变量读取 API key，有默认值
+    let key = std::env::var("FT1_API_KEY").unwrap_or_else(|_| "ft1-monitor-default-key".to_string());
     let base_clone = base.clone();
     let key_clone = key.clone();
 

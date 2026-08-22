@@ -35,14 +35,20 @@ fn config_path() -> PathBuf {
 impl AppConfig {
     pub fn load() -> Self {
         let path = config_path();
-        match std::fs::read_to_string(&path) {
-            Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
+        let mut cfg = match std::fs::read_to_string(&path) {
+            Ok(data) => serde_json::from_str::<Self>(&data).unwrap_or_default(),
             Err(_) => {
-                let cfg = Self::default();
-                cfg.save();
-                cfg
+                let c = Self::default();
+                c.save();
+                c
             }
+        };
+        // CSP 硬编码端口 18080，强制修正
+        if cfg.server_port != 18080 {
+            log::warn!("server_port={} 与 CSP 不匹配，已强制修正为 18080", cfg.server_port);
+            cfg.server_port = 18080;
         }
+        cfg
     }
 
     pub fn save(&self) {
