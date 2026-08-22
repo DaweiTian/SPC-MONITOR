@@ -104,6 +104,22 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const { currentProduct, collectionFrequency } = useAppContext()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('sidebar-collapsed', String(next))
+      } catch { /* ignore */ }
+      return next
+    })
+  }
   const isTauri = !!window.__TAURI__
   const [sourceStatus, setSourceStatus] = useState<{
     source: string
@@ -183,7 +199,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   return (
     <div className={styles.app}>
       {/* ===== 侧边栏 ===== */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+        <button
+          className={styles.sidebarToggleBtn}
+          onClick={toggleCollapsed}
+          title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
         <div className={styles.sidebarLogo}>
           <img src="/favicon.ico" alt="Logo" className={styles.logoIconImg} />
           <div className={styles.logoText}>
@@ -202,9 +225,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     key={item.key}
                     className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                     onClick={() => navigate(item.path)}
+                    data-label={item.label}
                   >
                     <span className={styles.navIcon}>{item.icon}</span>
-                    {item.label}
+                    <span className={styles.navItemText}>{item.label}</span>
                     {item.badge ? (
                       <span className={styles.navBadge}>{item.badge}</span>
                     ) : null}
@@ -215,13 +239,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          <div className={styles.footerStatusRow}>
-            <div className={styles.footerStatus}>
-              <span className={`${styles.footerDot} ${statusDisplay.color === 'green' ? styles.footerDotGreen : statusDisplay.color === 'blue' ? styles.footerDotBlue : styles.footerDotRed}`} />
-              <span className={styles.footerStatusText}>{statusDisplay.text}</span>
-            </div>
-            <span className={styles.footerVersionBadge}>v1.5.1</span>
-          </div>
+          <span className={styles.footerVersionBadge}>v1.5.1</span>
           <div className={styles.footerPoweredBy}>
             <img src="/icons/powered-by-yili2.svg" alt="Powered by YILI" className={styles.footerPoweredByImg} />
           </div>

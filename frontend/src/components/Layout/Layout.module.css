@@ -13,6 +13,8 @@
   flex-direction: column;
   flex-shrink: 0;
   z-index: 10;
+  position: relative;
+  transition: width 0.2s ease;
 }
 
 .sidebarLogo {
@@ -348,6 +350,114 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
+}
+
+/* ========== 侧边栏折叠状态 ========== */
+.sidebarCollapsed {
+  width: 56px;
+}
+
+.sidebarCollapsed .sidebarLogo {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebarCollapsed .logoText {
+  display: none;
+}
+
+.sidebarCollapsed .navGroupTitle {
+  display: none;
+}
+
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding: 11px 0;
+}
+
+.sidebarCollapsed .navItemText {
+  display: none;
+}
+
+.sidebarCollapsed .navBadge {
+  display: none;
+}
+
+.sidebarCollapsed .sidebarFooter {
+  align-items: center;
+  padding: 12px 8px;
+}
+
+.sidebarCollapsed .footerVersionBadge {
+  display: block;
+  text-align: center;
+}
+
+.sidebarCollapsed .footerPoweredBy {
+  display: none;
+}
+
+/* Tooltip for collapsed nav items */
+.sidebarCollapsed .navItem[data-label] {
+  position: relative;
+}
+
+.sidebarCollapsed .navItem[data-label]::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a2332;
+  color: var(--text-primary);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 100;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebarCollapsed .navItem[data-label]:hover::after {
+  opacity: 1;
+}
+
+/* ========== 侧边栏折叠按钮 ========== */
+.sidebarToggleBtn {
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1a2332;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  outline: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.sidebarToggleBtn:hover {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+/* ========== Nav item text wrapper ========== */
+.navItemText {
+  /* collapsed state hides this via .sidebarCollapsed .navItemText */
 }
 
 /* ========== 动画 ========== */
