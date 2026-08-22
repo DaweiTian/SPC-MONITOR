@@ -47,12 +47,9 @@ if not _frontend_dist.exists():
     _frontend_dist = pathlib.Path(os.path.dirname(os.path.abspath(sys.executable if '__compiled__' in globals() else __file__))) / "data" / "frontend"
 if _frontend_dist.exists():
     from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import RedirectResponse
-    # Mount at /app to avoid intercepting /api/* routes
+    # Mount at both / and /app so absolute asset paths (/assets/...) resolve correctly
     app.mount("/app", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
-    @app.get("/", include_in_schema=False)
-    async def _root_redirect():
-        return RedirectResponse(url="/app")
+    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend-root")
 
 # Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
 _main_loop: asyncio.AbstractEventLoop | None = None

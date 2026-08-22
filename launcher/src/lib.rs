@@ -168,18 +168,82 @@ fn get_widget_data(
     service: tauri::State<Arc<ServiceManager>>,
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
-    let url = format!("http://127.0.0.1:{}/api/monitor/dashboard", port);
+    let base = format!("http://127.0.0.1:{}", port);
+    let key = "ft1-monitor-default-key";
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| e.to_string())?;
-    client
-        .get(&url)
-        .header("X-API-Key", "ft1-monitor-default-key")
+
+    // Fetch dashboard data
+    let mut data: serde_json::Value = client
+        .get(format!("{}/api/monitor/dashboard", base))
+        .header("X-API-Key", key)
         .send()
         .map_err(|e| e.to_string())?
-        .json::<serde_json::Value>()
-        .map_err(|e| e.to_string())
+        .json()
+        .map_err(|e| e.to_string())?;
+
+    // Fetch instrument config
+    if let Ok(resp) = client
+        .get(format!("{}/api/config/instrument", base))
+        .header("X-API-Key", key)
+        .send()
+    {
+        if let Ok(instrument) = resp.json::<serde_json::Value>() {
+            if let Some(obj) = data.as_object_mut() {
+                let inst_name = instrument
+                    .pointer("/current_instrument")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("mock");
+                let display = instrument
+                    .pointer(&format!("/instruments/{}/name", inst_name))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(inst_name);
+                obj.insert("instrument_name".into(), serde_json::json!(display));
+            }
+        }
+    }
+
+    // Fetch products list
+    if let Ok(resp) = client
+        .get(format!("{}/api/monitor/products", base))
+        .header("X-API-Key", key)
+        .send()
+    {
+        if let Ok(products) = resp.json::<serde_json::Value>() {
+            if let Some(arr) = products.get("products").and_then(|v| v.as_array()) {
+                if let Some(first) = arr.first() {
+                    if let Some(name) = first.get("name").and_then(|v| v.as_str()) {
+                        if let Some(obj) = data.as_object_mut() {
+                            obj.insert("current_product".into(), serde_json::json!(name));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fetch indicators list
+    if let Ok(resp) = client
+        .get(format!("{}/api/monitor/indicators", base))
+        .header("X-API-Key", key)
+        .send()
+    {
+        if let Ok(indicators) = resp.json::<serde_json::Value>() {
+            if let Some(arr) = indicators.get("indicators").and_then(|v| v.as_array()) {
+                if let Some(first) = arr.first() {
+                    if let Some(name) = first.get("name").and_then(|v| v.as_str()) {
+                        if let Some(obj) = data.as_object_mut() {
+                            obj.insert("current_indicator".into(), serde_json::json!(name));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(data)
 }
 
 #[tauri::command]

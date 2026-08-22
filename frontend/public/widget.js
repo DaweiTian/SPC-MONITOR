@@ -30,6 +30,8 @@
   const valCv = $('valCv');
   const valShift = $('valShift');
   const currentProduct = $('currentProduct');
+  const currentIndicator = $('currentIndicator');
+  const instrumentName = $('instrumentName');
   const collectDot = $('collectDot');
   const collectStatus = $('collectStatus');
   const alertsList = $('alertsList');
@@ -137,6 +139,16 @@
     // Current product (监测品项)
     if (currentProduct) {
       currentProduct.textContent = data.current_product ?? data.product_name ?? '--';
+    }
+
+    // Current indicator (监测项目)
+    if (currentIndicator) {
+      currentIndicator.textContent = data.current_indicator ?? data.indicator_name ?? '--';
+    }
+
+    // Instrument name (监测仪器)
+    if (instrumentName) {
+      instrumentName.textContent = data.instrument_name ?? '--';
     }
 
     // Collection status
