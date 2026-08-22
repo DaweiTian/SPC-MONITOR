@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import styles from './Help.module.css'
 
 const isTauri = !!(window as any).__TAURI_INTERNALS__
-const docsBase = isTauri ? 'docs/' : '/app/docs/'
+const docsBase = isTauri ? 'https://tauri.localhost/docs/' : '/app/docs/'
 
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
