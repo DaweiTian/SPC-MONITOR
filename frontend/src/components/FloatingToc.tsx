@@ -89,12 +89,12 @@ export const FloatingToc: React.FC<FloatingTocProps> = ({ items }) => {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     position: 'fixed',
-    right: 16,
+    left: 16,
     top: 80,
     zIndex: 50,
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: 6,
   },
   toggle: {

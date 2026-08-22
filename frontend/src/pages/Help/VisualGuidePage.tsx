@@ -110,7 +110,7 @@ const NormalDistChart: React.FC = () => {
           { xAxis: mu, lineStyle: { color: '#16a34a', width: 1.5 }, label: { formatter: 'μ', fontSize: 11, color: '#16a34a' } },
           { xAxis: mu + sigma, lineStyle: { color: '#d97706', type: 'dashed' }, label: { formatter: 'μ+1σ', fontSize: 10, color: '#d97706' } },
           { xAxis: mu - 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'μ-3σ', fontSize: 9, color: '#dc2626', position: 'start' } },
-          { xAxis: mu + 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'μ+3σ', fontSize: 9, color: '#dc2626', position: 'end' } },
+          { xAxis: mu + 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'μ+3σ', fontSize: 9, color: '#dc2626' } },
         ] },
         markArea: { silent: true, itemStyle: { color: 'rgba(22,163,74,0.08)' }, data: [[{ xAxis: mu - sigma }, { xAxis: mu + sigma }]] },
       }],
@@ -131,12 +131,12 @@ const ZoneChart: React.FC = () => {
       yAxis: { type: 'value', name: '脂肪(%)', min: 3.6, max: 4.2 },
       series: [{
         type: 'line', data, symbol: 'circle', symbolSize: 5,
-        lineStyle: { width: 1.5, color: '#334155' }, itemStyle: { color: '#334155' },
+        lineStyle: { width: 1.5, color: '#94a3b8' }, itemStyle: { color: '#94a3b8' },
         markLine: { silent: true, symbol: 'none', data: [
-          { yAxis: mu + 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL', fontSize: 9, color: '#dc2626', position: 'end' } },
-          { yAxis: mu + 2 * sigma, lineStyle: { color: '#d97706', type: 'dotted' }, label: { formatter: 'μ+2σ', fontSize: 9, color: '#d97706', position: 'end' } },
-          { yAxis: mu + sigma, lineStyle: { color: '#16a34a', type: 'dotted' }, label: { formatter: 'μ+1σ', fontSize: 9, color: '#16a34a', position: 'end' } },
-          { yAxis: mu, lineStyle: { color: '#0891b2', width: 1.5 }, label: { formatter: 'CL', fontSize: 10, color: '#0891b2', position: 'end' } },
+          { yAxis: mu + 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'UCL', fontSize: 9, color: '#dc2626' } },
+          { yAxis: mu + 2 * sigma, lineStyle: { color: '#d97706', type: 'dotted' }, label: { formatter: 'μ+2σ', fontSize: 9, color: '#d97706' } },
+          { yAxis: mu + sigma, lineStyle: { color: '#16a34a', type: 'dotted' }, label: { formatter: 'μ+1σ', fontSize: 9, color: '#16a34a' } },
+          { yAxis: mu, lineStyle: { color: '#0891b2', width: 1.5 }, label: { formatter: 'CL', fontSize: 10, color: '#0891b2' } },
           { yAxis: mu - sigma, lineStyle: { color: '#16a34a', type: 'dotted' }, label: { formatter: 'μ-1σ', fontSize: 9, color: '#16a34a', position: 'start' } },
           { yAxis: mu - 2 * sigma, lineStyle: { color: '#d97706', type: 'dotted' }, label: { formatter: 'μ-2σ', fontSize: 9, color: '#d97706', position: 'start' } },
           { yAxis: mu - 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: 'LCL', fontSize: 9, color: '#dc2626', position: 'start' } },
@@ -171,7 +171,7 @@ const IMRFullChart: React.FC = () => {
       xAxis: [{ type: 'category', gridIndex: 0, data: raw.map((_, i) => `#${i + 1}`), axisLabel: { show: false } }, { type: 'category', gridIndex: 1, data: raw.map((_, i) => `#${i + 1}`), axisLabel: { fontSize: 9 } }],
       yAxis: [{ type: 'value', gridIndex: 0, name: 'I图', min: 3.6, max: 4.2 }, { type: 'value', gridIndex: 1, name: 'MR图', min: 0, max: 0.25 }],
       series: [
-        { name: 'I图', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: raw, symbol: 'circle', symbolSize: 5, lineStyle: { width: 1.5, color: '#334155' }, itemStyle: { color: (p: any) => (p.value > ucl || p.value < lcl) ? '#dc2626' : '#334155' }, markLine: { silent: true, symbol: 'none', data: [{ yAxis: ucl, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: `UCL=${ucl.toFixed(3)}`, fontSize: 9 } }, { yAxis: mean, lineStyle: { color: '#0891b2' }, label: { formatter: `CL=${mean.toFixed(3)}`, fontSize: 9 } }, { yAxis: lcl, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: `LCL=${lcl.toFixed(3)}`, fontSize: 9 } }] } },
+        { name: 'I图', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: raw, symbol: 'circle', symbolSize: 5, lineStyle: { width: 1.5, color: '#94a3b8' }, itemStyle: { color: (p: any) => (p.value > ucl || p.value < lcl) ? '#dc2626' : '#94a3b8' }, markLine: { silent: true, symbol: 'none', data: [{ yAxis: ucl, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: `UCL=${ucl.toFixed(3)}`, fontSize: 9 } }, { yAxis: mean, lineStyle: { color: '#0891b2' }, label: { formatter: `CL=${mean.toFixed(3)}`, fontSize: 9 } }, { yAxis: lcl, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: `LCL=${lcl.toFixed(3)}`, fontSize: 9 } }] } },
         { name: 'MR图', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: mr, symbol: 'circle', symbolSize: 4, lineStyle: { width: 1.5, color: '#64748b' }, itemStyle: { color: '#64748b' }, markLine: { silent: true, symbol: 'none', data: [{ yAxis: mrUcl, lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: `UCL=${mrUcl.toFixed(3)}`, fontSize: 9 } }, { yAxis: mrMean, lineStyle: { color: '#0891b2' }, label: { formatter: `CL=${mrMean.toFixed(3)}`, fontSize: 9 } }] } },
       ],
     }
@@ -188,8 +188,8 @@ const NelsonChart: React.FC<{ data: number[]; mean: number; sigma: number; redId
     yAxis: { type: 'value', min: mean - 4 * sigma, max: mean + 4 * sigma },
     series: [{
       type: 'line', data, symbol: 'circle', symbolSize: 5,
-      lineStyle: { width: 1.5, color: '#334155' },
-      itemStyle: { color: (p: any) => redIdx.includes(p.dataIndex) ? '#dc2626' : yellowIdx.includes(p.dataIndex) ? '#d97706' : '#334155' },
+      lineStyle: { width: 1.5, color: '#94a3b8' },
+      itemStyle: { color: (p: any) => redIdx.includes(p.dataIndex) ? '#dc2626' : yellowIdx.includes(p.dataIndex) ? '#d97706' : '#94a3b8' },
       markLine: { silent: true, symbol: 'none', data: [
         { yAxis: mean + 3 * sigma, lineStyle: { color: '#dc2626', type: 'dashed', width: 1 }, label: { formatter: 'UCL', fontSize: 9, color: '#dc2626' } },
         { yAxis: mean, lineStyle: { color: '#0891b2', width: 1 }, label: { formatter: 'CL', fontSize: 9, color: '#0891b2' } },
@@ -329,7 +329,7 @@ export const VisualGuidePage: React.FC = () => {
       <FloatingToc items={floatingTocItems} />
       {/* Hero */}
       <div className={s.hero}>
-        <div className={s.heroTitle}>📊 数据分析专有名词可视化手册</div>
+        <div className={s.heroTitle}>数据分析专有名词可视化手册</div>
         <div className={s.heroSub}>用图表理解每一个统计概念</div>
       </div>
 
