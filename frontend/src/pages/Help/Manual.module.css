@@ -1,0 +1,300 @@
+.page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 60px;
+  line-height: 1.7;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+.heroTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.heroSub {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.heroMeta {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
+}
+.heroMetaNum {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+.heroMetaLbl {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── TOC Grid ── */
+.tocGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 16px 0 24px;
+}
+.tocCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.tocCard:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.tocCardTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tocCardDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Section Card ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+.cardHeaderIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cardTag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.tagSpc { background: rgba(0,212,255,0.12); color: #00d4ff; }
+.tagCapability { background: rgba(16,185,129,0.12); color: #10b981; }
+.tagAnomaly { background: rgba(239,68,68,0.15); color: #ef4444; }
+.tagTrend { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.tagStat { background: rgba(16,185,129,0.15); color: #10b981; }
+.tagQuality { background: rgba(99,102,241,0.12); color: #818cf8; }
+
+/* ── Definition / Formula / Note / Warn boxes ── */
+.defBox {
+  background: rgba(0,212,255,0.08);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 14px 18px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+}
+.defBoxLabel, .formulaLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.defBoxLabel { color: var(--accent-cyan); }
+.formulaLabel { color: var(--text-muted); }
+
+.formulaBox {
+  background: rgba(26,34,52,0.8);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  font-size: 15px;
+  line-height: 2;
+  overflow-x: auto;
+}
+
+.noteBox {
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.warnBox {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+/* ── Tables ── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.table th {
+  background: rgba(26,34,52,0.8);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+.table tr:hover td {
+  background: rgba(26,34,52,0.5);
+}
+
+/* ── Charts ── */
+.chartWrap {
+  width: 100%;
+  margin: 16px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+.chartTitle {
+  background: rgba(26,34,52,0.8);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+.chartBody {
+  padding: 12px;
+}
+
+/* ── Sub headings ── */
+.h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 18px 0 10px;
+}
+
+/* ── Concept block (visual guide) ── */
+.concept {
+  margin-bottom: 28px;
+}
+.conceptTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(26,34,52,0.8);
+  color: var(--text-primary);
+}
+.conceptTag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.conceptBody {
+  padding: 0 4px;
+}
+.conceptBody p {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ── Ordered step list ── */
+.stepList {
+  counter-reset: step;
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.stepItem {
+  counter-increment: step;
+  position: relative;
+  padding: 8px 0 8px 36px;
+  border-left: 2px solid var(--border-color);
+  margin-left: 12px;
+}
+.stepItem::before {
+  content: counter(step);
+  position: absolute;
+  left: -13px;
+  top: 6px;
+  width: 24px;
+  height: 24px;
+  background: var(--accent-cyan);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Rating bar ── */
+.ratingBar {
+  display: flex;
+  gap: 3px;
+  margin: 8px 0;
+}
+.ratingSeg {
+  flex: 1;
+  text-align: center;
+  padding: 5px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+/* ── Severity badges ── */
+.badgeCritical { color: #dc2626; font-weight: 600; }
+.badgeWarning { color: #d97706; font-weight: 600; }
+.badgeInfo { color: #0891b2; font-weight: 600; }

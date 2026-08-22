@@ -1,12 +1,13 @@
 import { useRef, useEffect, useCallback } from 'react'
 import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
-import { LineChart, BarChart, GaugeChart, PieChart } from 'echarts/charts'
+import { LineChart, BarChart, GaugeChart, PieChart, ScatterChart, BoxplotChart } from 'echarts/charts'
 import {
   TooltipComponent,
   GridComponent,
   LegendComponent,
   MarkLineComponent,
+  MarkAreaComponent,
   DataZoomComponent,
   TitleComponent,
 } from 'echarts/components'
@@ -18,10 +19,13 @@ echarts.use([
   BarChart,
   GaugeChart,
   PieChart,
+  ScatterChart,
+  BoxplotChart,
   TooltipComponent,
   GridComponent,
   LegendComponent,
   MarkLineComponent,
+  MarkAreaComponent,
   DataZoomComponent,
   TitleComponent,
   CanvasRenderer,

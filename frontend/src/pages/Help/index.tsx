@@ -1,10 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
+import { GlossaryPage } from './GlossaryPage'
+import { VisualGuidePage } from './VisualGuidePage'
 import styles from './Help.module.css'
-
-const isTauri = !!(window as any).__TAURI_INTERNALS__
-// Detect Vite dev server (port 5173). import.meta.env.DEV doesn't work here
-// because the built app served by backend also runs on localhost.
-const isDev = window.location.port === '5173'
 
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
@@ -28,92 +25,6 @@ const nelsonRules = [
 ]
 
 type TabKey = 'overview' | 'glossary' | 'visual'
-
-/**
- * Fetch HTML doc and display via iframe blob URL.
- * Uses blob: URL which bypasses all asset protocol / SPA fallback issues.
- */
-const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
-  const [blobUrl, setBlobUrl] = useState<string>('')
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    let revoked = false
-    let url = ''
-
-    // Determine the correct fetch URL based on environment
-    let fetchUrl: string
-    if (isDev) {
-      // Vite dev server: files in public/ are served at root
-      fetchUrl = `/docs/${filename}`
-    } else if (isTauri) {
-      // Tauri production: fetch from backend API endpoint
-      fetchUrl = `http://127.0.0.1:18080/api/docs/${filename}`
-    } else {
-      // Browser production: backend API endpoint
-      fetchUrl = `/api/docs/${filename}`
-    }
-
-    fetch(fetchUrl)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.text()
-      })
-      .then(html => {
-        if (revoked) return
-        // Resolve relative paths to absolute URLs (blob URL has opaque origin, <base> won't work)
-        let baseHref: string
-        if (isDev) {
-          baseHref = '/docs/'
-        } else if (isTauri) {
-          baseHref = 'http://127.0.0.1:18080/app/docs/'
-        } else {
-          baseHref = '/app/docs/'
-        }
-        // Rewrite relative src/href (vendor/xxx → /docs/vendor/xxx)
-        let fixed = html
-          .replace(/src="vendor\//g, `src="${baseHref}vendor/`)
-          .replace(/href="vendor\//g, `href="${baseHref}vendor/`)
-          .replace(/src='\.\/vendor\//g, `src='${baseHref}vendor/`)
-
-        const blob = new Blob([fixed], { type: 'text/html; charset=utf-8' })
-        url = URL.createObjectURL(blob)
-        setBlobUrl(url)
-        setError(false)
-      })
-      .catch(() => {
-        if (!revoked) setError(true)
-      })
-
-    return () => {
-      revoked = true
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [filename])
-
-  if (error) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
-        手册加载失败，请确认后端服务正在运行。
-      </div>
-    )
-  }
-
-  if (!blobUrl) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>加载中...</div>
-  }
-
-  return (
-    <iframe
-      src={blobUrl}
-      className={styles.docIframe}
-      title={filename}
-      // allow-scripts: ECharts/KaTeX need to execute
-      // allow-same-origin: CSS url() needs same-origin for font loading
-      sandbox="allow-scripts allow-same-origin"
-    />
-  )
-}
 
 export const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
@@ -214,8 +125,8 @@ export const HelpPage: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'glossary' && <DocViewer filename="glossary.html" />}
-      {activeTab === 'visual' && <DocViewer filename="visual-guide.html" />}
+      {activeTab === 'glossary' && <GlossaryPage />}
+      {activeTab === 'visual' && <VisualGuidePage />}
     </div>
   )
 }
