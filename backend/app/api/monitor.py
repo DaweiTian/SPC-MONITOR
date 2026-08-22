@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/monitor", tags=["监控"])
 
 # 全局实例（将在 main.py 中初始化）

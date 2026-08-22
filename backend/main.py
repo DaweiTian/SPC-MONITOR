@@ -31,7 +31,7 @@ from backend.app.api.predict import router as predict_router
 from backend.app.services.storage import OnlineStorage
 from backend.app.engine.collector.mock import MockCollector
 from backend.app.engine.collector.sqlserver import SQLServerCollector
-from backend.app.engine.collector.mdb import MDBCollector
+from backend.app.engine.collector.mdb import MDBCollector, BREAKPOINT_FILE
 from backend.app.engine.collector.fta import FTACollector
 from backend.app.engine.collector.utils import clear_breakpoint
 from backend.app.engine.collector.scheduler import AdaptiveScheduler
@@ -323,7 +323,7 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
                     mdb_config = json.load(f)
 
                 # Clear breakpoint file so first collect imports fresh data
-                clear_breakpoint("mdb_breakpoint.json")
+                clear_breakpoint(BREAKPOINT_FILE)
 
                 new_collector = MDBCollector.from_config(
                     config=mdb_config,

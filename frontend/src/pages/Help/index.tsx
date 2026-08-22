@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import styles from './Help.module.css'
 
 const isTauri = !!(window as any).__TAURI_INTERNALS__
-// Detect dev mode by checking if Vite dev server is running (port 5173)
-const isDev = window.location.port === '5173' || window.location.hostname === 'localhost' && !window.location.port
+// Detect Vite dev server (port 5173). import.meta.env.DEV doesn't work here
+// because the built app served by backend also runs on localhost.
+const isDev = window.location.port === '5173'
 
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
@@ -33,7 +34,6 @@ type TabKey = 'overview' | 'glossary' | 'visual'
  * Uses blob: URL which bypasses all asset protocol / SPA fallback issues.
  */
 const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [blobUrl, setBlobUrl] = useState<string>('')
   const [error, setError] = useState(false)
 
@@ -105,10 +105,11 @@ const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
 
   return (
     <iframe
-      ref={iframeRef}
       src={blobUrl}
       className={styles.docIframe}
       title={filename}
+      // allow-scripts: ECharts/KaTeX need to execute
+      // allow-same-origin: CSS url() needs same-origin for font loading
       sandbox="allow-scripts allow-same-origin"
     />
   )

@@ -33,10 +33,10 @@ if sys.platform == 'win32':
                 _ShowWindow(hwnd, 0)  # SW_HIDE
             return True
 
-        _WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        _WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         _EnumWindows(_WNDENUMPROC(_hide_pid_windows), 0)
     except Exception:
-        pass
+        pass  # best-effort; non-critical cosmetic fix
 
 # 确保 data 目录存在
 os.makedirs('data', exist_ok=True)
