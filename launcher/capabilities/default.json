@@ -23,6 +23,10 @@
     "core:event:default",
     "core:tray:default",
     "core:menu:default",
-    "autostart:default"
+    "autostart:default",
+    "notification:default",
+    "notification:allow-notify",
+    "notification:allow-request-permission",
+    "notification:allow-is-permission-granted"
   ]
 }

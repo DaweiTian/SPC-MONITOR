@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppLayout } from './components/Layout'
+import { ToastProvider } from './components/Toast'
 
 const Dashboard = React.lazy(() => import('./pages/Dashboard'))
 const SPCPage = React.lazy(() => import('./pages/SPC'))
@@ -22,6 +23,7 @@ const basename = import.meta.env.DEV ? undefined : (isTauri ? undefined : '/app'
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
+      <ToastProvider>
       <AppProvider>
         <BrowserRouter
           basename={basename}
@@ -44,6 +46,7 @@ const App: React.FC = () => {
           </AppLayout>
         </BrowserRouter>
       </AppProvider>
+      </ToastProvider>
     </ErrorBoundary>
   )
 }

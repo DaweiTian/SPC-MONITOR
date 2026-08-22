@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { EChartsOption, LinearGradientObject, MarkLineComponentOption } from 'echarts'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
+import { useToast } from '../../components/Toast'
+import { handleAlertNotification } from '../../services/notifications'
 import { useAppContext } from '../../contexts/AppContext'
 import { useAppMetadata } from '../../hooks'
 import type { DashboardData, SchedulerStatus, Product, Indicator, MonitorData, CapabilityData } from '../../types'
@@ -75,6 +78,8 @@ export const Dashboard: React.FC = () => {
   /* ── 全局状态 ── */
   const { setCurrentProduct, setCollectionFrequency } = useAppContext()
   const { aliases, productStatus, specLimits: allSpecLimits } = useAppMetadata()
+  const { addToast } = useToast()
+  const navigate = useNavigate()
   
   /* ── state ── */
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
@@ -95,6 +100,7 @@ export const Dashboard: React.FC = () => {
   })
   const [autoProducts, setAutoProducts] = useState<Product[]>([])
   const [autoProductIndex, setAutoProductIndex] = useState(0)
+  const notifConfigRef = useRef({ soundEnabled: true, popupEnabled: true })
   
   /* ── 指标跑马灯状态 ── */
   const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([])
@@ -302,10 +308,25 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchDashboard()
     fetchMeta()
+    // Fetch notification config
+    api.getConfig().then(cfg => {
+      notifConfigRef.current = {
+        soundEnabled: cfg.alert_sound_enabled ?? true,
+        popupEnabled: cfg.alert_popup_enabled ?? true,
+      }
+    }).catch(() => {})
     websocketService.connect()
 
     const onData = () => { fetchDashboard(); fetchTrendRef.current() }
-    const onAlert = () => { fetchDashboard() }
+    const onAlert = (data: any) => {
+      fetchDashboard()
+      handleAlertNotification(
+        data,
+        notifConfigRef.current,
+        addToast,
+        () => navigate('/alerts'),
+      )
+    }
     websocketService.on('data_update', onData)
     websocketService.on('new_alert', onAlert)
 

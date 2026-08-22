@@ -44,6 +44,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_notification::init())
         .setup(move |app| {
             // Mica / Blur 窗口特效
             #[cfg(target_os = "windows")]
