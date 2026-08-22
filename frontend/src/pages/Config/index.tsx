@@ -285,20 +285,25 @@ export const ConfigPage: React.FC = () => {
       }
 
       if (productsResult?.products) {
-        // Fetch indicator counts per product from actual data
-        const countPromises = productsResult.products.map((p: Product) =>
-          api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
-        )
-        const counts = await Promise.all(countPromises)
-
+        // Render products immediately with count=0, then update counts async
         const productList: ProductItem[] = productsResult.products.map((p: Product, index: number) => ({
           id: String(index + 1),
           name: p.name,
           code: p.code,
-          indicatorCount: counts[index]?.count || 0,
+          indicatorCount: 0,
           status: (statusResult as Record<string, string>)[p.code] === 'disabled' ? 'disabled' : 'enabled'
         }))
         setProducts(productList)
+
+        // Fetch indicator counts in background and update
+        const countPromises = productsResult.products.map((p: Product) =>
+          api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
+        )
+        const counts = await Promise.all(countPromises)
+        setProducts(prev => prev.map((p, i) => ({
+          ...p,
+          indicatorCount: counts[i]?.count || 0,
+        })))
       }
     } catch {
       // Use empty array if fetch fails
