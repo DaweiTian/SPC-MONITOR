@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Query
 import numpy as np
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
-from statsmodels.tsa.arima.model import ARIMA
+
+
+def _lazy_import_statsmodels():
+    """Lazy import to avoid Nuitka docstring parsing bug at startup."""
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+    from statsmodels.tsa.arima.model import ARIMA
+    return ExponentialSmoothing, ARIMA
 
 router = APIRouter(prefix="/predict", tags=["prediction"])
 
@@ -10,6 +15,10 @@ storage = None  # injected from main.py
 
 def _ets_forecast(values: np.ndarray, horizon: int):
     """Exponential Smoothing — uses last 50 points to capture short-term dynamics."""
+    try:
+        ExponentialSmoothing, _ = _lazy_import_statsmodels()
+    except Exception:
+        return _linear_forecast(values, horizon)
     window = values[-50:] if len(values) > 50 else values
     for cfg in [
         {"trend": "add", "damped_trend": False, "initialization_method": "heuristic"},
@@ -74,6 +83,10 @@ def _linear_forecast(values: np.ndarray, horizon: int):
 
 def _arima_forecast(values: np.ndarray, horizon: int):
     """ARIMA forecast — uses last 100 points; tries richer orders first."""
+    try:
+        _, ARIMA = _lazy_import_statsmodels()
+    except Exception:
+        return _linear_forecast(values, horizon)
     window = values[-100:] if len(values) > 100 else values
     for order in [(2, 1, 2), (1, 1, 2), (2, 1, 1), (1, 1, 1)]:
         try:
