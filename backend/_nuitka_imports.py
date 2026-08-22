@@ -12,6 +12,3 @@ import scipy._external.array_api_compat
 import scipy._external.array_api_compat.numpy
 import scipy._external.array_api_compat.numpy.fft
 import scipy._external.array_api_compat.numpy.linalg
-
-import statsmodels.tsa.holtwinters
-import statsmodels.tsa.arima.model
