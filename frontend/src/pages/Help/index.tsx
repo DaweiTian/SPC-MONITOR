@@ -1,8 +1,63 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Help.module.css'
 
 const isTauri = !!(window as any).__TAURI_INTERNALS__
-const docsBase = isTauri ? 'https://tauri.localhost/docs/' : '/app/docs/'
+const docsBase = isTauri ? 'https://asset.localhost/docs/' : '/app/docs/'
+
+/** Fetch HTML doc and display via srcdoc (bypasses asset protocol iframe issues) */
+const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [html, setHtml] = useState<string>('')
+  const [loadError, setLoadError] = useState(false)
+
+  const fixRelativeUrls = useCallback((raw: string, base: string): string => {
+    // Inject <base> tag so relative paths (vendor/echarts.min.js etc.) resolve correctly
+    const baseTag = `<base href="${base}">`
+    if (raw.includes('<head>')) {
+      return raw.replace('<head>', `<head>${baseTag}`)
+    }
+    return baseTag + raw
+  }, [])
+
+  useEffect(() => {
+    const url = `${docsBase}${filename}`
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.text()
+      })
+      .then(text => {
+        setHtml(fixRelativeUrls(text, docsBase))
+        setLoadError(false)
+      })
+      .catch(() => setLoadError(true))
+  }, [filename, fixRelativeUrls])
+
+  if (loadError) {
+    // Fallback: use iframe src directly
+    return (
+      <iframe
+        ref={iframeRef}
+        src={`${docsBase}${filename}`}
+        className={styles.docIframe}
+        title={filename}
+      />
+    )
+  }
+
+  if (!html) {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>加载中...</div>
+  }
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={html}
+      className={styles.docIframe}
+      title={filename}
+    />
+  )
+}
 
 const modules = [
   { title: '实时看板', desc: '：展示今日检测量、预警数、采集状态等关键指标，实时刷新数据趋势' },
@@ -126,21 +181,8 @@ export const HelpPage: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'glossary' && (
-        <iframe
-          src={`${docsBase}glossary.html`}
-          className={styles.docIframe}
-          title="数据分析名词手册"
-        />
-      )}
-
-      {activeTab === 'visual' && (
-        <iframe
-          src={`${docsBase}visual-guide.html`}
-          className={styles.docIframe}
-          title="数据分析名词可视化手册"
-        />
-      )}
+      {activeTab === 'glossary' && <DocViewer filename="glossary.html" />}
+      {activeTab === 'visual' && <DocViewer filename="visual-guide.html" />}
     </div>
   )
 }
