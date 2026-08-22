@@ -48,12 +48,20 @@ if not _frontend_dist.exists():
     _frontend_dist = pathlib.Path(os.path.dirname(os.path.abspath(sys.executable if '__compiled__' in globals() else __file__))) / "data" / "frontend"
 if _frontend_dist.exists():
     from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import RedirectResponse
+    from fastapi.responses import RedirectResponse, HTMLResponse
     # Mount at /app to avoid intercepting /api/* and /ws routes
     app.mount("/app", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
     @app.get("/", include_in_schema=False)
     async def _root_redirect():
         return RedirectResponse(url="/app")
+
+    @app.get("/api/docs/{filename}", include_in_schema=False)
+    async def serve_doc(filename: str):
+        """直接返回 docs 目录下的 HTML 手册文件，绕过 SPA 兜底"""
+        doc_path = _frontend_dist / "docs" / filename
+        if doc_path.exists() and doc_path.suffix == '.html':
+            return HTMLResponse(doc_path.read_text(encoding='utf-8'))
+        return HTMLResponse("<h1>文件未找到</h1>", status_code=404)
 
 # Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
 _main_loop: asyncio.AbstractEventLoop | None = None

@@ -2,16 +2,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Help.module.css'
 
 const isTauri = !!(window as any).__TAURI_INTERNALS__
-const docsBase = isTauri ? 'https://asset.localhost/docs/' : '/app/docs/'
+const isDev = import.meta.env.DEV
+// In dev mode, files are at /docs/ (Vite public); in production browser mode, use /app/docs/
+// For the API endpoint, always use /api/docs/ which bypasses SPA fallback
+const docsBase = isDev ? '/docs/' : '/app/docs/'
 
-/** Fetch HTML doc and display via srcdoc (bypasses asset protocol iframe issues) */
+/** Fetch HTML doc via API endpoint and display via srcdoc */
 const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [html, setHtml] = useState<string>('')
   const [loadError, setLoadError] = useState(false)
 
   const fixRelativeUrls = useCallback((raw: string, base: string): string => {
-    // Inject <base> tag so relative paths (vendor/echarts.min.js etc.) resolve correctly
     const baseTag = `<base href="${base}">`
     if (raw.includes('<head>')) {
       return raw.replace('<head>', `<head>${baseTag}`)
@@ -20,21 +22,26 @@ const DocViewer: React.FC<{ filename: string }> = ({ filename }) => {
   }, [])
 
   useEffect(() => {
-    const url = `${docsBase}${filename}`
+    // Use API endpoint in production (bypasses SPA fallback), direct path in dev
+    const url = isDev ? `${docsBase}${filename}` : `/api/docs/${filename}`
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.text()
       })
       .then(text => {
-        setHtml(fixRelativeUrls(text, docsBase))
-        setLoadError(false)
+        // Check if we got the actual HTML doc (not the SPA page)
+        if (text.includes('<!DOCTYPE html>') && text.includes('echarts')) {
+          setHtml(fixRelativeUrls(text, docsBase))
+          setLoadError(false)
+        } else {
+          setLoadError(true)
+        }
       })
       .catch(() => setLoadError(true))
   }, [filename, fixRelativeUrls])
 
   if (loadError) {
-    // Fallback: use iframe src directly
     return (
       <iframe
         ref={iframeRef}
