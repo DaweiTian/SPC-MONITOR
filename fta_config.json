@@ -1,0 +1,9 @@
+{
+  "server": "",
+  "database": "Pert_Application",
+  "auth_type": "sql",
+  "driver": "ODBC Driver 17 for SQL Server",
+  "username": "sa",
+  "password": "",
+  "timeout": 30
+}
