@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="57" viewBox="0 0 150 57">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#0066ff"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="150" height="57" fill="url(#bg)"/>
+  <!-- Top accent line -->
+  <rect x="0" y="0" width="150" height="2" fill="url(#accent)"/>
+  <!-- Bottom accent line -->
+  <rect x="0" y="55" width="150" height="2" fill="url(#accent)"/>
+  <!-- Logo icon - abstract drop/monitor -->
+  <g transform="translate(16, 10)">
+    <!-- Drop shape -->
+    <path d="M18 2 C18 2 32 18 32 26 C32 34 25 38 18 38 C11 38 4 34 4 26 C4 18 18 2 18 2Z" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.9"/>
+    <!-- Inner wave -->
+    <path d="M8 28 Q13 24 18 28 Q23 32 28 28" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.6"/>
+    <!-- Monitor lines -->
+    <line x1="10" y1="20" x2="26" y2="20" stroke="#00d4ff" stroke-width="1" opacity="0.4"/>
+    <line x1="12" y1="24" x2="24" y2="24" stroke="#00d4ff" stroke-width="1" opacity="0.3"/>
+  </g>
+  <!-- App name -->
+  <text x="56" y="24" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" font-weight="600" fill="#e2e8f0" letter-spacing="0.5">液奶过程</text>
+  <text x="56" y="40" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" font-weight="600" fill="#e2e8f0" letter-spacing="0.5">监控系统</text>
+  <!-- Version badge -->
+  <rect x="108" y="38" width="28" height="12" rx="3" fill="rgba(0,212,255,0.15)" stroke="rgba(0,212,255,0.3)" stroke-width="0.5"/>
+  <text x="122" y="47" font-family="monospace" font-size="7" fill="#00d4ff" text-anchor="middle">v1.5</text>
+</svg>

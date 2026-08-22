@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="164" height="314" viewBox="0 0 164 314">
+  <defs>
+    <linearGradient id="sidebarBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="50%" stop-color="#0f1629"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accentV" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#0066ff" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.08"/>
+      <stop offset="50%" stop-color="#0066ff" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="164" height="314" fill="url(#sidebarBg)"/>
+  <!-- Right accent stripe -->
+  <rect x="162" y="0" width="2" height="314" fill="url(#accentV)"/>
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03" stroke="#00d4ff" stroke-width="0.5">
+    <line x1="0" y1="50" x2="164" y2="50"/>
+    <line x1="0" y1="100" x2="164" y2="100"/>
+    <line x1="0" y1="150" x2="164" y2="150"/>
+    <line x1="0" y1="200" x2="164" y2="200"/>
+    <line x1="0" y1="250" x2="164" y2="250"/>
+    <line x1="50" y1="0" x2="50" y2="314"/>
+    <line x1="100" y1="0" x2="100" y2="314"/>
+    <line x1="150" y1="0" x2="150" y2="314"/>
+  </g>
+  <!-- Glow circle behind logo -->
+  <circle cx="82" cy="100" r="50" fill="url(#glow)"/>
+  <!-- Logo - abstract droplet with SPC wave -->
+  <g transform="translate(82, 88)" filter="url(#softGlow)">
+    <!-- Outer droplet -->
+    <path d="M0 -32 C0 -32 24 -4 24 10 C24 22 13 30 0 30 C-13 30 -24 22 -24 10 C-24 -4 0 -32 0 -32Z" fill="none" stroke="#00d4ff" stroke-width="1.8" opacity="0.9"/>
+    <!-- Inner droplet -->
+    <path d="M0 -22 C0 -22 16 -2 16 8 C16 17 8 23 0 23 C-8 23 -16 17 -16 8 C-16 -2 0 -22 0 -22Z" fill="rgba(0,212,255,0.05)" stroke="#00d4ff" stroke-width="0.8" opacity="0.4"/>
+    <!-- SPC wave line -->
+    <path d="M-16 10 L-10 6 L-4 14 L2 2 L8 12 L14 4 L16 8" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    <!-- Control limit lines -->
+    <line x1="-16" y1="-4" x2="16" y2="-4" stroke="#00d4ff" stroke-width="0.5" opacity="0.3" stroke-dasharray="3 2"/>
+    <line x1="-16" y1="20" x2="16" y2="20" stroke="#00d4ff" stroke-width="0.5" opacity="0.3" stroke-dasharray="3 2"/>
+    <!-- Center line -->
+    <line x1="-16" y1="8" x2="16" y2="8" stroke="#00d4ff" stroke-width="0.5" opacity="0.2" stroke-dasharray="2 2"/>
+  </g>
+  <!-- App name -->
+  <text x="82" y="152" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="15" font-weight="700" fill="#e2e8f0" text-anchor="middle" letter-spacing="2">液奶过程</text>
+  <text x="82" y="174" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="15" font-weight="700" fill="#e2e8f0" text-anchor="middle" letter-spacing="2">监控系统</text>
+  <!-- English subtitle -->
+  <text x="82" y="194" font-family="Segoe UI, Arial, sans-serif" font-size="8" fill="#4a5568" text-anchor="middle" letter-spacing="1">FT1 MONITOR</text>
+  <!-- Divider -->
+  <line x1="42" y1="208" x2="122" y2="208" stroke="rgba(0,212,255,0.2)" stroke-width="0.5"/>
+  <!-- Feature tags -->
+  <g font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="8" fill="#8b95a7" text-anchor="middle">
+    <text x="82" y="228" opacity="0.8">实时 SPC 控制分析</text>
+    <text x="82" y="244" opacity="0.6">过程能力评估</text>
+    <text x="82" y="260" opacity="0.5">智能预警管理</text>
+  </g>
+  <!-- Version -->
+  <rect x="54" y="280" width="56" height="18" rx="4" fill="rgba(0,212,255,0.08)" stroke="rgba(0,212,255,0.15)" stroke-width="0.5"/>
+  <text x="82" y="293" font-family="monospace" font-size="9" fill="#00d4ff" text-anchor="middle" opacity="0.8">v1.5.1</text>
+  <!-- Bottom dots decoration -->
+  <circle cx="62" cy="308" r="1" fill="#00d4ff" opacity="0.2"/>
+  <circle cx="82" cy="308" r="1" fill="#00d4ff" opacity="0.3"/>
+  <circle cx="102" cy="308" r="1" fill="#00d4ff" opacity="0.2"/>
+</svg>
