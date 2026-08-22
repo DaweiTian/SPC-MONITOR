@@ -4,7 +4,8 @@
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173"
+    "devUrl": "http://localhost:5173",
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
@@ -64,7 +65,7 @@
       "iconAsTemplate": false
     },
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; connect-src 'self' http://127.0.0.1:18080 ws://127.0.0.1:18080"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost; connect-src 'self' http://127.0.0.1:18080 ws://127.0.0.1:18080"
     }
   }
 }

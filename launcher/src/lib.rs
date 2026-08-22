@@ -71,13 +71,13 @@ pub fn run() {
                 loop {
                     std::thread::sleep(std::time::Duration::from_secs(3));
 
-                    // 健康检查
-                    if sm_for_timer.is_running() {
+                    // 健康检查 — use has_process() (checks process existence only)
+                    // instead of is_running() (requires healthy=true, which creates a deadlock)
+                    if sm_for_timer.has_process() {
                         if !sm_for_timer.health_check() {
                             failures += 1;
                             if failures >= 3 {
                                 sm_for_timer.stop_server().ok();
-                                // Sync tray: server stopped
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
                                     items.start.set_enabled(true).ok();
                                     items.stop.set_enabled(false).ok();
@@ -91,10 +91,9 @@ pub fn run() {
                             }
                         } else {
                             failures = 0;
-                            // 通知前端后端已就绪
-                            let _ = app_handle.emit("backend-ready", ());
-                            // Sync tray on transition to healthy
+                            // Only emit on transition from unhealthy to healthy
                             if !was_healthy {
+                                let _ = app_handle.emit_to("splash", "backend-ready", ());
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
                                     items.start.set_enabled(false).ok();
                                     items.stop.set_enabled(true).ok();
@@ -103,7 +102,6 @@ pub fn run() {
                             }
                         }
                     } else {
-                        // Server not running — ensure tray reflects stopped state
                         if was_healthy {
                             if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
                                 items.start.set_enabled(true).ok();

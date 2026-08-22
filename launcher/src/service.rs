@@ -123,7 +123,7 @@ impl ServiceManager {
 
         info!("后端服务已启动，PID: {:?}", child.id());
         state.server_process = Some(child);
-        state.healthy = true;
+        // Don't set healthy=true here; let health_check() HTTP probe be the source of truth
 
         Ok(())
     }
@@ -201,6 +201,12 @@ impl ServiceManager {
     pub fn is_running(&self) -> bool {
         let state = self.inner.read().unwrap_or_else(|e| e.into_inner());
         state.server_process.is_some() && state.healthy
+    }
+
+    /// Check if a child process exists (regardless of health status)
+    pub fn has_process(&self) -> bool {
+        let state = self.inner.read().unwrap_or_else(|e| e.into_inner());
+        state.server_process.is_some()
     }
 
     pub fn server_port(&self) -> u16 {

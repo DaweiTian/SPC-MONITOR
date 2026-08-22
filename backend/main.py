@@ -39,10 +39,18 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="液奶过程监控系统", version="1.5.1")
 
+# Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
+_main_loop: asyncio.AbstractEventLoop | None = None
+
+@app.on_event("startup")
+async def _capture_loop():
+    global _main_loop
+    _main_loop = asyncio.get_running_loop()
+
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176").split(",")
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,tauri://localhost,https://tauri.localhost,http://127.0.0.1:18080").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -84,6 +92,8 @@ else:
     logger.info(f"Monitoring started at {alert_engine.monitoring_start}")
 
 # 初始化调度器
+_collector_lock = threading.Lock()
+
 def collect_with_alert():
     with _collector_lock:
         current_collector = collector
@@ -128,7 +138,9 @@ def collect_with_alert():
     
     # Broadcast via WebSocket
     try:
-        loop = asyncio.get_event_loop()
+        loop = _main_loop
+        if loop is None:
+            return result
         if result.get('new_records', 0) > 0:
             asyncio.run_coroutine_threadsafe(
                 broadcast_typed('data_update', result), loop
@@ -146,9 +158,6 @@ def collect_with_alert():
     return result
 
 scheduler = AdaptiveScheduler(collect_func=collect_with_alert)
-
-# Lock to protect collector/scheduler swap from TOCTOU races
-_collector_lock = threading.Lock()
 
 # 注入依赖
 import backend.app.api.monitor as monitor_module
