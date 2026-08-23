@@ -478,13 +478,7 @@ export const Dashboard: React.FC = () => {
         data: times,
         ...chartTheme.xAxis,
       },
-      yAxis: (() => {
-        const refVals = [...values, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])]
-        const yMin = Math.min(...refVals)
-        const yMax = Math.max(...refVals)
-        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
-        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: yMin - margin, max: yMax + margin }
-      })(),
+      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [
         {
           name: currentIndicator.name,
@@ -508,6 +502,13 @@ export const Dashboard: React.FC = () => {
           ...(markLineData.length > 0
             ? { markLine: { symbol: 'none', silent: true, data: markLineData } }
             : {}),
+        },
+        {
+          name: '_ref',
+          type: 'scatter' as const,
+          symbolSize: 0,
+          data: [...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
+          silent: true,
         },
       ],
     }

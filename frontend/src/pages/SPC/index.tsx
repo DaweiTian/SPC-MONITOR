@@ -181,13 +181,7 @@ export const SPCPage: React.FC = () => {
         ...chartTheme.xAxis,
         axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
-      yAxis: (() => {
-        const refVals = [ucl, cl, lcl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : []), ...values]
-        const yMin = Math.min(...refVals)
-        const yMax = Math.max(...refVals)
-        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
-        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: yMin - margin, max: yMax + margin }
-      })(),
+      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [{
         name: '单值',
         type: 'line',
@@ -205,6 +199,12 @@ export const SPCPage: React.FC = () => {
           silent: true,
           data: markLineData,
         },
+      }, {
+        name: '_ref',
+        type: 'scatter' as const,
+        symbolSize: 0,
+        data: [ucl, cl, lcl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
+        silent: true,
       }],
     }
   }, [spcData])
@@ -240,13 +240,7 @@ export const SPCPage: React.FC = () => {
         ...chartTheme.xAxis,
         axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
-      yAxis: (() => {
-        const refVals = [ucl, cl, ...mrData.values]
-        const yMin = Math.min(...refVals)
-        const yMax = Math.max(...refVals)
-        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
-        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: Math.max(0, yMin - margin), max: yMax + margin }
-      })(),
+      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [{
         name: '移动极差',
         type: 'line',
