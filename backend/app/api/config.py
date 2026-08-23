@@ -582,11 +582,46 @@ def get_mdb_init_status():
         total_samples = len(samples['SampNo']) if samples and 'SampNo' in samples else 0
         total_products = len(products['ProdNo']) if products and 'ProdNo' in products else 0
         total_indicators = len(components['CompNo']) if components and 'CompNo' in components else 0
-        
+
+        # 获取最近几条记录用于预览和产品自动匹配
+        recent_records = []
+        try:
+            prediction_table = config.get("prediction_table", "Prediction")
+            predictions = db.parse_table(prediction_table)
+            if predictions and 'SampRef' in predictions:
+                # 取最后 20 条记录的 SampRef
+                samp_refs = list(predictions['SampRef'].values())[-20:]
+                comp_names = components.get('Name', {})
+                prod_names = products.get('Name', {})
+                samp_prod_map = samples.get('ProdRef', {}) if samples else {}
+                samp_time_map = samples.get('DateTime', {}) if samples else {}
+                for ref in samp_refs:
+                    if ref is None:
+                        continue
+                    prod_ref = samp_prod_map.get(ref)
+                    prod_name = prod_names.get(prod_ref, f'Product_{prod_ref}') if prod_ref else '未知'
+                    time_val = samp_time_map.get(ref, '')
+                    # 查找该样本的所有指标值
+                    for comp_ref, comp_name in comp_names.items():
+                        # 找到匹配的预测值
+                        for pid, psr in predictions.get('SampRef', {}).items():
+                            if psr == ref and predictions.get('CompRef', {}).get(pid) == comp_ref:
+                                val = predictions.get('Value', {}).get(pid)
+                                if val is not None:
+                                    recent_records.append({
+                                        'product_name': str(prod_name),
+                                        'indicator_name': str(comp_name),
+                                        'value': str(val),
+                                        'sample_time': str(time_val),
+                                    })
+                                break
+        except Exception as e:
+            logger.warning(f"获取预览数据失败: {e}")
+
         return {
             "success": True,
             "breakpoint": breakpoint_info,
-            "recent_records": [],  # Skip for performance
+            "recent_records": recent_records[-10:],  # 最多返回 10 条
             "total_samples": total_samples,
             "total_products": total_products,
             "total_indicators": total_indicators
