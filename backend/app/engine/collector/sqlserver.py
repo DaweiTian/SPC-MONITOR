@@ -360,7 +360,9 @@ class SQLServerCollector(BaseCollector):
                     s.[{self.product_ref_col}],
                     s.[{self.time_col}],
                     p.[{self.component_ref_col}],
-                    p.[{self.value_col}]
+                    p.[{self.value_col}],
+                    s.[SampleId],
+                    s.[Remark]
                 FROM [{self.sample_table}] s
                 INNER JOIN [{self.prediction_table}] p ON s.[SampNo] = p.[SampRef]
                 {where}
@@ -390,6 +392,8 @@ class SQLServerCollector(BaseCollector):
                     sample_time = row[2]
                     comp_ref = row[3]
                     value = row[4]
+                    sample_id = row[5] if len(row) > 5 else None
+                    remark = row[6] if len(row) > 6 else None
 
                     if samp_no is None or prod_ref is None or sample_time is None:
                         continue
@@ -427,6 +431,8 @@ class SQLServerCollector(BaseCollector):
                         'lower_limit': None,
                         'is_qualified': 1,
                         'sample_time': time_str,
+                        'sample_id': sample_id.strip() if isinstance(sample_id, str) else (str(sample_id) if sample_id else None),
+                        'remark': remark.strip() if isinstance(remark, str) and remark.strip() else None,
                     }
                     records.append(record)
 
@@ -541,6 +547,8 @@ class SQLServerCollector(BaseCollector):
             time_str = test_time.isoformat()
         else:
             time_str = str(test_time)
+
+        sample_id_val = row_dict.get(self.sample_column) if hasattr(self, 'sample_column') and self.sample_column else None
         
         for indicator_code, col_name in self.indicators.items():
             value = row_dict.get(col_name)
@@ -571,6 +579,8 @@ class SQLServerCollector(BaseCollector):
                 'lower_limit': None,
                 'is_qualified': 1,
                 'sample_time': time_str,
+                'sample_id': str(sample_id_val).strip() if sample_id_val else None,
+                'remark': None,
             }
             records.append(record)
         

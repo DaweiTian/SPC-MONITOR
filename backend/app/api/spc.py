@@ -44,6 +44,8 @@ def get_spc_data(product_code: str, indicator_code: str, window: int = 30):
             "time": ts,
             "value": round(float(val), 4),
             "is_violation": i in violation_indices,
+            "sample_id": data[i].get('sample_id'),
+            "remark": data[i].get('remark'),
         })
 
     mean = float(np.mean(values))
@@ -98,9 +100,11 @@ def get_cpk_data(product_code: str, indicator_code: str, window: int = 30):
     
     capability = ProcessCapability()
     
-    if spec_limits.get('lsl') and spec_limits.get('usl'):
+    has_lsl = spec_limits.get('lsl') is not None
+    has_usl = spec_limits.get('usl') is not None
+    if has_lsl and has_usl:
         result = capability.analyze(values, spec_limits['lsl'], spec_limits['usl'])
-    elif spec_limits.get('usl'):
+    elif has_usl:
         result = capability.analyze_one_sided(values, spec_limits['usl'], 'upper')
     else:
         result = capability.analyze_one_sided(values, spec_limits['lsl'], 'lower')

@@ -35,6 +35,8 @@ class OnlineStorage:
                     lower_limit REAL,
                     is_qualified INTEGER DEFAULT 1,
                     sample_time TEXT NOT NULL,
+                    sample_id TEXT,
+                    remark TEXT,
                     created_at TEXT DEFAULT (datetime('now', 'localtime')),
                     UNIQUE(indicator_code, product_code, sample_time)
                 );
@@ -90,6 +92,10 @@ class OnlineStorage:
                 conn.execute("ALTER TABLE monitor_data ADD COLUMN raw_value REAL")
             if 'correction' not in columns:
                 conn.execute("ALTER TABLE monitor_data ADD COLUMN correction REAL DEFAULT 0")
+            if 'sample_id' not in columns:
+                conn.execute("ALTER TABLE monitor_data ADD COLUMN sample_id TEXT")
+            if 'remark' not in columns:
+                conn.execute("ALTER TABLE monitor_data ADD COLUMN remark TEXT")
             conn.commit()
         finally:
             conn.close()
@@ -104,8 +110,8 @@ class OnlineStorage:
                         """INSERT INTO monitor_data
                            (indicator_code, indicator_name, product_code, product_name,
                             value, raw_value, correction, unit, upper_limit, lower_limit,
-                            is_qualified, sample_time)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            is_qualified, sample_time, sample_id, remark)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             record.get("indicator_code"),
                             record.get("indicator_name"),
@@ -119,6 +125,8 @@ class OnlineStorage:
                             record.get("lower_limit"),
                             record.get("is_qualified", 1),
                             record.get("sample_time"),
+                            record.get("sample_id"),
+                            record.get("remark"),
                         ),
                     )
                     count += 1

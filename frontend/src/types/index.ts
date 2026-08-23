@@ -74,6 +74,8 @@ export interface SPCData {
     time: string
     value: number
     is_violation: boolean
+    sample_id?: string | null
+    remark?: string | null
   }>
   violations: Array<{
     rule_id: number

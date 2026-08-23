@@ -1,6 +1,6 @@
 {
   "productName": "过程SPC监控平台",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -46,10 +46,6 @@
         "skipTaskbar": true
       }
     ],
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": false
-    },
     "security": {
       "csp": "default-src 'self' https://tauri.localhost asset: https://asset.localhost; script-src 'self' https://tauri.localhost asset: https://asset.localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' asset: https://asset.localhost; frame-src 'self' https://tauri.localhost asset: https://asset.localhost; connect-src 'self' http://127.0.0.1:18080 http://localhost:18080 ws://127.0.0.1:18080 ws://localhost:18080"
     }

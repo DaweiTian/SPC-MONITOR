@@ -32,12 +32,29 @@ function gradeTagClass(sigmaLevel: number): string {
   return styles.tagCritical
 }
 
-/** Build histogram bins from real data values */
-function buildHistogramBins(values: number[], lsl: number, usl: number) {
-  const range = usl - lsl
-  const margin = range * 0.15
-  const lo = Math.min(lsl - margin, Math.min(...values))
-  const hi = Math.max(usl + margin, Math.max(...values))
+/** Build histogram bins from real data values (supports single-sided spec limits) */
+function buildHistogramBins(values: number[], lsl?: number | null, usl?: number | null) {
+  const dataMin = Math.min(...values)
+  const dataMax = Math.max(...values)
+  let lo: number, hi: number
+  if (lsl != null && usl != null) {
+    const range = usl - lsl
+    const margin = range * 0.15
+    lo = Math.min(lsl - margin, dataMin)
+    hi = Math.max(usl + margin, dataMax)
+  } else if (usl != null) {
+    const span = Math.max(usl - dataMin, dataMax - dataMin) * 0.3
+    lo = Math.min(dataMin - span, usl - Math.abs(usl) * 0.15)
+    hi = Math.max(usl + span * 0.3, dataMax)
+  } else if (lsl != null) {
+    const span = Math.max(dataMax - lsl, dataMax - dataMin) * 0.3
+    lo = Math.min(lsl - span * 0.3, dataMin)
+    hi = Math.max(dataMax + span, lsl + Math.abs(lsl) * 0.15)
+  } else {
+    const span = (dataMax - dataMin) * 0.3
+    lo = dataMin - span
+    hi = dataMax + span
+  }
   const bins = 15
   const binWidth = (hi - lo) / bins
 
@@ -54,11 +71,13 @@ function buildHistogramBins(values: number[], lsl: number, usl: number) {
   const mean = values.reduce((a, b) => a + b, 0) / values.length
   const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1))
   const normalCurve: [number, number][] = []
-  const peak = values.length * binWidth / (std * Math.sqrt(2 * Math.PI))
-  for (let i = 0; i < 100; i++) {
-    const x = lo + (hi - lo) * i / 99
-    const y = peak * Math.exp(-Math.pow((x - mean) / std, 2) / 2)
-    normalCurve.push([x, y])
+  if (std > 0) {
+    const peak = values.length * binWidth / (std * Math.sqrt(2 * Math.PI))
+    for (let i = 0; i < 100; i++) {
+      const x = lo + (hi - lo) * i / 99
+      const y = peak * Math.exp(-Math.pow((x - mean) / std, 2) / 2)
+      normalCurve.push([x, y])
+    }
   }
 
   return { barData, normalCurve, binWidth, lo, hi }
@@ -95,13 +114,13 @@ export const CapabilityPage: React.FC = () => {
     window: 30,
   })
 
-  // Products with spec limits (at least one indicator has both USL and LSL)
+  // Products with spec limits (at least one indicator has USL or LSL)
   const capableProducts = useMemo(() => {
     const base = products.filter(p => productStatus[p.code] !== 'disabled')
     return base.filter(p => {
       const specs = allSpecLimits[p.code] as Record<string, { lsl?: number; usl?: number }> | undefined
       if (!specs) return false
-      return Object.values(specs).some(s => s.usl != null && s.lsl != null)
+      return Object.values(specs).some(s => s.usl != null || s.lsl != null)
     })
   }, [products, productStatus, allSpecLimits])
 
@@ -111,7 +130,7 @@ export const CapabilityPage: React.FC = () => {
     if (!specs) return []
     return indicators.filter(i => {
       const s = specs[i.code]
-      return s && s.usl != null && s.lsl != null
+      return s && (s.usl != null || s.lsl != null)
     })
   }, [indicators, allSpecLimits, filter.product_code])
 
@@ -125,7 +144,7 @@ export const CapabilityPage: React.FC = () => {
     const product = savedProduct || capableProducts[0]
     // Pick first indicator with spec limits for this product
     const specs = allSpecLimits[product.code] || {}
-    const firstIndicator = indicators.find(i => specs[i.code]?.usl != null && specs[i.code]?.lsl != null)
+    const firstIndicator = indicators.find(i => specs[i.code]?.usl != null || specs[i.code]?.lsl != null)
     setFilter(f => ({
       ...f,
       product_code: product.code,
@@ -138,9 +157,9 @@ export const CapabilityPage: React.FC = () => {
   useEffect(() => {
     if (!initialized) return
     const specs = allSpecLimits[filter.product_code] || {}
-    const hasCurrent = specs[filter.indicator_code]?.usl != null && specs[filter.indicator_code]?.lsl != null
+    const hasCurrent = specs[filter.indicator_code]?.usl != null || specs[filter.indicator_code]?.lsl != null
     if (!hasCurrent) {
-      const first = indicators.find(i => specs[i.code]?.usl != null && specs[i.code]?.lsl != null)
+      const first = indicators.find(i => specs[i.code]?.usl != null || specs[i.code]?.lsl != null)
       if (first) {
         setFilter(f => ({ ...f, indicator_code: first.code }))
       }
@@ -179,7 +198,7 @@ export const CapabilityPage: React.FC = () => {
   const histogramOption = useMemo<EChartsOption | null>(() => {
     if (!capabilityData || rawValues.length === 0) return null
     const { spec_limits } = capabilityData
-    if (spec_limits.usl == null || spec_limits.lsl == null) return null
+    if (spec_limits.usl == null && spec_limits.lsl == null) return null
 
     const { barData, normalCurve, binWidth, lo, hi } = buildHistogramBins(
       rawValues, spec_limits.lsl, spec_limits.usl
@@ -239,16 +258,16 @@ export const CapabilityPage: React.FC = () => {
             symbol: 'none',
             silent: true,
             data: [
-              {
+              ...(spec_limits.usl != null ? [{
                 xAxis: spec_limits.usl,
                 lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 2 },
                 label: { formatter: `USL=${spec_limits.usl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' as const },
-              },
-              {
+              }] : []),
+              ...(spec_limits.lsl != null ? [{
                 xAxis: spec_limits.lsl,
                 lineStyle: { color: '#ef4444', type: 'dotted' as const, width: 2 },
                 label: { formatter: `LSL=${spec_limits.lsl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' as const },
-              },
+              }] : []),
             ],
           },
         },
@@ -277,8 +296,8 @@ export const CapabilityPage: React.FC = () => {
           startAngle: 200,
           endAngle: -20,
           min: 0,
-          max: 6,
-          splitNumber: 6,
+          max: Math.max(6, Math.ceil(sigmaVal)),
+          splitNumber: Math.max(6, Math.ceil(sigmaVal)),
           axisLine: {
             lineStyle: {
               width: 12,
@@ -393,6 +412,7 @@ export const CapabilityPage: React.FC = () => {
   /* ── Derived values ── */
   const result = capabilityData?.result
   const specLimits = capabilityData?.spec_limits
+  const isSingleSided = specLimits != null && ((specLimits.usl != null) !== (specLimits.lsl != null))
   const passRate = result
     ? ((1 - result.defect_rate_ppm / 1_000_000) * 100).toFixed(4)
     : '-'
@@ -448,6 +468,11 @@ export const CapabilityPage: React.FC = () => {
           )
         })}
       </div>
+      {isSingleSided && (
+        <div style={{ textAlign: 'center', color: '#8b95a7', fontSize: 12, marginTop: -4, marginBottom: 8 }}>
+          单侧规格限模式：Cp = Cpk，Pp = Ppk
+        </div>
+      )}
 
       {/* Histogram + Sigma gauge */}
       <div className={styles.chartGrid}>
@@ -492,7 +517,7 @@ export const CapabilityPage: React.FC = () => {
               <div className={styles.sigmaValue}>
                 {result ? result.sigma_level.toFixed(2) : '0.00'} σ
               </div>
-              <div className={styles.sigmaHint}>相当于 Cpk × 3</div>
+              <div className={styles.sigmaHint}>相当于 Cpk × 3 + 1.5σ偏移</div>
             </div>
             <div className={styles.statsList}>
               <div className={styles.statRow}>
@@ -508,7 +533,7 @@ export const CapabilityPage: React.FC = () => {
               <div className={styles.statRow}>
                 <span className={styles.statLabel}>偏移系数 (Ca)</span>
                 <span className={styles.statValueCyan}>
-                  {result ? result.ca.toFixed(2) : '-'}
+                  {result ? (capabilityData?.spec_limits.usl != null && capabilityData?.spec_limits.lsl != null ? result.ca.toFixed(2) : 'N/A (单侧)') : '-'}
                 </span>
               </div>
               <div className={styles.statRow}>

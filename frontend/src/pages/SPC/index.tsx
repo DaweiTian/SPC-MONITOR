@@ -168,8 +168,10 @@ export const SPCPage: React.FC = () => {
           const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
           const idx = p.dataIndex
           const pt = data_points[idx]
-          const violation = pt.is_violation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 违规点</span>' : ''
-          return `<b>${escapeHtml(pt.time)}</b><br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}`
+          const sampleInfo = pt?.sample_id ? `<br/>样品编码: ${escapeHtml(pt.sample_id)}` : ''
+          const remarkInfo = pt?.remark ? `<br/>备注: ${escapeHtml(pt.remark)}` : ''
+          const violation = pt?.is_violation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 违规点</span>' : ''
+          return `<b>${escapeHtml(pt?.time ?? '')}</b>${sampleInfo}${remarkInfo}<br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}`
         },
       },
       grid: { left: 50, right: 80, top: 30, bottom: 30 },
@@ -179,7 +181,13 @@ export const SPCPage: React.FC = () => {
         ...chartTheme.xAxis,
         axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
-      yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+      yAxis: (() => {
+        const refVals = [ucl, cl, lcl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : []), ...values]
+        const yMin = Math.min(...refVals)
+        const yMax = Math.max(...refVals)
+        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
+        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: yMin - margin, max: yMax + margin }
+      })(),
       series: [{
         name: '单值',
         type: 'line',
@@ -218,8 +226,11 @@ export const SPCPage: React.FC = () => {
           const idx = p.dataIndex
           const time = mrData.times[idx]
           const mrValue = p.value as number
+          const pt = data_points[idx]
+          const sampleInfo = pt?.sample_id ? `<br/>样品编码: ${escapeHtml(pt.sample_id)}` : ''
+          const remarkInfo = pt?.remark ? `<br/>备注: ${escapeHtml(pt.remark)}` : ''
           const violation = mrValue > ucl ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 超出UCL</span>' : ''
-          return `<b>${escapeHtml(time)}</b><br/>MR: <b>${escapeHtml(String(mrValue))}</b>${violation}`
+          return `<b>${escapeHtml(time)}</b>${sampleInfo}${remarkInfo}<br/>MR: <b>${escapeHtml(String(mrValue))}</b>${violation}`
         },
       },
       grid: { left: 50, right: 80, top: 20, bottom: 30 },
@@ -229,7 +240,13 @@ export const SPCPage: React.FC = () => {
         ...chartTheme.xAxis,
         axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
-      yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+      yAxis: (() => {
+        const refVals = [ucl, cl, ...mrData.values]
+        const yMin = Math.min(...refVals)
+        const yMax = Math.max(...refVals)
+        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
+        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: Math.max(0, yMin - margin), max: yMax + margin }
+      })(),
       series: [{
         name: '移动极差',
         type: 'line',

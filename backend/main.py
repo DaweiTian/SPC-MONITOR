@@ -44,7 +44,7 @@ from backend.app.engine.alert.engine import AlertEngine
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="液奶过程监控系统", version="1.5.2")
+app = FastAPI(title="液奶过程监控系统", version="1.5.3")
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib

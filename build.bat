@@ -6,8 +6,15 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   过程SPC监控平台 v1.5.2 - 一键构建
+echo   过程SPC监控平台 v1.5.3 - 一键构建
 echo ==========================================
+
+echo [0/5] 清理旧构建产物...
+if exist "%PROJECT_DIR%ft1-backend-dist" rmdir /s /q "%PROJECT_DIR%ft1-backend-dist"
+if exist "%LAUNCHER_DIR%\target" rmdir /s /q "%LAUNCHER_DIR%\target"
+if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
+if exist "%PROJECT_DIR%data\frontend" rmdir /s /q "%PROJECT_DIR%data\frontend"
+echo   已清理 ft1-backend-dist, launcher/target, dist, data/frontend
 
 echo [1/5] 构建前端...
 cd /d "%PROJECT_DIR%frontend"
@@ -27,7 +34,7 @@ if not exist "ft1-backend-dist\run.dist\run.exe" (echo Nuitka 编译产物不存
 move /Y "ft1-backend-dist\run.dist\run.exe" "ft1-backend-dist\run.dist\ft1-backend.exe" >nul
 REM 去除后端 exe 图标（避免任务栏出现两个图标）
 python -c "import pefile; pe=pefile.PE('ft1-backend-dist/run.dist/ft1-backend.exe'); d=pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']]; d.VirtualAddress=0;d.Size=0;pe.write('ft1-backend-dist/run.dist/ft1-backend.exe')" 2>nul
-xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul
+xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul || (echo 后端复制失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
 REM 复制配置文件
 for %%f in ("%PROJECT_DIR%*.json") do copy /Y "%%f" "%BACKEND_DIST%\" >nul 2>nul
@@ -41,11 +48,11 @@ if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 set PORTABLE=%OUTPUT_DIR%\FT1-MONITOR-Portable
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
 mkdir "%PORTABLE%"
-copy /Y "%LAUNCHER_DIR%\target\release\SPC-Monitor.exe" "%PORTABLE%\过程SPC监控平台.exe" >nul
-xcopy /E /I /Q /Y "%BACKEND_DIST%" "%PORTABLE%\ft1-backend" >nul
-powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\过程SPC监控平台_免安装版.zip' -Force"
+copy /Y "%LAUNCHER_DIR%\target\release\SPC-Monitor.exe" "%PORTABLE%\过程SPC监控平台.exe" >nul || (echo 复制主程序失败 & pause & exit /b 1)
+xcopy /E /I /Q /Y "%BACKEND_DIST%" "%PORTABLE%\ft1-backend" >nul || (echo 复制后端到打包目录失败 & pause & exit /b 1)
+powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\过程SPC监控平台_免安装版.zip' -Force" || (echo 压缩打包失败 & pause & exit /b 1)
 rmdir /s /q "%PORTABLE%"
-copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul
+copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul || (echo 复制安装包失败 & pause & exit /b 1)
 
 echo.
 echo   构建完成! 产物: dist\

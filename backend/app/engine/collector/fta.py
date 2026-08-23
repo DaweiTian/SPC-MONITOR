@@ -148,7 +148,8 @@ class FTACollector(BaseCollector):
                     e.ParameterTypeName,
                     e.PredictedResult,
                     e.ReportedResult,
-                    e.UnitTypeName
+                    e.UnitTypeName,
+                    ee.AnalysisComment
                 FROM EstimateEvent ee
                 INNER JOIN Estimate e ON ee.EstimateEventID = e.EstimateEventID
                 {where}
@@ -172,6 +173,7 @@ class FTACollector(BaseCollector):
                 predicted_result = row[5]
                 reported_result = row[6]
                 unit_type = row[7]
+                analysis_comment = row[8] if len(row) > 8 else None
 
                 if analysis_time is None or product_name is None or parameter_name is None:
                     continue
@@ -211,6 +213,8 @@ class FTACollector(BaseCollector):
                     'lower_limit': None,
                     'is_qualified': 1,
                     'sample_time': time_str,
+                    'sample_id': sample_number.strip() if isinstance(sample_number, str) else (str(sample_number) if sample_number else None),
+                    'remark': analysis_comment.strip() if isinstance(analysis_comment, str) and analysis_comment.strip() else None,
                 }
                 records.append(record)
 

@@ -163,37 +163,64 @@ class MDBCollector(BaseCollector):
         self._samples_cache = self._parse_table_data(self.sample_table)
         return self._samples_cache
     
-    def _load_predictions(self) -> Dict[int, Dict[int, float]]:
-        """加载预测数据（带缓存）"""
-        if self._predictions_cache is not None:
-            return self._predictions_cache
-        
-        predictions = self._parse_table_data(self.prediction_table)
+    def _load_predictions(self, sample_ids: Optional[set] = None) -> Dict[int, Dict[int, float]]:
+        """加载预测数据（仅加载指定样本的数据，避免全表扫描）"""
+        raw_data = self.db.parse_table(self.prediction_table)
+        if not raw_data:
+            return {}
+
+        samp_refs = raw_data.get('SampRef', [])
+        comp_refs = raw_data.get('CompRef', [])
+        values = raw_data.get(self.value_column, [])
+        min_len = min(len(samp_refs), len(comp_refs), len(values))
+
         pred_index: Dict[int, Dict[int, float]] = {}
-        for pred in predictions:
-            samp_ref = pred.get('SampRef')
-            comp_ref = pred.get('CompRef')
-            value = pred.get(self.value_column)
-            
-            if samp_ref is None or comp_ref is None or value is None:
+        for i in range(min_len):
+            sr = samp_refs[i]
+            if sample_ids is not None and sr not in sample_ids:
                 continue
-            
-            if samp_ref not in pred_index:
-                pred_index[samp_ref] = {}
-            pred_index[samp_ref][comp_ref] = float(value)
-        
-        self._predictions_cache = pred_index
+            cr = comp_refs[i]
+            v = values[i]
+            if sr is None or cr is None or v is None:
+                continue
+            if sr not in pred_index:
+                pred_index[sr] = {}
+            pred_index[sr][cr] = float(v)
         return pred_index
+    
+    def _load_replicates(self, sample_ids: Optional[set] = None) -> Dict[int, str]:
+        """加载 Replicate 表的 Remark（RepNo=32000），仅加载指定样本"""
+        try:
+            raw_data = self.db.parse_table('Replicate')
+            if not raw_data:
+                return {}
+
+            samp_refs = raw_data.get('SampRef', [])
+            rep_nos = raw_data.get('RepNo', [])
+            remarks = raw_data.get('Remark', [])
+            min_len = min(len(samp_refs), len(rep_nos), len(remarks))
+
+            result: Dict[int, str] = {}
+            for i in range(min_len):
+                sr = samp_refs[i]
+                if sample_ids is not None and sr not in sample_ids:
+                    continue
+                if rep_nos[i] == 32000 and remarks[i]:
+                    result[int(sr)] = _fix_encoding(str(remarks[i]))
+            return result
+        except Exception as e:
+            logger.error(f"加载 Replicate 表失败: {e}")
+            return {}
     
     def collect(self) -> Dict[str, Any]:
         """执行数据采集"""
         now = datetime.now()
-        
+
         try:
             # Load mappings (cached)
             products_map = self._load_products()
             components_map = self._load_components()
-            
+
             # Load samples (cached)
             samples = self._load_samples()
             if not samples:
@@ -202,56 +229,65 @@ class MDBCollector(BaseCollector):
                     'error': '无样本数据',
                     'timestamp': now.isoformat(),
                 }
-            
-            # If no breakpoint (first run), only take the last N samples
+
+            # Filter samples by breakpoint FIRST
             if not self._last_collect_time:
                 samples = samples[-self.init_limit:]
                 logger.info(f"首次采集，仅处理最近 {len(samples)} 条样本（init_limit={self.init_limit}）")
             else:
-                # Filter samples by breakpoint
                 filtered_samples = []
                 for sample in samples:
                     sample_time = sample.get(self.time_column)
                     if sample_time is None:
                         continue
-                    
                     if isinstance(sample_time, str):
                         sample_dt = parse_datetime(sample_time)
                         if sample_dt is None:
                             continue
                     else:
                         sample_dt = sample_time
-                    
                     if sample_dt > self._last_collect_time:
                         filtered_samples.append(sample)
-                
                 samples = filtered_samples
                 logger.info(f"断点过滤后，处理 {len(samples)} 条样本")
-            
-            # Load predictions (cached)
-            pred_index = self._load_predictions()
-            
+
+            if not samples:
+                return {
+                    'new_records': 0,
+                    'skipped': True,
+                    'timestamp': now.isoformat(),
+                }
+
+            # Collect needed sample IDs, then load predictions/replicates ONLY for them
+            needed_ids: set = set()
+            for sample in samples:
+                sn = sample.get('SampNo')
+                if sn is not None:
+                    try:
+                        needed_ids.add(int(sn))
+                    except (ValueError, TypeError):
+                        pass
+
+            pred_index = self._load_predictions(needed_ids)
+            replicate_remarks = self._load_replicates(needed_ids)
+            logger.info(f"加载 {len(needed_ids)} 个样本的预测和备注数据")
+
             # Build records
             records = []
             for sample in samples:
                 samp_no = sample.get('SampNo')
                 prod_ref = sample.get(self.product_ref_column)
                 sample_time = sample.get(self.time_column)
-                
+                sample_id = sample.get('SampleId')
+                remark = None
+                if samp_no is not None:
+                    try:
+                        remark = replicate_remarks.get(int(samp_no))
+                    except (ValueError, TypeError):
+                        pass
+
                 if samp_no is None or prod_ref is None or sample_time is None:
                     continue
-                
-                # Filter by breakpoint
-                if self._last_collect_time:
-                    if isinstance(sample_time, str):
-                        sample_dt = parse_datetime(sample_time)
-                        if sample_dt is None:
-                            continue
-                    else:
-                        sample_dt = sample_time
-                    
-                    if sample_dt <= self._last_collect_time:
-                        continue
                 
                 # Get product name
                 product_name = products_map.get(prod_ref, f'Product_{prod_ref}')
@@ -303,6 +339,8 @@ class MDBCollector(BaseCollector):
                         'lower_limit': None,
                         'is_qualified': 1,
                         'sample_time': time_str,
+                        'sample_id': sample_id.strip() if isinstance(sample_id, str) else (str(sample_id) if sample_id else None),
+                        'remark': remark,
                     }
                     records.append(record)
             

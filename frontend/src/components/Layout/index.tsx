@@ -257,19 +257,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </nav>
         <div className={styles.sidebarFooter}>
           <span className={styles.footerVersionBadge}>
-            v1.5.2
+            v1.5.3
             <div className={styles.versionTooltip}>
               <div className={styles.versionTooltipTitle}>
                 <span className={styles.versionTooltipTitleDot} />
-                v1.5.2 更新日志
+                v1.5.3 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>数据分析手册全面升级：30+词条内容完善</li>
-                <li className={styles.versionTooltipItem}>新增六西格玛DMAIC、Mann-Kendall趋势图</li>
-                <li className={styles.versionTooltipItem}>18张图表优化，异常点高亮</li>
-                <li className={styles.versionTooltipItem}>浮动目录默认折叠</li>
-                <li className={styles.versionTooltipItem}>新增修正值管理与数据管理三列展示</li>
-                <li className={styles.versionTooltipItem}>Cpk仪表盘布局优化</li>
+                <li className={styles.versionTooltipItem}>采集样品编码和备注，控制图Tooltip展示</li>
+                <li className={styles.versionTooltipItem}>支持单侧规格限过程能力分析（仅USL或LSL）</li>
+                <li className={styles.versionTooltipItem}>MDB增量采集优化，按需加载预测数据</li>
+                <li className={styles.versionTooltipItem}>控制图Y轴自适应包含参考线范围</li>
+                <li className={styles.versionTooltipItem}>过程能力单侧模式UI适配与数学修正</li>
+                <li className={styles.versionTooltipItem}>多项代码审查与安全加固</li>
               </ul>
             </div>
           </span>

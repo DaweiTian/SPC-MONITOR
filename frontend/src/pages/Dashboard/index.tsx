@@ -261,7 +261,7 @@ export const Dashboard: React.FC = () => {
       const productLimits = allSpecLimits[currentProduct.code] || {}
       const capIndicators = indicators.filter(ind => {
         const s = productLimits[ind.code]
-        return s && s.usl != null && s.lsl != null
+        return s && (s.usl != null || s.lsl != null)
       })
       const pairs: Array<[string, string]> = capIndicators.map(ind => [currentProduct.code, ind.code])
       const results = await Promise.all(
@@ -465,7 +465,13 @@ export const Dashboard: React.FC = () => {
         data: times,
         ...chartTheme.xAxis,
       },
-      yAxis: { type: 'value', ...chartTheme.yAxis, scale: true },
+      yAxis: (() => {
+        const refVals = [...values, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])]
+        const yMin = Math.min(...refVals)
+        const yMax = Math.max(...refVals)
+        const margin = (yMax - yMin) * 0.05 || Math.abs(yMax) * 0.05 || 1
+        return { type: 'value' as const, ...chartTheme.yAxis, scale: true, min: yMin - margin, max: yMax + margin }
+      })(),
       series: [
         {
           name: currentIndicator.name,
