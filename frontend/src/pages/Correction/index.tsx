@@ -30,15 +30,18 @@ const CorrectionPage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsResult, indicatorsResult, savedIndResult, correctionsResult] = await Promise.all([
+        const [productsResult, indicatorsResult, savedIndResult, correctionsResult, statusResult] = await Promise.all([
           api.getProducts(),
           api.getIndicators(),
           api.getSavedIndicators().catch(() => ({})),
           api.getCorrectionValues().catch(() => ({})),
+          api.getProductStatus().catch(() => ({} as Record<string, string>)),
         ])
 
         if (productsResult?.products) {
-          setProducts(productsResult.products.map((p: any) => ({ code: p.code, name: p.name })))
+          const all = productsResult.products.map((p: any) => ({ code: p.code, name: p.name }))
+          const statusMap = statusResult || {}
+          setProducts(all.filter(p => statusMap[p.code] !== 'disabled'))
         }
         if (indicatorsResult?.indicators) {
           setAvailableIndicators(indicatorsResult.indicators)
