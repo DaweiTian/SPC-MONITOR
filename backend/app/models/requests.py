@@ -10,7 +10,7 @@ class DBConfigRequest(BaseModel):
     database: str = ""
     username: str = ""
     password: str = ""
-    driver: str = "ODBC Driver 17 for SQL Server"
+    driver: str = "pymssql"
     timeout: int = Field(30, ge=1, le=300)
 
 
@@ -36,7 +36,7 @@ class FTAConfigRequest(BaseModel):
     database: str = ""
     username: str = ""
     password: str = ""
-    driver: str = "ODBC Driver 17 for SQL Server"
+    driver: str = "pymssql"
     timeout: int = Field(30, ge=1, le=300)
 
 

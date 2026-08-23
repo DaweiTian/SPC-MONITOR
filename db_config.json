@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "source_type": "sqlserver",
+  "auth_type": "sql",
+  "server": "localhost",
+  "database": "MSCFT1",
+  "username": "sa",
+  "password": "YourStr0ng!Pass",
+  "driver": "pymssql",
+  "timeout": 30
+}

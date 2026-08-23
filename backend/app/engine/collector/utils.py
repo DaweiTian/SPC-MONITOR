@@ -76,7 +76,7 @@ def build_connection_string(config: Dict[str, Any]) -> str:
     database = config.get('database', '')
     username = config.get('username', '')
     password = config.get('password', '')
-    driver = config.get('driver', 'ODBC Driver 17 for SQL Server')
+    driver = config.get('driver', 'pymssql')
     timeout = config.get('timeout', 30)
 
     driver_encoded = driver.replace(' ', '+')

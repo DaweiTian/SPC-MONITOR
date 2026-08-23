@@ -56,7 +56,7 @@ _default_db_config = {
     "database": "",
     "username": "",
     "password": "",
-    "driver": "ODBC Driver 17 for SQL Server",
+    "driver": "pymssql",
     "timeout": 30
 }
 
@@ -656,7 +656,7 @@ _default_fta_config = {
     "server": "",
     "database": "Pert_Application",
     "auth_type": "sql",
-    "driver": "ODBC Driver 17 for SQL Server",
+    "driver": "pymssql",
     "username": "sa",
     "password": "",
     "timeout": 30

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     sqlserver_database: str = ""
     sqlserver_username: str = ""
     sqlserver_password: str = ""
-    sqlserver_driver: str = "ODBC Driver 17 for SQL Server"
+    sqlserver_driver: str = "pymssql"
     sqlserver_auth_type: str = "windows"
     sqlserver_timeout: int = 30
     
