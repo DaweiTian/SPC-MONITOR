@@ -150,18 +150,20 @@ class SQLServerCollector(BaseCollector):
             cursor.fetchone()
             conn.close()
             self._use_pymssql = True
+            logger.info("SQL Server 连接成功 (pymssql)")
             return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"pymssql 连接失败: {e}")
         # Fallback to SQLAlchemy/pyodbc
         try:
             from sqlalchemy import text
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             self._use_pymssql = False
+            logger.info("SQL Server 连接成功 (pyodbc)")
             return True
         except Exception as e:
-            logger.error(f"SQL Server 连接失败: {e}")
+            logger.error(f"pyodbc 连接也失败: {e}")
             return False
 
     def test_tables(self) -> Dict[str, Any]:
