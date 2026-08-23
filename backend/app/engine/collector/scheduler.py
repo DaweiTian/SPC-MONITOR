@@ -51,8 +51,11 @@ class AdaptiveScheduler:
     
     def _reschedule(self, level: int):
         if self.job:
-            self.job.remove()
-        
+            try:
+                self.job.remove()
+            except Exception:
+                self.job = None
+
         interval = FREQUENCY_LADDER[level]
         self.current_level = level
         

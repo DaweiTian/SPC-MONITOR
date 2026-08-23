@@ -364,6 +364,12 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
         # Update all module-level references
         _update_all_references(source, is_connected, instrument_id)
 
+        # Stop old scheduler before creating new one
+        try:
+            scheduler.stop()
+        except Exception:
+            pass
+
         # Create and start new scheduler
         scheduler = AdaptiveScheduler(collect_func=collect_with_alert)
         monitor_module.scheduler = scheduler
