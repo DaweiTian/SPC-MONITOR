@@ -1024,12 +1024,12 @@ export const ConfigPage: React.FC = () => {
                 </select>
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>ODBC 驱动</label>
+                <label className={styles.formLabel}>数据库驱动</label>
                 <select
                   className={styles.formSelect}
                   value={dbConfig.driver}
                   onChange={e => handleDbConfigChange('driver', e.target.value)}
-                  aria-label="ODBC 驱动"
+                  aria-label="数据库驱动"
                 >
                   <option value="pymssql">pymssql（推荐，无需安装驱动）</option>
                   <option value="ODBC Driver 17 for SQL Server">ODBC Driver 17</option>
@@ -1181,12 +1181,12 @@ export const ConfigPage: React.FC = () => {
                 </select>
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>ODBC 驱动</label>
+                <label className={styles.formLabel}>数据库驱动</label>
                 <select
                   className={styles.formSelect}
                   value={ftaConfig.driver}
                   onChange={e => handleFtaConfigChange('driver', e.target.value)}
-                  aria-label="ODBC 驱动"
+                  aria-label="数据库驱动"
                 >
                   <option value="pymssql">pymssql（推荐，无需安装驱动）</option>
                   <option value="ODBC Driver 17 for SQL Server">ODBC Driver 17</option>

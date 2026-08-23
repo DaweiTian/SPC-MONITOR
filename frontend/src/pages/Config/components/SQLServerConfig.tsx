@@ -82,7 +82,7 @@ export const SQLServerConfig = React.memo(function SQLServerConfig(props: SQLSer
             </select>
           </div>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>ODBC 驱动（pymssql 优先，不依赖 ODBC）</label>
+            <label className={styles.formLabel}>数据库驱动</label>
             <select
               className={styles.formSelect}
               value={dbConfig.driver}

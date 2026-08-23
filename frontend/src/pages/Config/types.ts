@@ -123,7 +123,7 @@ export const DEFAULT_DB_CONFIG: DBConfig = {
   database: '',
   username: '',
   password: '',
-  driver: 'ODBC Driver 17 for SQL Server',
+  driver: 'pymssql',
   timeout: 30,
 }
 
@@ -147,7 +147,7 @@ export const DEFAULT_FTA_CONFIG: FTAConfig = {
   server: '',
   database: 'Pert_Application',
   auth_type: 'sql',
-  driver: 'ODBC Driver 17 for SQL Server',
+  driver: 'pymssql',
   username: 'sa',
   password: '',
   timeout: 30,

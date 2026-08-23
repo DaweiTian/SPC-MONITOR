@@ -83,7 +83,7 @@ export const FTAConfig = React.memo(function FTAConfig(props: FTAConfigProps) {
             </select>
           </div>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>ODBC 驱动</label>
+            <label className={styles.formLabel}>数据库驱动</label>
             <select
               className={styles.formSelect}
               value={ftaConfig.driver}
