@@ -102,6 +102,13 @@
   font-weight: 700;
   color: var(--text-primary);
 }
+.cardSubtitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 .cardTag {
   font-size: 11px;
   padding: 2px 8px;
