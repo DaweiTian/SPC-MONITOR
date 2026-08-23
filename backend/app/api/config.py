@@ -605,32 +605,45 @@ def get_mdb_init_status():
             prediction_table = config.get("prediction_table", "Prediction")
             predictions = db.parse_table(prediction_table)
             if predictions and 'SampRef' in predictions:
-                # 取最后 20 条记录的 SampRef
-                samp_refs = list(predictions['SampRef'].values())[-20:]
-                comp_names = components.get('Name', {})
-                prod_names = products.get('Name', {})
-                samp_prod_map = samples.get('ProdRef', {}) if samples else {}
-                samp_time_map = samples.get('DateTime', {}) if samples else {}
-                for ref in samp_refs:
-                    if ref is None:
+                # parse_table 返回列式数据 {col_name: [values...]}
+                pred_samp_refs = predictions['SampRef']
+                pred_comp_refs = predictions['CompRef']
+                pred_values = predictions.get('Value', predictions.get('value', []))
+                pred_count = min(len(pred_samp_refs), len(pred_comp_refs), len(pred_values))
+                # 取最后 20 条预测记录
+                start = max(0, pred_count - 20)
+                # 构建查找表
+                comp_name_list = components.get('Name', []) if components else []
+                comp_no_list = components.get('CompNo', []) if components else []
+                comp_map = {}
+                for i in range(min(len(comp_no_list), len(comp_name_list))):
+                    comp_map[comp_no_list[i]] = comp_name_list[i]
+                prod_name_list = products.get('Name', []) if products else []
+                prod_no_list = products.get('ProdNo', []) if products else []
+                prod_map = {}
+                for i in range(min(len(prod_no_list), len(prod_name_list))):
+                    prod_map[prod_no_list[i]] = prod_name_list[i]
+                samp_no_list = samples.get('SampNo', []) if samples else []
+                samp_prod_list = samples.get('ProdRef', []) if samples else []
+                samp_time_list = samples.get('DateTime', []) if samples else []
+                samp_lookup = {}
+                for i in range(min(len(samp_no_list), len(samp_prod_list), len(samp_time_list))):
+                    samp_lookup[samp_no_list[i]] = (samp_prod_list[i], samp_time_list[i])
+                for i in range(start, pred_count):
+                    samp_ref = pred_samp_refs[i]
+                    comp_ref = pred_comp_refs[i]
+                    val = pred_values[i]
+                    if samp_ref is None or comp_ref is None or val is None:
                         continue
-                    prod_ref = samp_prod_map.get(ref)
-                    prod_name = prod_names.get(prod_ref, f'Product_{prod_ref}') if prod_ref else '未知'
-                    time_val = samp_time_map.get(ref, '')
-                    # 查找该样本的所有指标值
-                    for comp_ref, comp_name in comp_names.items():
-                        # 找到匹配的预测值
-                        for pid, psr in predictions.get('SampRef', {}).items():
-                            if psr == ref and predictions.get('CompRef', {}).get(pid) == comp_ref:
-                                val = predictions.get('Value', {}).get(pid)
-                                if val is not None:
-                                    recent_records.append({
-                                        'product_name': str(prod_name),
-                                        'indicator_name': str(comp_name),
-                                        'value': str(val),
-                                        'sample_time': str(time_val),
-                                    })
-                                break
+                    prod_ref, time_val = samp_lookup.get(samp_ref, (None, ''))
+                    prod_name = prod_map.get(prod_ref, f'Product_{prod_ref}') if prod_ref else '未知'
+                    comp_name = comp_map.get(comp_ref, f'Component_{comp_ref}')
+                    recent_records.append({
+                        'product_name': str(prod_name),
+                        'indicator_name': str(comp_name),
+                        'value': str(val),
+                        'sample_time': str(time_val),
+                    })
         except Exception as e:
             logger.warning(f"获取预览数据失败: {e}")
 

@@ -207,6 +207,9 @@ spc_module.collector = collector
 import backend.app.api.alerts as alerts_module
 alerts_module.storage = storage
 
+import backend.app.api.config as config_module_init
+config_module_init.storage = storage
+
 import backend.app.api.data as data_module
 data_module.storage = storage
 
