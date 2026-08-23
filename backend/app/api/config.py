@@ -154,9 +154,25 @@ def update_db_config(config: DBConfigRequest):
 
 @router.post("/db/test")
 def test_db_connection(config: dict):
+    driver = config.get("driver", "")
+
+    # pymssql 模式：不依赖 ODBC
+    if driver == "pymssql":
+        try:
+            from backend.app.engine.collector.sqlserver import SQLServerCollector
+            conn = SQLServerCollector._build_pymssql_connection(config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            conn.close()
+            return {"success": True, "message": "连接成功！(pymssql)"}
+        except Exception as e:
+            return {"success": False, "message": f"连接失败: {e}"}
+
+    # ODBC 模式
     try:
         conn_str = _build_connection_string(config)
-        
+
         try:
             from sqlalchemy import create_engine, text
         except ImportError:
@@ -164,15 +180,15 @@ def test_db_connection(config: dict):
                 "success": False,
                 "message": "缺少依赖包，请安装: pip install sqlalchemy pyodbc"
             }
-        
+
         engine = create_engine(conn_str, connect_args={"timeout": config.get("timeout", 30)})
-        
+
         with engine.connect() as conn:
             result = conn.execute(text("SELECT 1"))
             result.scalar()
-        
+
         engine.dispose()
-        
+
         return {"success": True, "message": "连接成功！"}
     except Exception as e:
         error_msg = str(e)
@@ -182,7 +198,7 @@ def test_db_connection(config: dict):
             error_msg = "找不到服务器，请检查服务器地址"
         elif "driver" in error_msg.lower():
             error_msg = "ODBC 驱动未安装，请安装对应的驱动"
-        
+
         return {"success": False, "message": f"连接失败: {error_msg}"}
 
 @router.post("/db/explore")

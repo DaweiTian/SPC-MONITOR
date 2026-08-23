@@ -420,8 +420,19 @@ export const ConfigPage: React.FC = () => {
             setSaveResult({ success: false, message: '获取数据源信息失败' })
           }
         } else {
-          // For SQL Server, just activate
+          // For SQL Server / FTA, activate and trigger first collection
           await handleActivateInstrument(currentInstrument)
+          try {
+            const collectResult = await api.manualCollect()
+            if (collectResult?.status === 'success') {
+              const n = collectResult.new_records || 0
+              setSaveResult({ success: true, message: `已切换到 ${currentInstrument.toUpperCase()} 数据源，首次采集 ${n} 条数据` })
+            } else {
+              setSaveResult({ success: true, message: `已切换到 ${currentInstrument.toUpperCase()} 数据源，首次采集将在后台自动进行` })
+            }
+          } catch {
+            setSaveResult({ success: true, message: `已切换到 ${currentInstrument.toUpperCase()} 数据源` })
+          }
         }
       } else {
         setSaveResult(result)
