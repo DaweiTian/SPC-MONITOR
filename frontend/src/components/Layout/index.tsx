@@ -257,19 +257,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </nav>
         <div className={styles.sidebarFooter}>
           <span className={styles.footerVersionBadge}>
-            v1.5.3
+            v1.5.4
             <div className={styles.versionTooltip}>
               <div className={styles.versionTooltipTitle}>
                 <span className={styles.versionTooltipTitleDot} />
-                v1.5.3 更新日志
+                v1.5.4 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>采集样品编码和备注，控制图Tooltip展示</li>
-                <li className={styles.versionTooltipItem}>支持单侧规格限过程能力分析（仅USL或LSL）</li>
-                <li className={styles.versionTooltipItem}>MDB增量采集优化，按需加载预测数据</li>
-                <li className={styles.versionTooltipItem}>控制图Y轴自适应包含参考线范围</li>
-                <li className={styles.versionTooltipItem}>过程能力单侧模式UI适配与数学修正</li>
-                <li className={styles.versionTooltipItem}>多项代码审查与安全加固</li>
+                <li className={styles.versionTooltipItem}>FTA数据库连接修复：SQL Browser启用与端口发现</li>
+                <li className={styles.versionTooltipItem}>pymssql默认驱动，移除ODBC选项</li>
+                <li className={styles.versionTooltipItem}>系统托盘双图标修复，移除网页favicon</li>
+                <li className={styles.versionTooltipItem}>预测页面过滤数据不足品项</li>
+                <li className={styles.versionTooltipItem}>调度器JobLookupError修复</li>
+                <li className={styles.versionTooltipItem}>MDB预览数据列式格式修复</li>
               </ul>
             </div>
           </span>
