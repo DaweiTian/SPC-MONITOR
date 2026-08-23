@@ -57,14 +57,6 @@ pub fn run() {
             // 创建系统托盘
             tray::create_tray(app, sm_for_handler.clone())?;
 
-            // 注册退出清理：确保 Tauri 进程退出时后端也被终止
-            let sm_cleanup = sm_for_handler.clone();
-            app.on_event(move |event| {
-                if let tauri::RunEvent::ExitRequested { .. } = event {
-                    sm_cleanup.stop_server().ok();
-                }
-            });
-
             // 拦截主窗口关闭：隐藏到托盘
             if let Some(window) = app.get_webview_window("main") {
                 let w = window.clone();
@@ -142,6 +134,7 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    // Drop 自动清理后端进程（ServiceManager::Drop）
 }
 
 #[cfg(target_os = "windows")]

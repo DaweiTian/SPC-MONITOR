@@ -152,7 +152,8 @@ impl ServiceManager {
             .ok();
         let stderr_file = log_file
             .as_ref()
-            .map(|f| Stdio::from(f.try_clone().unwrap_or_else(|_| Stdio::null())))
+            .and_then(|f| f.try_clone().ok())
+            .map(Stdio::from)
             .unwrap_or(Stdio::null());
         state._log_file = log_file;
 
