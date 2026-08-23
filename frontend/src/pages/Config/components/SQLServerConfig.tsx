@@ -82,12 +82,13 @@ export const SQLServerConfig = React.memo(function SQLServerConfig(props: SQLSer
             </select>
           </div>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>ODBC 驱动</label>
+            <label className={styles.formLabel}>ODBC 驱动（pymssql 优先，不依赖 ODBC）</label>
             <select
               className={styles.formSelect}
               value={dbConfig.driver}
               onChange={e => onDbConfigChange('driver', e.target.value)}
             >
+              <option value="pymssql">pymssql（推荐，无需安装驱动）</option>
               <option value="ODBC Driver 17 for SQL Server">ODBC Driver 17</option>
               <option value="ODBC Driver 18 for SQL Server">ODBC Driver 18</option>
               <option value="SQL Server">SQL Server (旧版)</option>

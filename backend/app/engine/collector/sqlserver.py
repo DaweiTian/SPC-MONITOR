@@ -172,7 +172,24 @@ class SQLServerCollector(BaseCollector):
         return self._engine
 
     def test_connection(self) -> bool:
-        # Try pymssql first (more reliable on Linux without ODBC)
+        driver = self._db_config.get("driver", "")
+
+        # 明确选择 pymssql 时，跳过 ODBC
+        if driver == "pymssql":
+            try:
+                conn = self._build_pymssql_connection(self._db_config)
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                conn.close()
+                self._use_pymssql = True
+                logger.info("SQL Server 连接成功 (pymssql)")
+                return True
+            except Exception as e:
+                logger.error(f"pymssql 连接失败: {e}")
+                return False
+
+        # 其他情况：pymssql 优先，pyodbc 兜底
         try:
             conn = self._build_pymssql_connection(self._db_config)
             cursor = conn.cursor()
@@ -184,7 +201,6 @@ class SQLServerCollector(BaseCollector):
             return True
         except Exception as e:
             logger.warning(f"pymssql 连接失败: {e}")
-        # Fallback to SQLAlchemy/pyodbc
         try:
             from sqlalchemy import text
             with self.engine.connect() as conn:
