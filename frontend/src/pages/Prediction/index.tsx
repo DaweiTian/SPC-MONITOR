@@ -63,20 +63,25 @@ export const PredictionPage: React.FC = () => {
   const [product, setProduct] = useState('')
   const [indicator, setIndicator] = useState('')
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
+  const [dataCounts, setDataCounts] = useState<{ products: Record<string, number>; indicators: Record<string, number> }>({ products: {}, indicators: {} })
   const [model, setModel] = useState('ets')
   const [horizon, setHorizon] = useState('1h')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
 
-  // Load saved indicators per product
+  // Load saved indicators and data counts
   useEffect(() => {
     api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+    api.getRecentCounts(30).then(setDataCounts).catch(() => {})
   }, [])
 
-  // Filter out disabled products
+  // Filter out disabled products and products with insufficient data (< 20 points)
   const enabledProducts = useMemo(() =>
-    products.filter(p => productStatus[p.code] !== 'disabled'),
-    [products, productStatus]
+    products.filter(p =>
+      productStatus[p.code] !== 'disabled' &&
+      (dataCounts.products[p.code] ?? 0) >= 20
+    ),
+    [products, productStatus, dataCounts]
   )
 
   // Filter indicators: only show those configured for the selected product
