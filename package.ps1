@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 $PROJECT_DIR = "D:\OpenCode-workspace\LAB\FT1-MONITOR"
 $LAUNCHER_DIR = Join-Path $PROJECT_DIR "launcher"
@@ -14,7 +14,7 @@ if (Test-Path $PORTABLE) { Remove-Item -Recurse -Force $PORTABLE }
 New-Item -ItemType Directory -Path $PORTABLE | Out-Null
 
 # Copy launcher exe
-Copy-Item (Join-Path $LAUNCHER_DIR "target\release\ft1-monitor-launcher.exe") $PORTABLE
+Copy-Item (Join-Path $LAUNCHER_DIR "target\release\SPC-Monitor.exe") (Join-Path $PORTABLE "过程SPC监控平台.exe")
 
 # Copy backend with robocopy
 $portableBackend = Join-Path $PORTABLE "ft1-backend"
@@ -25,7 +25,7 @@ if ($LASTEXITCODE -gt 3) {
 }
 
 # Create zip
-$zipPath = Join-Path $OUTPUT_DIR "portable.zip"
+$zipPath = Join-Path $OUTPUT_DIR "过程SPC监控平台_免安装版.zip"
 Compress-Archive -Path (Join-Path $PORTABLE "*") -DestinationPath $zipPath -Force
 Remove-Item -Recurse -Force $PORTABLE
 Write-Host "Portable: $zipPath"
