@@ -83,11 +83,10 @@ class FTACollector(BaseCollector):
         }
 
         auth_type = self._db_config.get("auth_type", "sql")
-        if auth_type == "windows":
-            kwargs["trusted"] = True
-        else:
+        if auth_type != "windows":
             kwargs["user"] = self._db_config.get("username", "sa")
             kwargs["password"] = self._db_config.get("password", "")
+        # Windows 认证：不传 user/password，pymssql 自动使用 SSPI
 
         if port:
             kwargs["port"] = int(port)
