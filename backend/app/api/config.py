@@ -806,6 +806,17 @@ def update_single_product_status(product_code: str, body: dict):
         return {"success": True, "message": f"品项状态已更新为{status}"}
     return {"success": False, "message": "更新失败"}
 
+
+@router.get("/recent-counts")
+def get_recent_counts(days: int = 10):
+    """获取最近N天每个品项/指标的采集数量（用于排序）"""
+    try:
+        return storage.get_recent_collection_counts(days)
+    except Exception as e:
+        logger.warning(f"获取采集统计失败: {e}")
+        return {"products": {}, "indicators": {}}
+
+
 # ========== Spec Limits Configuration ==========
 
 def _get_merged_spec_limits(product_code: str = None) -> dict:

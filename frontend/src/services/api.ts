@@ -122,6 +122,7 @@ export const api = {
   
   // Product status configuration
   getProductStatus: () => http.get<Record<string, string>>('/config/product-status').then(r => r.data),
+  getRecentCounts: (days?: number) => http.get<{ products: Record<string, number>; indicators: Record<string, number> }>('/config/recent-counts', { params: { days } }).then(r => r.data),
   updateProductStatus: (config: Record<string, string>) =>
     http.put('/config/product-status', config).then(r => r.data),
   updateSingleProductStatus: (productCode: string, status: string) =>

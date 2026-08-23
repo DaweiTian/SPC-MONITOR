@@ -420,6 +420,34 @@ class OnlineStorage:
             return [dict(row) for row in cursor.fetchall()]
         finally:
             conn.close()
+
+    def get_recent_collection_counts(self, days: int = 10) -> dict[str, dict[str, int]]:
+        """Get collection counts per product_code and indicator_code for the last N days."""
+        conn = self._connect()
+        try:
+            # Per-product counts
+            cursor = conn.execute(
+                """SELECT product_code, COUNT(*) as cnt
+                   FROM monitor_data
+                   WHERE sample_time >= datetime('now', 'localtime', ?)
+                   GROUP BY product_code""",
+                (f'-{days} days',),
+            )
+            product_counts = {row["product_code"]: row["cnt"] for row in cursor.fetchall()}
+
+            # Per-indicator counts
+            cursor = conn.execute(
+                """SELECT indicator_code, COUNT(*) as cnt
+                   FROM monitor_data
+                   WHERE sample_time >= datetime('now', 'localtime', ?)
+                   GROUP BY indicator_code""",
+                (f'-{days} days',),
+            )
+            indicator_counts = {row["indicator_code"]: row["cnt"] for row in cursor.fetchall()}
+
+            return {"products": product_counts, "indicators": indicator_counts}
+        finally:
+            conn.close()
     
     def log_collection(self, status: str, records_count: int = 0, error_message: str = None) -> None:
         """Log a collection attempt to sync_log."""

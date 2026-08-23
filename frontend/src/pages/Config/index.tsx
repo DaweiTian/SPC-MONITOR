@@ -293,8 +293,24 @@ export const ConfigPage: React.FC = () => {
       }
 
       if (productsResult?.products) {
+        // Fetch recent collection counts for sorting
+        const recentCounts = await api.getRecentCounts(10).catch(() => ({ products: {} as Record<string, number>, indicators: {} as Record<string, number> }))
+
+        // Sort products by recent collection count (descending)
+        const sortedProducts = [...productsResult.products].sort((a, b) =>
+          (recentCounts.products[b.code] || 0) - (recentCounts.products[a.code] || 0)
+        )
+
+        // Sort indicator aliases by recent collection count (descending)
+        if (recentCounts.indicators && Object.keys(recentCounts.indicators).length > 0) {
+          const sortedAliases = Object.entries(indicatorAliases).sort(
+            ([a], [b]) => (recentCounts.indicators[b] || 0) - (recentCounts.indicators[a] || 0)
+          )
+          setIndicatorAliases(Object.fromEntries(sortedAliases))
+        }
+
         // Render products immediately with count=0, then update counts async
-        const productList: ProductItem[] = productsResult.products.map((p: Product, index: number) => ({
+        const productList: ProductItem[] = sortedProducts.map((p: Product, index: number) => ({
           id: String(index + 1),
           name: p.name,
           code: p.code,
@@ -304,7 +320,7 @@ export const ConfigPage: React.FC = () => {
         setProducts(productList)
 
         // Fetch indicator counts in background and update
-        const countPromises = productsResult.products.map((p: Product) =>
+        const countPromises = sortedProducts.map((p: Product) =>
           api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
         )
         const counts = await Promise.all(countPromises)
