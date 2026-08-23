@@ -34,6 +34,7 @@ class FTAConfigRequest(BaseModel):
     enabled: bool = False
     server: str = ""
     database: str = ""
+    auth_type: str = "sql"
     username: str = ""
     password: str = ""
     driver: str = "pymssql"
