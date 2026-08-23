@@ -53,9 +53,12 @@ if _frontend_dist.exists():
     from fastapi.responses import RedirectResponse, HTMLResponse
     # Mount at /app to avoid intercepting /api/* and /ws routes
     app.mount("/app", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+    @app.get("/app", include_in_schema=False)
+    async def _app_redirect():
+        return RedirectResponse(url="/app/")
     @app.get("/", include_in_schema=False)
     async def _root_redirect():
-        return RedirectResponse(url="/app")
+        return RedirectResponse(url="/app/")
 
     @app.get("/api/docs/{filename}", include_in_schema=False)
     async def serve_doc(filename: str):
