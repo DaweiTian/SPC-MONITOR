@@ -14,7 +14,10 @@ from datetime import datetime
 os.makedirs('logs', exist_ok=True)
 _log_handlers: list[logging.Handler] = [logging.StreamHandler()]
 try:
-    _log_handlers.append(logging.FileHandler('logs/backend.log', encoding='utf-8'))
+    from logging.handlers import RotatingFileHandler
+    _log_handlers.append(RotatingFileHandler(
+        'logs/backend.log', maxBytes=2 * 1024 * 1024, backupCount=3, encoding='utf-8'
+    ))
 except OSError:
     pass
 logging.basicConfig(
