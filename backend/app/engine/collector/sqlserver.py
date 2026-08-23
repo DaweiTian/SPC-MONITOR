@@ -121,11 +121,41 @@ class SQLServerCollector(BaseCollector):
     def _build_pymssql_connection(config: dict):
         """创建 pymssql 连接（当 pyodbc 不可用时的备选方案）"""
         import pymssql
-        server = config.get("server", "localhost")
+        import re
+        server_raw = config.get("server", "localhost")
         database = config.get("database", "")
         auth_type = config.get("auth_type", "sql")
         username = config.get("username", "sa")
         password = config.get("password", "")
+
+        # pymssql/FreeTDS 处理命名实例不可靠，解析为 host:port 格式
+        # 支持格式: "host\instance,port" / "host,port" / "host\instance" / "host"
+        host = server_raw
+        port = None
+        instance = None
+        # 提取端口 (逗号后面)
+        if ',' in server_raw:
+            parts = server_raw.rsplit(',', 1)
+            host = parts[0]
+            try:
+                port = int(parts[1])
+            except ValueError:
+                pass
+        # 提取命名实例 (反斜杠后面)
+        if '\\' in host:
+            parts = host.split('\\', 1)
+            host = parts[0]
+            instance = parts[1]
+
+        # 构建 pymssql server 参数：优先 host:port，否则 host\instance
+        if port:
+            server = f"{host}:{port}"
+        elif instance:
+            server = f"{host}\\{instance}"
+        else:
+            server = host
+
+        logger.info(f"pymssql 连接参数: server={server}, database={database}, auth={auth_type}")
         if auth_type == "windows":
             return pymssql.connect(server=server, database=database, trusted_connection=True)
         return pymssql.connect(server=server, user=username, password=password, database=database)
