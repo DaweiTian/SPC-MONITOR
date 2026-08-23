@@ -12,6 +12,8 @@ export interface MonitorData {
   lower_limit?: number
   is_qualified: number
   sample_time: string
+  sample_id?: string | null
+  remark?: string | null
   created_at: string
 }
 

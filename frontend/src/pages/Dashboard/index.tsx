@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { EChartsOption, LinearGradientObject, MarkLineComponentOption } from 'echarts'
+import type { EChartsOption, LinearGradientObject, MarkLineComponentOption, DefaultLabelFormatterCallbackParams } from 'echarts'
+import { escapeHtml } from '../../utils/html'
+import type { EChartsParam } from '../../types'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { useToast } from '../../components/Toast'
@@ -452,7 +454,18 @@ export const Dashboard: React.FC = () => {
 
     return {
       ...chartTheme,
-      tooltip: { trigger: 'axis', ...tooltipStyle },
+      tooltip: {
+        trigger: 'axis' as const,
+        ...tooltipStyle,
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
+          const idx = p.dataIndex
+          const d = sorted[idx]
+          const sampleInfo = d?.sample_id ? `<br/>样品编码: ${escapeHtml(d.sample_id)}` : ''
+          const remarkInfo = d?.remark ? `<br/>备注: ${escapeHtml(d.remark)}` : ''
+          return `<b>${escapeHtml(d?.sample_time ? new Date(d.sample_time).toLocaleString('zh-CN') : '')}</b>${sampleInfo}${remarkInfo}<br/>${escapeHtml(currentIndicator.name)}: <b>${escapeHtml(String(p.value))}</b>`
+        },
+      },
       legend: {
         data: [currentIndicator.name],
         textStyle: { color: '#8b95a7' },
