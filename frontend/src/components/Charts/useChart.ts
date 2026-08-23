@@ -10,6 +10,7 @@ import {
   MarkAreaComponent,
   DataZoomComponent,
   TitleComponent,
+  GraphicComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { chartTheme } from './theme'
@@ -28,6 +29,7 @@ echarts.use([
   MarkAreaComponent,
   DataZoomComponent,
   TitleComponent,
+  GraphicComponent,
   CanvasRenderer,
 ])
 

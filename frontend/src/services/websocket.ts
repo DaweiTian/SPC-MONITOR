@@ -10,6 +10,8 @@ class WebSocketService {
   private retryCount = 0
   private readonly maxRetries = 5
   private waitingForFirstSuccess = false
+  private intentionalClose = false
+  private unloadBound = false
 
   get connected() {
     return this._connected
@@ -19,9 +21,19 @@ class WebSocketService {
     if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
 
     // 只在显式调用时重置重连状态
+    this.intentionalClose = false
     this.retryCount = 0
     this.reconnectDelay = 1000
     this.waitingForFirstSuccess = true
+
+    // 页面卸载时同步标记，防止浏览器关闭 WS 后触发无意义重连
+    if (!this.unloadBound) {
+      this.unloadBound = true
+      window.addEventListener('beforeunload', () => {
+        this.intentionalClose = true
+      })
+    }
+
     this._doConnect()
   }
 
@@ -62,6 +74,7 @@ class WebSocketService {
 
         this.ws.onclose = () => {
           this._connected = false
+          if (this.intentionalClose) return
           this.retryCount++
           if (this.retryCount > this.maxRetries) {
             if (!this.waitingForFirstSuccess) console.log('WebSocket 重连次数超限，停止重连')
@@ -76,6 +89,7 @@ class WebSocketService {
 
         this.ws.onerror = () => {
           this._connected = false
+          if (this.intentionalClose) return
           if (!this.waitingForFirstSuccess) console.warn('WebSocket 连接错误')
           this.ws?.close()
         }
@@ -89,6 +103,7 @@ class WebSocketService {
   }
 
   disconnect() {
+    this.intentionalClose = true
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null

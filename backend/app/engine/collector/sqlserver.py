@@ -126,6 +126,8 @@ class SQLServerCollector(BaseCollector):
         auth_type = config.get("auth_type", "sql")
         username = config.get("username", "sa")
         password = config.get("password", "")
+        if auth_type == "windows":
+            return pymssql.connect(server=server, database=database, trusted_connection=True)
         return pymssql.connect(server=server, user=username, password=password, database=database)
     
     @property
@@ -351,18 +353,27 @@ class SQLServerCollector(BaseCollector):
                     except (ValueError, TypeError):
                         continue
 
+                    # Get correction value and apply
+                    product_code = product_name.strip()
+                    indicator_code = indicator_name.lower()
+                    correction = self._get_correction(product_code, indicator_code)
+                    raw_value = value
+                    value = round(value + correction, 4)
+
                     if isinstance(sample_time, datetime):
                         time_str = sample_time.isoformat()
                     else:
                         time_str = str(sample_time)
 
                     record = {
-                        'indicator_code': indicator_name.lower(),
+                        'indicator_code': indicator_code,
                         'indicator_name': indicator_name,
-                        'product_code': product_name.strip(),
+                        'product_code': product_code,
                         'product_name': product_name,
-                        'value': round(value, 4),
-                        'unit': '',
+                        'value': value,
+                        'raw_value': round(raw_value, 4),
+                        'correction': correction,
+                        'unit': 'g/100g',
                         'upper_limit': None,
                         'lower_limit': None,
                         'is_qualified': 1,
@@ -491,14 +502,22 @@ class SQLServerCollector(BaseCollector):
                 value = float(value)
             except (ValueError, TypeError):
                 continue
-            
+
+            # Get correction value and apply
+            product_code = self._generate_product_code(product_name)
+            correction = self._get_correction(product_code, indicator_code)
+            raw_value = value
+            value = round(value + correction, 4)
+
             record = {
                 'indicator_code': indicator_code,
                 'indicator_name': indicator_code,
-                'product_code': self._generate_product_code(product_name),
+                'product_code': product_code,
                 'product_name': product_name,
-                'value': round(value, 4),
-                'unit': '',
+                'value': value,
+                'raw_value': round(raw_value, 4),
+                'correction': correction,
+                'unit': 'g/100g',
                 'upper_limit': None,
                 'lower_limit': None,
                 'is_qualified': 1,

@@ -263,3 +263,193 @@
     transform: translateY(0);
   }
 }
+
+/* ========== 单元格样式 ========== */
+.monoCell {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.correctionPositive {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.correctionNegative {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* ========== 修正值编辑 ========== */
+.signInputGroup {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.signBtn {
+  width: 28px;
+  height: 26px;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signBtnPositive {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.signBtnPositive:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.signBtnNegative {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.signBtnNegative:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.valueInput {
+  width: 80px;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  outline: none;
+}
+
+.valueInput:focus {
+  background: var(--bg-secondary);
+}
+
+/* ========== 操作按钮 ========== */
+.actionBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.btnSave,
+.btnCancel {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btnSave {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.btnSave:hover {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+.btnSave:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnCancel {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.btnCancel:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.btnEditSmall {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btnEditSmall:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+/* ========== 内联编辑输入框 ========== */
+.inlineInput {
+  width: 70px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.inlineInput:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.fieldEditGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldEditRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.fieldInput {
+  width: 60px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  outline: none;
+}
+
+.fieldInput:focus {
+  border-color: var(--accent-cyan);
+}

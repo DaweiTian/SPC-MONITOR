@@ -267,7 +267,7 @@ export const ProductManager = React.memo(function ProductManager(props: ProductM
                                 newSpecs[index] = { ...spec, unit: e.target.value }
                                 setIndicatorSpecs(newSpecs)
                               }}
-                              placeholder="%"
+                              placeholder="g/100g"
                               disabled={!spec.enabled}
                             />
                           </td>

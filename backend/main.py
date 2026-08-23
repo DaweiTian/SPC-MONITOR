@@ -12,13 +12,15 @@ from backend.app.core.exceptions import AppException, app_exception_handler, gen
 from datetime import datetime
 
 os.makedirs('logs', exist_ok=True)
+_log_handlers: list[logging.Handler] = [logging.StreamHandler()]
+try:
+    _log_handlers.append(logging.FileHandler('logs/backend.log', encoding='utf-8'))
+except OSError:
+    pass
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/backend.log', encoding='utf-8')
-    ]
+    handlers=_log_handlers,
 )
 
 from backend.app.api.monitor import router as monitor_router
@@ -39,7 +41,7 @@ from backend.app.engine.alert.engine import AlertEngine
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="液奶过程监控系统", version="1.5.1")
+app = FastAPI(title="液奶过程监控系统", version="1.5.2")
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib

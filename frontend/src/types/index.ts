@@ -5,6 +5,8 @@ export interface MonitorData {
   product_code: string
   product_name?: string
   value: number
+  raw_value?: number
+  correction?: number
   unit?: string
   upper_limit?: number
   lower_limit?: number

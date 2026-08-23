@@ -273,24 +273,32 @@ class MDBCollector(BaseCollector):
                     
                     if comp_no is None:
                         continue
-                    
+
                     value = sample_preds.get(comp_no)
                     if value is None:
                         continue
-                    
+
+                    # Get correction value and apply
+                    raw_value = float(value)
+                    indicator_code_lower = indicator_code.lower()
+                    correction = self._get_correction(product_code, indicator_code_lower)
+                    value = round(raw_value + correction, 4)
+
                     # Format time
                     if isinstance(sample_time, str):
                         time_str = sample_time
                     else:
                         time_str = sample_time.isoformat()
-                    
+
                     record = {
-                        'indicator_code': indicator_code.lower(),
+                        'indicator_code': indicator_code_lower,
                         'indicator_name': indicator_name,
                         'product_code': product_code,
                         'product_name': product_name,
-                        'value': round(value, 4),
-                        'unit': '',
+                        'value': value,
+                        'raw_value': round(raw_value, 4),
+                        'correction': correction,
+                        'unit': 'g/100g',
                         'upper_limit': None,
                         'lower_limit': None,
                         'is_qualified': 1,

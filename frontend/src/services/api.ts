@@ -81,6 +81,10 @@ export const api = {
     http.get('/data/list', { params }).then(r => r.data),
   exportData: (params: { format: string; product?: string; indicator?: string }) =>
     http.get(`/data/export`, { params, responseType: 'blob' }).then(r => r.data),
+  updateDataCorrection: (recordId: number, correction: number) =>
+    http.put(`/data/correction/${recordId}`, { correction }).then(r => r.data),
+  updateDataRecord: (recordId: number, fields: { unit?: string; upper_limit?: number; lower_limit?: number }) =>
+    http.put(`/data/record/${recordId}`, fields).then(r => r.data),
   
   // Instrument configuration
   getInstrumentConfig: () => http.get<InstrumentConfig>('/config/instrument').then(r => r.data),
@@ -136,4 +140,10 @@ export const api = {
     http.get<{ rules: Array<{ id: number; rule: string; description: string; severity: string; enabled: boolean; rule_type: string }> }>('/config/alert-rules').then(r => r.data),
   updateAlertRules: (config: { rules: Array<{ id: number; rule: string; description: string; severity: string; enabled: boolean; rule_type: string }> }) =>
     http.put('/config/alert-rules', config).then(r => r.data),
+
+  // Correction values configuration
+  getCorrectionValues: (productCode?: string) =>
+    http.get<Record<string, { values: Record<string, number>; updated_at?: string }>>('/config/correction-values', { params: productCode ? { product_code: productCode } : {} }).then(r => r.data),
+  updateCorrectionValues: (productCode: string, corrections: Record<string, number>) =>
+    http.put(`/config/correction-values/${productCode}`, { corrections }).then(r => r.data),
 }

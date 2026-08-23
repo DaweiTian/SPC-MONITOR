@@ -187,17 +187,26 @@ class FTACollector(BaseCollector):
                 except (ValueError, TypeError):
                     continue
 
+                # Get correction value and apply
+                product_code = product_name.strip()
+                indicator_code = parameter_name.lower()
+                correction = self._get_correction(product_code, indicator_code)
+                raw_value = value
+                value = round(value + correction, 4)
+
                 if isinstance(analysis_time, datetime):
                     time_str = analysis_time.isoformat()
                 else:
                     time_str = str(analysis_time)
 
                 record = {
-                    'indicator_code': parameter_name.lower(),
+                    'indicator_code': indicator_code,
                     'indicator_name': parameter_name,
-                    'product_code': product_name.strip(),
+                    'product_code': product_code,
                     'product_name': product_name,
-                    'value': round(value, 4),
+                    'value': value,
+                    'raw_value': round(raw_value, 4),
+                    'correction': correction,
                     'unit': unit_type or '',
                     'upper_limit': None,
                     'lower_limit': None,

@@ -6,7 +6,7 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   液奶过程监控系统 v1.5.1 - 一键构建
+echo   过程SPC监控平台 v1.5.2 - 一键构建
 echo ==========================================
 
 echo [1/5] 构建前端...
@@ -41,9 +41,9 @@ if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 set PORTABLE=%OUTPUT_DIR%\FT1-MONITOR-Portable
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
 mkdir "%PORTABLE%"
-copy /Y "%LAUNCHER_DIR%\target\release\ft1-monitor-launcher.exe" "%PORTABLE%\" >nul
+copy /Y "%LAUNCHER_DIR%\target\release\SPC-Monitor.exe" "%PORTABLE%\过程SPC监控平台.exe" >nul
 xcopy /E /I /Q /Y "%BACKEND_DIST%" "%PORTABLE%\ft1-backend" >nul
-powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\液奶过程监控系统_免安装版.zip' -Force"
+powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\过程SPC监控平台_免安装版.zip' -Force"
 rmdir /s /q "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul
 

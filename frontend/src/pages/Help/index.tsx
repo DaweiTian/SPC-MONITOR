@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { GlossaryPage } from './GlossaryPage'
-import { VisualGuidePage } from './VisualGuidePage'
+import { ManualPage } from './ManualPage'
 import styles from './Help.module.css'
 
 const modules = [
@@ -24,15 +23,14 @@ const nelsonRules = [
   { rule: '规则8', desc: '连续8点无1点在1σ内', type: '数据过度分散' },
 ]
 
-type TabKey = 'overview' | 'glossary' | 'visual'
+type TabKey = 'overview' | 'manual'
 
 export const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'overview', label: '系统说明' },
-    { key: 'glossary', label: '数据分析名词手册' },
-    { key: 'visual', label: '名词可视化手册' },
+    { key: 'manual', label: '数据分析手册' },
   ]
 
   return (
@@ -125,8 +123,7 @@ export const HelpPage: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'glossary' && <GlossaryPage />}
-      {activeTab === 'visual' && <VisualGuidePage />}
+      {activeTab === 'manual' && <ManualPage />}
     </div>
   )
 }

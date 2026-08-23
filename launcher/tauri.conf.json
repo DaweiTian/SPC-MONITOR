@@ -1,6 +1,6 @@
 {
-  "productName": "液奶过程监控系统",
-  "version": "1.5.1",
+  "productName": "过程SPC监控平台",
+  "version": "1.5.2",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",

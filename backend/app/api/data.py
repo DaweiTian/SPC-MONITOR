@@ -24,6 +24,30 @@ def list_data(
     )
 
 
+@router.put("/correction/{record_id}")
+def update_correction(record_id: int, body: dict):
+    """更新单条记录的修正值"""
+    correction = body.get("correction", 0)
+    try:
+        correction = round(float(correction), 4)
+    except (ValueError, TypeError):
+        return {"success": False, "message": "无效的修正值"}
+
+    success = storage.update_correction(record_id, correction)
+    if success:
+        return {"success": True, "message": "修正值已更新"}
+    return {"success": False, "message": "更新失败，记录不存在"}
+
+
+@router.put("/record/{record_id}")
+def update_record(record_id: int, body: dict):
+    """更新单条记录的单位和规格限"""
+    success = storage.update_record_fields(record_id, body)
+    if success:
+        return {"success": True, "message": "记录已更新"}
+    return {"success": False, "message": "更新失败，记录不存在或无有效字段"}
+
+
 @router.get("/export")
 def export_data(
     format: str = Query("csv"),

@@ -11,7 +11,7 @@ interface FloatingTocProps {
 
 export const FloatingToc: React.FC<FloatingTocProps> = ({ items }) => {
   const [activeId, setActiveId] = useState<string>('')
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
 
   const handleClick = useCallback((id: string) => {
     const el = document.getElementById(id)
@@ -88,16 +88,14 @@ export const FloatingToc: React.FC<FloatingTocProps> = ({ items }) => {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    position: 'sticky',
-    top: 8,
-    zIndex: 1000,
+    position: 'fixed',
+    top: 110,
+    left: 236,
+    zIndex: 100,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 6,
-    float: 'left',
-    marginLeft: -32,
-    marginBottom: -60,
   },
   toggle: {
     width: 32,

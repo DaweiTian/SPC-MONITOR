@@ -222,6 +222,91 @@
   white-space: nowrap;
   letter-spacing: 1.5px;
   text-align: center;
+  position: relative;
+  cursor: default;
+}
+
+.versionTooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  width: 280px;
+  background: var(--bg-card, #141a2a);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 212, 255, 0.08);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transform: translateY(4px);
+  z-index: 200;
+  white-space: normal;
+  text-align: left;
+}
+
+.versionTooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 20px;
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 212, 255, 0.25);
+}
+
+.footerVersionBadge:hover .versionTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.versionTooltipTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #e2e8f0);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #1e293b);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.versionTooltipTitleDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00d4ff;
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+}
+
+.versionTooltipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.versionTooltipItem {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.versionTooltipItem::before {
+  content: '›';
+  color: #00d4ff;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: -1px;
 }
 
 /* ========== 主区域 ========== */
@@ -438,17 +523,18 @@
   opacity: 1;
 }
 
-/* ========== 侧边栏折叠按钮 ========== */
+/* ========== 侧边栏折叠按钮（吸附于边框外侧） ========== */
 .sidebarToggleBtn {
   position: absolute;
-  right: -11px;
+  right: 0;
   top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  transform: translate(100%, -50%);
+  width: 16px;
+  height: 44px;
+  border-radius: 0 6px 6px 0;
   background: #141a2e;
-  border: 1.5px solid rgba(64, 159, 255, 0.2);
+  border: 1px solid rgba(64, 159, 255, 0.15);
+  border-left: none;
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
@@ -460,19 +546,20 @@
   padding: 0;
   outline: none;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 2px 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .sidebarToggleBtn:hover {
   color: var(--accent-cyan);
-  border-color: var(--accent-cyan);
+  border-color: rgba(0, 212, 255, 0.35);
+  border-left: none;
   background: #1a2332;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2), 2px 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .sidebarToggleBtn svg {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
 }
 

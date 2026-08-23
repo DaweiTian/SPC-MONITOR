@@ -6,6 +6,19 @@ import styles from './Data.module.css'
 
 const PAGE_SIZE = 20
 
+interface CorrectionEdit {
+  recordId: number
+  sign: '+' | '-'
+  value: string
+}
+
+interface FieldEdit {
+  recordId: number
+  unit: string
+  upper_limit: string
+  lower_limit: string
+}
+
 export const DataPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
@@ -16,6 +29,9 @@ export const DataPage: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const [correctionEdit, setCorrectionEdit] = useState<CorrectionEdit | null>(null)
+  const [fieldEdit, setFieldEdit] = useState<FieldEdit | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const [filter, setFilter] = useState({
     product_code: '',
@@ -23,7 +39,6 @@ export const DataPage: React.FC = () => {
     date: today,
   })
 
-  // Filter out disabled products
   const enabledProducts = products.filter(p => productStatus[p.code] !== 'disabled')
 
   const fetchData = useCallback(async () => {
@@ -45,22 +60,13 @@ export const DataPage: React.FC = () => {
     }
   }, [filter.product_code, filter.indicator_code, filter.date, page])
 
-  // Auto-fetch when filters or page changes
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { setPage(1) }, [filter.product_code, filter.indicator_code, filter.date])
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [filter.product_code, filter.indicator_code, filter.date])
-
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const startIdx = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const endIdx = Math.min(page * PAGE_SIZE, total)
 
-  // Export
   const handleExport = async (format: 'csv' | 'excel') => {
     try {
       const blob = await api.exportData({
@@ -81,88 +87,190 @@ export const DataPage: React.FC = () => {
     }
   }
 
+  // Correction editing
+  const handleEditCorrection = (row: MonitorData) => {
+    setFieldEdit(null)
+    const correction = row.correction ?? 0
+    setCorrectionEdit({
+      recordId: row.id,
+      sign: correction >= 0 ? '+' : '-',
+      value: Math.abs(correction).toFixed(4)
+    })
+  }
+
+  const handleSaveCorrection = async () => {
+    if (!correctionEdit) return
+    setSaving(true)
+    try {
+      const num = parseFloat(correctionEdit.value) || 0
+      const correction = correctionEdit.sign === '-' ? -num : num
+      const result = await api.updateDataCorrection(correctionEdit.recordId, correction)
+      if (result?.success) {
+        setData(prev => prev.map(row => {
+          if (row.id === correctionEdit.recordId) {
+            const rawValue = row.raw_value ?? row.value
+            return { ...row, correction, value: round(rawValue + correction, 4) }
+          }
+          return row
+        }))
+        setCorrectionEdit(null)
+      }
+    } catch (e) {
+      console.error('更新修正值失败:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Field editing (unit, limits)
+  const handleEditFields = (row: MonitorData) => {
+    setCorrectionEdit(null)
+    setFieldEdit({
+      recordId: row.id,
+      unit: row.unit || '',
+      upper_limit: row.upper_limit?.toString() ?? '',
+      lower_limit: row.lower_limit?.toString() ?? '',
+    })
+  }
+
+  const handleSaveFields = async () => {
+    if (!fieldEdit) return
+    setSaving(true)
+    try {
+      const fields: Record<string, unknown> = {}
+      if (fieldEdit.unit) fields.unit = fieldEdit.unit
+      if (fieldEdit.upper_limit) fields.upper_limit = parseFloat(fieldEdit.upper_limit)
+      if (fieldEdit.lower_limit) fields.lower_limit = parseFloat(fieldEdit.lower_limit)
+      const result = await api.updateDataRecord(fieldEdit.recordId, fields)
+      if (result?.success) {
+        setData(prev => prev.map(row => {
+          if (row.id === fieldEdit.recordId) {
+            return {
+              ...row,
+              unit: fieldEdit.unit || row.unit,
+              upper_limit: fieldEdit.upper_limit ? parseFloat(fieldEdit.upper_limit) : row.upper_limit,
+              lower_limit: fieldEdit.lower_limit ? parseFloat(fieldEdit.lower_limit) : row.lower_limit,
+            }
+          }
+          return row
+        }))
+        setFieldEdit(null)
+      }
+    } catch (e) {
+      console.error('更新记录失败:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setCorrectionEdit(null)
+    setFieldEdit(null)
+  }
+
   const renderPageButtons = () => {
     const buttons: React.ReactNode[] = []
     const maxVisible = 5
     let start = Math.max(1, page - Math.floor(maxVisible / 2))
     const end = Math.min(totalPages, start + maxVisible - 1)
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1)
-    }
+    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1)
     for (let i = start; i <= end; i++) {
       buttons.push(
-        <button key={i} className={i === page ? styles.pageBtnActive : styles.pageBtn} onClick={() => setPage(i)}>
-          {i}
-        </button>
+        <button key={i} className={i === page ? styles.pageBtnActive : styles.pageBtn} onClick={() => setPage(i)}>{i}</button>
       )
     }
     return buttons
   }
 
-  // Display helpers with aliases
   const displayProduct = (code: string) => aliases.products[code] || products.find(p => p.code === code)?.name || code
   const displayIndicator = (code: string) => aliases.indicators[code] || indicators.find(i => i.code === code)?.name || code
 
-  // Get spec limits for a product/indicator from config
   const getSpecLimit = (productCode: string, indicatorCode: string) => {
     const productLimits = specLimits[productCode]
-    if (productLimits && productLimits[indicatorCode]) {
-      return productLimits[indicatorCode]
-    }
-    return null
+    return productLimits?.[indicatorCode] ?? null
+  }
+
+  const formatCorrection = (correction?: number): string => {
+    if (!correction) return '0'
+    return `${correction > 0 ? '+' : ''}${correction.toFixed(4)}`
+  }
+
+  const handleToggleSign = () => {
+    setCorrectionEdit(prev => prev ? { ...prev, sign: prev.sign === '+' ? '-' : '+' } : null)
+  }
+
+  const handleCorrectionValueChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    const parts = sanitized.split('.')
+    const cleanValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : sanitized
+    setCorrectionEdit(prev => prev ? { ...prev, value: cleanValue } : null)
+  }
+
+  const renderValueCell = (row: MonitorData) => {
+    const isFieldEditing = fieldEdit?.recordId === row.id
+    if (!isFieldEditing) return null
+
+    return (
+      <div className={styles.fieldEditGroup}>
+        <div className={styles.fieldEditRow}>
+          <label className={styles.fieldLabel}>单位</label>
+          <input
+            className={styles.fieldInput}
+            value={fieldEdit.unit}
+            onChange={e => setFieldEdit(prev => prev ? { ...prev, unit: e.target.value } : null)}
+          />
+        </div>
+        <div className={styles.fieldEditRow}>
+          <label className={styles.fieldLabel}>上限</label>
+          <input
+            className={styles.fieldInput}
+            type="text"
+            inputMode="decimal"
+            value={fieldEdit.upper_limit}
+            onChange={e => {
+              const v = e.target.value.replace(/[^0-9.\-]/g, '')
+              setFieldEdit(prev => prev ? { ...prev, upper_limit: v } : null)
+            }}
+          />
+        </div>
+        <div className={styles.fieldEditRow}>
+          <label className={styles.fieldLabel}>下限</label>
+          <input
+            className={styles.fieldInput}
+            type="text"
+            inputMode="decimal"
+            value={fieldEdit.lower_limit}
+            onChange={e => {
+              const v = e.target.value.replace(/[^0-9.\-]/g, '')
+              setFieldEdit(prev => prev ? { ...prev, lower_limit: v } : null)
+            }}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className={styles.page}>
-      {/* Filter panel */}
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
           <div className={styles.panelActions}>
-            <select
-              className={styles.select}
-              value={filter.product_code}
-              onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
-              aria-label="筛选品项"
-            >
+            <select className={styles.select} value={filter.product_code} onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))} aria-label="筛选品项">
               <option value="">全部品项</option>
-              {enabledProducts.map(p => (
-                <option key={p.code} value={p.code}>{aliases.products[p.code] || p.name}</option>
-              ))}
+              {enabledProducts.map(p => <option key={p.code} value={p.code}>{aliases.products[p.code] || p.name}</option>)}
             </select>
-            <select
-              className={styles.select}
-              value={filter.indicator_code}
-              onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))}
-              aria-label="筛选指标"
-            >
+            <select className={styles.select} value={filter.indicator_code} onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))} aria-label="筛选指标">
               <option value="">全部指标</option>
-              {indicators.map(i => (
-                <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>
-              ))}
+              {indicators.map(i => <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>)}
             </select>
-            <input
-              className={styles.dateInput}
-              type="date"
-              value={filter.date}
-              onChange={e => setFilter(f => ({ ...f, date: e.target.value }))}
-              aria-label="筛选日期"
-            />
+            <input className={styles.dateInput} type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} aria-label="筛选日期" />
             <button className={styles.btnGhost} onClick={() => handleExport('csv')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
               导出CSV
-            </button>
-            <button className={styles.btnGhost} onClick={() => handleExport('excel')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
-              </svg>
-              导出Excel
             </button>
           </div>
         </div>
 
-        {/* Data table */}
         <div className={styles.tableWrap}>
           <table className={styles.table} aria-label="检测数据表">
             <thead>
@@ -171,58 +279,87 @@ export const DataPage: React.FC = () => {
                 <th>检测时间</th>
                 <th>品项</th>
                 <th>指标</th>
-                <th>检测值</th>
+                <th>采集值</th>
+                <th>修正值</th>
+                <th>最终值</th>
                 <th>单位</th>
                 <th>规格上限</th>
                 <th>规格下限</th>
                 <th>状态</th>
-                <th>数据来源</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={10} className={styles.loadingRow}>加载中...</td>
-                </tr>
+                <tr><td colSpan={12} className={styles.loadingRow}>加载中...</td></tr>
               ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className={styles.emptyRow}>暂无数据</td>
-                </tr>
-              ) : (
-                data.map((row, idx) => {
-                  const spec = getSpecLimit(row.product_code, row.indicator_code)
-                  const usl = spec?.usl ?? row.upper_limit
-                  const lsl = spec?.lsl ?? row.lower_limit
-                  return (
-                    <tr key={row.id}>
-                      <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
-                      <td><span className={styles.tagBlue}>{displayProduct(row.product_code)}</span></td>
-                      <td><span className={styles.tagCyan}>{displayIndicator(row.indicator_code)}</span></td>
-                      <td>{row.value?.toFixed(4)}</td>
-                      <td>{row.unit || '-'}</td>
-                      <td>{usl != null ? usl.toFixed(4) : '-'}</td>
-                      <td>{lsl != null ? lsl.toFixed(4) : '-'}</td>
-                      <td>
-                        <span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>
-                          {row.is_qualified ? '正常' : '越限'}
-                        </span>
-                      </td>
-                      <td>系统采集</td>
-                    </tr>
-                  )
-                })
-              )}
+                <tr><td colSpan={12} className={styles.emptyRow}>暂无数据</td></tr>
+              ) : data.map((row, idx) => {
+                const spec = getSpecLimit(row.product_code, row.indicator_code)
+                const usl = spec?.usl ?? row.upper_limit
+                const lsl = spec?.lsl ?? row.lower_limit
+                const isCorrectionEditing = correctionEdit?.recordId === row.id
+                const isFieldEditing = fieldEdit?.recordId === row.id
+                return (
+                  <tr key={row.id}>
+                    <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
+                    <td><span className={styles.tagBlue}>{displayProduct(row.product_code)}</span></td>
+                    <td><span className={styles.tagCyan}>{displayIndicator(row.indicator_code)}</span></td>
+                    <td className={styles.monoCell}>{(row.raw_value ?? row.value)?.toFixed(4)}</td>
+                    <td>
+                      {isCorrectionEditing ? (
+                        <div className={styles.signInputGroup}>
+                          <button type="button" className={`${styles.signBtn} ${correctionEdit.sign === '+' ? styles.signBtnPositive : styles.signBtnNegative}`} onClick={handleToggleSign}>{correctionEdit.sign}</button>
+                          <input type="text" inputMode="decimal" className={styles.valueInput} value={correctionEdit.value} onChange={e => handleCorrectionValueChange(e.target.value)} autoFocus />
+                        </div>
+                      ) : (
+                        <span className={row.correction ? (row.correction > 0 ? styles.correctionPositive : styles.correctionNegative) : ''}>{formatCorrection(row.correction)}</span>
+                      )}
+                    </td>
+                    <td className={styles.monoCell}>{row.value?.toFixed(4)}</td>
+                    {isFieldEditing ? (
+                      <>
+                        <td><input className={styles.inlineInput} value={fieldEdit.unit} onChange={e => setFieldEdit(prev => prev ? { ...prev, unit: e.target.value } : null)} /></td>
+                        <td><input className={styles.inlineInput} type="text" inputMode="decimal" value={fieldEdit.upper_limit} onChange={e => { const v = e.target.value.replace(/[^0-9.\-]/g, ''); setFieldEdit(prev => prev ? { ...prev, upper_limit: v } : null) }} /></td>
+                        <td><input className={styles.inlineInput} type="text" inputMode="decimal" value={fieldEdit.lower_limit} onChange={e => { const v = e.target.value.replace(/[^0-9.\-]/g, ''); setFieldEdit(prev => prev ? { ...prev, lower_limit: v } : null) }} /></td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{row.unit || '-'}</td>
+                        <td>{usl != null ? usl.toFixed(4) : '-'}</td>
+                        <td>{lsl != null ? lsl.toFixed(4) : '-'}</td>
+                      </>
+                    )}
+                    <td><span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>{row.is_qualified ? '正常' : '越限'}</span></td>
+                    <td>
+                      {isCorrectionEditing ? (
+                        <div className={styles.actionBtns}>
+                          <button className={styles.btnSave} onClick={handleSaveCorrection} disabled={saving}>{saving ? '...' : '✓'}</button>
+                          <button className={styles.btnCancel} onClick={handleCancelEdit}>✕</button>
+                        </div>
+                      ) : isFieldEditing ? (
+                        <div className={styles.actionBtns}>
+                          <button className={styles.btnSave} onClick={handleSaveFields} disabled={saving}>{saving ? '...' : '✓'}</button>
+                          <button className={styles.btnCancel} onClick={handleCancelEdit}>✕</button>
+                        </div>
+                      ) : (
+                        <div className={styles.actionBtns}>
+                          <button className={styles.btnEditSmall} onClick={() => handleEditCorrection(row)} title="修改修正值">修</button>
+                          <button className={styles.btnEditSmall} onClick={() => handleEditFields(row)} title="修改单位和规格限">规</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
         {total > 0 && (
           <div className={styles.pagination}>
-            <span className={styles.paginationInfo}>
-              显示 {startIdx} - {endIdx} 条，共 {total} 条
-            </span>
+            <span className={styles.paginationInfo}>显示 {startIdx} - {endIdx} 条，共 {total} 条</span>
             <div className={styles.paginationBtns}>
               <button className={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</button>
               {renderPageButtons()}
@@ -233,6 +370,10 @@ export const DataPage: React.FC = () => {
       </div>
     </div>
   )
+}
+
+function round(value: number, decimals: number): number {
+  return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals)
 }
 
 export default DataPage

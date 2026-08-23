@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from typing import Optional, Callable
+from datetime import datetime
 import json
 import logging
 import os
@@ -867,4 +868,59 @@ def update_alert_rules(config: dict):
     success = _save_json_config(ALERT_RULES_FILE, config)
     if success:
         return {"success": True, "message": "预警规则已保存"}
+    return {"success": False, "message": "保存失败"}
+
+
+# ========== Correction Values Configuration (stored in spec_limits) ==========
+
+
+@router.get("/correction-values")
+def get_correction_values(product_code: str = Query(None)):
+    """获取修正值配置。从 spec_limits 中提取 correction 字段。"""
+    raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+    result = {}
+    for p_code, indicators in raw.items():
+        if not isinstance(indicators, dict):
+            continue
+        if product_code and p_code != product_code:
+            continue
+        corrections = {}
+        for i_code, limits in indicators.items():
+            if isinstance(limits, dict) and "correction" in limits:
+                corrections[i_code] = limits["correction"]
+        if corrections:
+            result[p_code] = {
+                "values": corrections,
+                "updated_at": limits.get("correction_updated_at")
+            }
+    return result
+
+
+@router.put("/correction-values/{product_code}")
+def update_correction_values(product_code: str, body: dict):
+    """更新单个品项的修正值（存储到 spec_limits 中）"""
+    corrections = body.get("corrections", {})
+    raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+
+    if product_code not in raw or not isinstance(raw.get(product_code), dict):
+        raw[product_code] = {}
+
+    now_str = datetime.now().isoformat()
+    for indicator_code, value in corrections.items():
+        if indicator_code not in raw[product_code] or not isinstance(raw[product_code].get(indicator_code), dict):
+            raw[product_code][indicator_code] = {}
+        try:
+            val = round(float(value), 4)
+            if val != 0:
+                raw[product_code][indicator_code]["correction"] = val
+                raw[product_code][indicator_code]["correction_updated_at"] = now_str
+            else:
+                raw[product_code][indicator_code].pop("correction", None)
+                raw[product_code][indicator_code].pop("correction_updated_at", None)
+        except (ValueError, TypeError):
+            pass
+
+    success = _save_json_config(SPEC_LIMITS_FILE, raw)
+    if success:
+        return {"success": True, "message": "修正值已保存"}
     return {"success": False, "message": "保存失败"}

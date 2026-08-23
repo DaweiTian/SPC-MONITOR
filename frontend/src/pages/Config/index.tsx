@@ -195,6 +195,7 @@ export const ConfigPage: React.FC = () => {
   const [newProduct, setNewProduct] = useState({ name: '', code: '', status: 'enabled' as 'enabled' | 'disabled' })
   const [productAlias, setProductAlias] = useState('')
   const [productAliases, setProductAliases] = useState<Record<string, string>>({})
+  const [indicatorAliases, setIndicatorAliases] = useState<Record<string, string>>({})
   const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [frequencyStatus, setFrequencyStatus] = useState<{
@@ -270,6 +271,10 @@ export const ConfigPage: React.FC = () => {
 
       if (aliasResult?.products) {
         setProductAliases(aliasResult.products)
+      }
+
+      if (aliasResult?.indicators) {
+        setIndicatorAliases(aliasResult.indicators)
       }
 
       if (limitsResult) {
@@ -1731,7 +1736,7 @@ export const ConfigPage: React.FC = () => {
                               }}
                             />
                           </td>
-                          <td className={styles.tableCellPrimary}>{spec.indicator_name}</td>
+                          <td className={styles.tableCellPrimary}>{indicatorAliases[spec.indicator_code] || spec.indicator_name}</td>
                           <td>
                             <input
                               type="number"
@@ -1788,7 +1793,7 @@ export const ConfigPage: React.FC = () => {
                                 newSpecs[index] = { ...spec, unit: e.target.value }
                                 setIndicatorSpecs(newSpecs)
                               }}
-                              placeholder="%"
+                              placeholder="g/100g"
                               disabled={!spec.enabled}
                             />
                           </td>

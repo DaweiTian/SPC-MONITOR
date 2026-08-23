@@ -1,5 +1,6 @@
 use crate::config::AppConfig;
 use log::{error, info, warn};
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::RwLock;
@@ -12,6 +13,7 @@ const BACKEND_BINARY: &str = "ft1-backend";
 struct State {
     server_process: Option<Child>,
     healthy: bool,
+    _log_file: Option<File>,
 }
 
 pub struct ServiceManager {
@@ -19,6 +21,18 @@ pub struct ServiceManager {
     server_port: u16,
     python_path: String,
     backend_exe: Option<PathBuf>,
+}
+
+impl Drop for ServiceManager {
+    fn drop(&mut self) {
+        let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
+        if let Some(mut child) = state.server_process.take() {
+            let pid = child.id();
+            child.kill().ok();
+            child.wait().ok();
+            info!("Drop: 后端服务已停止，PID: {:?}", pid);
+        }
+    }
 }
 
 impl ServiceManager {
@@ -33,6 +47,7 @@ impl ServiceManager {
             inner: RwLock::new(State {
                 server_process: None,
                 healthy: false,
+                _log_file: None,
             }),
             server_port: config.server_port,
             python_path: config.python_path.clone(),
@@ -128,10 +143,18 @@ impl ServiceManager {
         }
 
         // 后端 stderr 输出到日志文件，方便排查启动失败
-        let log_file = crate::config::AppConfig::log_dir().join("backend-stderr.log");
-        let stderr_file = std::fs::OpenOptions::new().create(true).append(true).open(&log_file)
-            .map(Stdio::from)
+        // 保持 File 句柄在 State 中，防止 Windows 下被外部删除
+        let log_path = crate::config::AppConfig::log_dir().join("backend-stderr.log");
+        let log_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .ok();
+        let stderr_file = log_file
+            .as_ref()
+            .map(|f| Stdio::from(f.try_clone().unwrap_or_else(|_| Stdio::null())))
             .unwrap_or(Stdio::null());
+        state._log_file = log_file;
 
         let child = cmd
             .stdout(Stdio::null())
@@ -162,6 +185,7 @@ impl ServiceManager {
             info!("后端服务已停止，PID: {:?}", pid);
         }
         state.healthy = false;
+        state._log_file = None;
         Ok(())
     }
 
@@ -245,6 +269,7 @@ mod tests {
                 inner: RwLock::new(State {
                     server_process: None,
                     healthy: false,
+                    _log_file: None,
                 }),
                 server_port: port,
                 python_path: "python".to_string(),

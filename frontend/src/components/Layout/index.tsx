@@ -53,6 +53,12 @@ const navGroups: NavGroup[] = [
   {
     title: '数据管理',
     items: [
+      { key: 'correction', path: '/correction', label: '修正值管理', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      )},
       { key: 'data', path: '/data', label: '数据管理', icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
@@ -86,6 +92,7 @@ const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/capability': { cn: '过程能力', en: 'Process Capability' },
   '/prediction': { cn: '指标预测', en: 'Prediction' },
   '/alerts': { cn: '预警中心', en: 'Alert Center' },
+  '/correction': { cn: '修正值管理', en: 'Correction Values' },
   '/data': { cn: '数据管理', en: 'Data Management' },
   '/config': { cn: '配置管理', en: 'Configuration' },
   '/help': { cn: '帮助说明', en: 'Help' },
@@ -249,7 +256,23 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          <span className={styles.footerVersionBadge}>v1.5.1</span>
+          <span className={styles.footerVersionBadge}>
+            v1.5.2
+            <div className={styles.versionTooltip}>
+              <div className={styles.versionTooltipTitle}>
+                <span className={styles.versionTooltipTitleDot} />
+                v1.5.2 更新日志
+              </div>
+              <ul className={styles.versionTooltipList}>
+                <li className={styles.versionTooltipItem}>数据分析手册全面升级：30+词条内容完善</li>
+                <li className={styles.versionTooltipItem}>新增六西格玛DMAIC、Mann-Kendall趋势图</li>
+                <li className={styles.versionTooltipItem}>18张图表优化，异常点高亮</li>
+                <li className={styles.versionTooltipItem}>浮动目录默认折叠</li>
+                <li className={styles.versionTooltipItem}>新增修正值管理与数据管理三列展示</li>
+                <li className={styles.versionTooltipItem}>Cpk仪表盘布局优化</li>
+              </ul>
+            </div>
+          </span>
           <div className={styles.footerPoweredBy}>
             <img src="./icons/powered-by-yili2.svg" alt="Powered by YILI" className={styles.footerPoweredByImg} />
           </div>

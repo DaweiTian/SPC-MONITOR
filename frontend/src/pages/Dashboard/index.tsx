@@ -110,16 +110,22 @@ export const Dashboard: React.FC = () => {
   const productTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const indicatorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // 根据品项状态过滤启用的品项
+  const enabledProducts = useMemo(() =>
+    products.filter(p => productStatus[p.code] !== 'disabled'),
+    [products, productStatus]
+  )
+
   /* ── 获取当前品项 ── */
   const currentProduct = useMemo(() => {
     if (productMode === 'manual' && selectedProduct) {
-      return products.find(p => p.code === selectedProduct)
+      return enabledProducts.find(p => p.code === selectedProduct)
     }
     if (productMode === 'auto' && autoProducts.length > 0) {
       return autoProducts[autoProductIndex]
     }
-    return products[0]
-  }, [productMode, selectedProduct, autoProducts, autoProductIndex, products])
+    return enabledProducts[0]
+  }, [productMode, selectedProduct, autoProducts, autoProductIndex, enabledProducts])
 
   /* ── 获取当前指标 ── */
   const currentIndicator = useMemo(() => {
@@ -180,23 +186,19 @@ export const Dashboard: React.FC = () => {
         api.getIndicators(),
       ])
 
-      // 过滤掉停用的品项
-      const enabledProducts = p.products.filter((product: Product) =>
-        productStatus[product.code] !== 'disabled'
-      )
-
-      setProducts(enabledProducts)
+      setProducts(p.products)
       setIndicators(i.indicators)
-      
-      // 自动模式时，取最近3个启用的品项
-      if (productMode === 'auto') {
-        const recentProducts = enabledProducts.slice(0, 3)
-        setAutoProducts(recentProducts)
-      }
     } catch (e) {
       console.error('获取元数据失败:', e)
     }
-  }, [productMode, productStatus])
+  }, [])
+
+  // 自动模式时，取最近3个启用的品项
+  useEffect(() => {
+    if (productMode === 'auto') {
+      setAutoProducts(enabledProducts.slice(0, 3))
+    }
+  }, [enabledProducts, productMode])
 
   /* ── 获取有数据的指标 ── */
   const fetchActiveIndicators = useCallback(async () => {
@@ -654,7 +656,7 @@ export const Dashboard: React.FC = () => {
                   }}
                 >
                   <option value="auto">🔄 自动轮换</option>
-                  {products.map(p => (
+                  {enabledProducts.map(p => (
                     <option key={p.code} value={p.code}>{productNameMap[p.code] || p.name}</option>
                   ))}
                 </select>

@@ -28,6 +28,8 @@ class OnlineStorage:
                     product_code TEXT NOT NULL,
                     product_name TEXT,
                     value REAL NOT NULL,
+                    raw_value REAL,
+                    correction REAL DEFAULT 0,
                     unit TEXT,
                     upper_limit REAL,
                     lower_limit REAL,
@@ -36,7 +38,7 @@ class OnlineStorage:
                     created_at TEXT DEFAULT (datetime('now', 'localtime')),
                     UNIQUE(indicator_code, product_code, sample_time)
                 );
-                
+
                 CREATE TABLE IF NOT EXISTS alerts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     alert_id TEXT NOT NULL UNIQUE,
@@ -80,9 +82,18 @@ class OnlineStorage:
                     ON sync_log(started_at);
             """)
             conn.commit()
+
+            # Migration: add raw_value and correction columns if missing
+            cursor = conn.execute("PRAGMA table_info(monitor_data)")
+            columns = {row[1] for row in cursor.fetchall()}
+            if 'raw_value' not in columns:
+                conn.execute("ALTER TABLE monitor_data ADD COLUMN raw_value REAL")
+            if 'correction' not in columns:
+                conn.execute("ALTER TABLE monitor_data ADD COLUMN correction REAL DEFAULT 0")
+            conn.commit()
         finally:
             conn.close()
-    
+
     def save_data(self, records: list[dict[str, Any]]) -> int:
         conn = self._connect()
         try:
@@ -92,14 +103,17 @@ class OnlineStorage:
                     conn.execute(
                         """INSERT INTO monitor_data
                            (indicator_code, indicator_name, product_code, product_name,
-                            value, unit, upper_limit, lower_limit, is_qualified, sample_time)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            value, raw_value, correction, unit, upper_limit, lower_limit,
+                            is_qualified, sample_time)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             record.get("indicator_code"),
                             record.get("indicator_name"),
                             record.get("product_code"),
                             record.get("product_name"),
                             record.get("value"),
+                            record.get("raw_value", record.get("value")),
+                            record.get("correction", 0),
                             record.get("unit"),
                             record.get("upper_limit"),
                             record.get("lower_limit"),
@@ -417,5 +431,50 @@ class OnlineStorage:
                 ("collector", "data", status, records_count, error_message),
             )
             conn.commit()
+        finally:
+            conn.close()
+
+    def update_correction(self, record_id: int, correction: float) -> bool:
+        """Update correction value for a specific record and recalculate value."""
+        conn = self._connect()
+        try:
+            cursor = conn.execute(
+                "SELECT value, raw_value FROM monitor_data WHERE id = ?",
+                (record_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return False
+            # For old data where raw_value is null, use current value (correction was 0)
+            raw_value = row["raw_value"] if row["raw_value"] is not None else row["value"]
+            new_value = round(raw_value + correction, 4)
+            cursor = conn.execute(
+                """UPDATE monitor_data
+                   SET correction = ?, value = ?, raw_value = ?
+                   WHERE id = ?""",
+                (correction, new_value, raw_value, record_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_record_fields(self, record_id: int, fields: dict[str, Any]) -> bool:
+        """Update specific fields for a record (unit, upper_limit, lower_limit)."""
+        allowed_fields = {"unit", "upper_limit", "lower_limit"}
+        updates = {k: v for k, v in fields.items() if k in allowed_fields}
+        if not updates:
+            return False
+        conn = self._connect()
+        try:
+            set_clause = ", ".join(f"{k} = ?" for k in updates)
+            values = list(updates.values())
+            values.append(record_id)
+            cursor = conn.execute(
+                f"UPDATE monitor_data SET {set_clause} WHERE id = ?",
+                values,
+            )
+            conn.commit()
+            return cursor.rowcount > 0
         finally:
             conn.close()

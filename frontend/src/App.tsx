@@ -10,6 +10,7 @@ const SPCPage = React.lazy(() => import('./pages/SPC'))
 const CapabilityPage = React.lazy(() => import('./pages/Capability'))
 const AlertsPage = React.lazy(() => import('./pages/Alerts'))
 const ConfigPage = React.lazy(() => import('./pages/Config'))
+const CorrectionPage = React.lazy(() => import('./pages/Correction'))
 const DataPage = React.lazy(() => import('./pages/Data'))
 const HelpPage = React.lazy(() => import('./pages/Help'))
 const PredictionPage = React.lazy(() => import('./pages/Prediction'))
@@ -39,6 +40,7 @@ const App: React.FC = () => {
                 <Route path="/prediction" element={<PredictionPage />} />
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/config" element={<ConfigPage />} />
+                <Route path="/correction" element={<CorrectionPage />} />
                 <Route path="/data" element={<DataPage />} />
                 <Route path="/help" element={<HelpPage />} />
               </Routes>
