@@ -33,8 +33,11 @@ class AdaptiveScheduler:
     
     @property
     def next_collect_time(self) -> Optional[datetime]:
-        if self.job and self.job.next_run_time:
-            return self.job.next_run_time
+        try:
+            if self.job and self.job.next_run_time:
+                return self.job.next_run_time
+        except Exception:
+            pass
         return None
     
     def start(self):

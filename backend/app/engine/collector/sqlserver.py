@@ -157,7 +157,8 @@ class SQLServerCollector(BaseCollector):
 
         logger.info(f"pymssql 连接参数: server={server}, database={database}, auth={auth_type}")
         if auth_type == "windows":
-            return pymssql.connect(server=server, database=database, trusted_connection=True)
+            # pymssql Windows 认证：不传 user/password，由 SSPI 自动处理
+            return pymssql.connect(server=server, database=database)
         return pymssql.connect(server=server, user=username, password=password, database=database)
     
     @property
