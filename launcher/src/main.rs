@@ -4,5 +4,5 @@
 )]
 
 fn main() {
-    ft1_monitor_launcher::run();
+    SPC_Monitor::run();
 }
