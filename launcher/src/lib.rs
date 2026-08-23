@@ -46,6 +46,19 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_notification::init())
         .setup(move |app| {
+            // 设置 AppUserModelID，使任务栏图标与后端进程区分开
+            #[cfg(target_os = "windows")]
+            {
+                extern "system" {
+                    fn SetCurrentProcessExplicitAppUserModelID(app_id: *const u16) -> i32;
+                }
+                // "FT1.SPCMonitor.Launcher" as null-terminated UTF-16
+                let app_id: Vec<u16> = "FT1.SPCMonitor.Launcher\0".encode_utf16().collect();
+                unsafe {
+                    let _ = SetCurrentProcessExplicitAppUserModelID(app_id.as_ptr());
+                }
+            }
+
             // Mica / Blur 窗口特效
             #[cfg(target_os = "windows")]
             {
