@@ -62,16 +62,30 @@ export const PredictionPage: React.FC = () => {
   const [initialized, setInitialized] = useState(false)
   const [product, setProduct] = useState('')
   const [indicator, setIndicator] = useState('')
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [model, setModel] = useState('ets')
   const [horizon, setHorizon] = useState('1h')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
+
+  // Load saved indicators per product
+  useEffect(() => {
+    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+  }, [])
 
   // Filter out disabled products
   const enabledProducts = useMemo(() =>
     products.filter(p => productStatus[p.code] !== 'disabled'),
     [products, productStatus]
   )
+
+  // Filter indicators: only show those configured for the selected product
+  const filteredIndicators = useMemo(() => {
+    if (!product) return indicators
+    const saved = savedIndicators[product]
+    if (!saved || saved.length === 0) return indicators
+    return indicators.filter(i => saved.includes(i.code))
+  }, [indicators, savedIndicators, product])
 
   // Initialize product/indicator from Dashboard or first enabled
   useEffect(() => {
@@ -271,7 +285,7 @@ export const PredictionPage: React.FC = () => {
           value={indicator}
           onChange={(e) => setIndicator(e.target.value)}
         >
-          {indicators.map(i => <option key={i.code} value={i.code}>{getIndicatorName(i.code)}</option>)}
+          {filteredIndicators.map(i => <option key={i.code} value={i.code}>{getIndicatorName(i.code)}</option>)}
         </select>
         <select
           className={styles.filterSelect}

@@ -16,17 +16,31 @@ export const SPCPage: React.FC = () => {
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: 'fat',
     window: 30,
   })
 
+  // Load saved indicators per product
+  useEffect(() => {
+    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+  }, [])
+
   // Filter out disabled products (show all until status loaded)
   const enabledProducts = useMemo(() =>
     productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled'),
     [products, productStatus]
   )
+
+  // Filter indicators: only show those configured for the selected product
+  const filteredIndicators = useMemo(() => {
+    if (!filter.product_code) return indicators
+    const saved = savedIndicators[filter.product_code]
+    if (!saved || saved.length === 0) return indicators
+    return indicators.filter(i => saved.includes(i.code))
+  }, [indicators, savedIndicators, filter.product_code])
 
   // Set initial product/indicator: URL params > Dashboard saved > first enabled
   useEffect(() => {
@@ -272,7 +286,7 @@ export const SPCPage: React.FC = () => {
             value={filter.indicator_code}
             onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))}
           >
-            {indicators.map(i => (
+            {filteredIndicators.map(i => (
               <option key={i.code} value={i.code}>{getIndicatorName(i.code)}</option>
             ))}
           </select>
