@@ -257,19 +257,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </nav>
         <div className={styles.sidebarFooter}>
           <span className={styles.footerVersionBadge}>
-            v1.5.4
+            v1.6.0
             <div className={styles.versionTooltip}>
               <div className={styles.versionTooltipTitle}>
                 <span className={styles.versionTooltipTitleDot} />
-                v1.5.4 更新日志
+                v1.6.0 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>FTA数据库连接修复：SQL Browser启用与端口发现</li>
-                <li className={styles.versionTooltipItem}>pymssql默认驱动，移除ODBC选项</li>
-                <li className={styles.versionTooltipItem}>系统托盘双图标修复，移除网页favicon</li>
-                <li className={styles.versionTooltipItem}>预测页面过滤数据不足品项</li>
-                <li className={styles.versionTooltipItem}>调度器JobLookupError修复</li>
-                <li className={styles.versionTooltipItem}>MDB预览数据列式格式修复</li>
+                <li className={styles.versionTooltipItem}>预测模块全面升级：MASE/方向准确率/越限概率</li>
+                <li className={styles.versionTooltipItem}>自动模型选择：ADF检验+双拟合d参数+MASE择优</li>
+                <li className={styles.versionTooltipItem}>风险监控面板：Cpk趋势/漂移检测/CRITICAL弹窗</li>
+                <li className={styles.versionTooltipItem}>关联热力图+GBDT特征重要性分析</li>
+                <li className={styles.versionTooltipItem}>CUSUM漂移检测（支持换料/换罐分段）</li>
+                <li className={styles.versionTooltipItem}>后端5分钟TTL缓存，重复请求提速186倍</li>
+                <li className={styles.versionTooltipItem}>SPC过程状态优化：只看近10点违规，红/橙/绿三色</li>
               </ul>
             </div>
           </span>

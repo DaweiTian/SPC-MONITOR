@@ -44,7 +44,7 @@ from backend.app.engine.alert.engine import AlertEngine
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="液奶过程监控系统", version="1.5.4")
+app = FastAPI(title="液奶过程监控系统", version="1.6.0")
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
@@ -96,6 +96,17 @@ app.add_middleware(
 storage = OnlineStorage(db_path="data/monitor.db")
 storage.init_db()
 
+# 加载排除备注关键词（基准样等不参与SPC/过程能力计算）
+try:
+    _excl_file = "excluded_remarks.json"
+    if os.path.exists(_excl_file):
+        with open(_excl_file, 'r', encoding='utf-8') as f:
+            storage.set_excluded_remarks(json.load(f))
+    else:
+        storage.set_excluded_remarks(["基准样"])
+except Exception:
+    storage.set_excluded_remarks(["基准样"])
+
 # 初始化采集器
 collector = MockCollector(storage=storage)
 
@@ -129,7 +140,72 @@ else:
 # 初始化调度器
 _collector_lock = threading.Lock()
 
+
+def _run_cross_predictions(storage):
+    """对最新采集的数据执行交叉预测（如 fat → saturated_fat）"""
+    try:
+        with open("prediction_config.json", "r", encoding="utf-8") as f:
+            pred_config = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+
+    if not pred_config:
+        return
+
+    from backend.app.engine.predictor.cross_indicator import predict_cross_indicator
+
+    predicted_records = []
+    for product_code, targets in pred_config.items():
+        for target_code, cfg in targets.items():
+            try:
+                if not cfg.get("enabled", False):
+                    continue
+                source_code = cfg.get("source_indicator", "")
+                coefficient = cfg.get("coefficient")
+                if not source_code or coefficient is None:
+                    continue
+
+                # Read the latest source indicator value for this product
+                recent = storage.get_recent_data(source_code, product_code, limit=1)
+                if not recent:
+                    continue
+
+                latest = recent[0]
+                if latest.get("value") is None:
+                    continue
+
+                result = predict_cross_indicator(
+                    latest["value"], float(coefficient), source_code, target_code
+                )
+                predicted_records.append({
+                    "indicator_code": target_code,
+                    "indicator_name": f"{result['target_name']}(预测)",
+                    "product_code": product_code,
+                    "product_name": latest.get("product_name", ""),
+                    "value": result["predicted_value"],
+                    "unit": result.get("target_unit", "g/100g"),
+                    "sample_time": latest.get("sample_time", ""),
+                })
+            except Exception as e:
+                logger.warning(f"交叉预测失败 {product_code}/{target_code}: {e}")
+                continue
+
+    if predicted_records:
+        saved = storage.save_predicted_data(predicted_records)
+        if saved > 0:
+            logger.info(f"交叉预测: 生成 {saved} 条预测记录")
+
+
 def collect_with_alert():
+    # Load disabled products before collection
+    try:
+        from backend.app.api.config import _load_json_config
+        product_status = _load_json_config("product_status.json", {})
+        disabled = {code for code, status in product_status.items() if status == "disabled"}
+        storage.set_disabled_products(disabled)
+    except Exception:
+        pass
+
     with _collector_lock:
         current_collector = collector
         result = current_collector.collect()
@@ -144,6 +220,9 @@ def collect_with_alert():
     
     # Only check alerts if we have new data
     if new_records > 0:
+        # Run cross-indicator predictions (e.g. fat → saturated fat)
+        _run_cross_predictions(storage)
+
         # Get products and indicators from collector
         products = current_collector.get_products()
         indicators = current_collector.get_indicators()

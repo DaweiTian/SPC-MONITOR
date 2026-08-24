@@ -17,16 +17,38 @@ export const SPCPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: 'fat',
     window: 30,
+    date_from: '',
+    date_to: '',
+    remark: '',
   })
+  const [analysisMode, setAnalysisMode] = useState<'process' | 'stability'>('process')
 
   // Load saved indicators per product
   useEffect(() => {
     api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+    api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
   }, [])
+
+  // Fetch prediction data when current indicator is a source for some prediction
+  useEffect(() => {
+    const prodPreds = predictionConfig[filter.product_code] || {}
+    const matchingTarget = Object.entries(prodPreds).find(
+      ([, cfg]) => cfg.source_indicator === filter.indicator_code && cfg.enabled
+    )
+    if (matchingTarget) {
+      const [targetCode] = matchingTarget
+      api.getCrossIndicatorPrediction(filter.product_code, targetCode, 100)
+        .then(setPredData).catch(() => setPredData(null))
+    } else {
+      setPredData(null)
+    }
+  }, [filter.product_code, filter.indicator_code, predictionConfig])
 
   // Filter out disabled products (show all until status loaded)
   const enabledProducts = useMemo(() =>
@@ -61,11 +83,11 @@ export const SPCPage: React.FC = () => {
   }, [enabledProducts, productStatus, indicators, initialized, searchParams])
 
   // Auto-fetch when product or indicator changes (only after initialization)
-  const fetchSPCData = async (productCode: string, indicatorCode: string, window: number) => {
+  const fetchSPCData = async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string) => {
     if (!productCode || !indicatorCode) return
     setLoading(true)
     try {
-      const data = await api.getSPCData(productCode, indicatorCode, window)
+      const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode)
       setSPCData(data)
     } catch (e) {
       console.error('获取SPC数据失败:', e)
@@ -74,11 +96,16 @@ export const SPCPage: React.FC = () => {
     }
   }
 
+  const hasDateOrRemarkFilter = filter.date_from || filter.date_to || filter.remark
+
   useEffect(() => {
     if (initialized && filter.product_code && filter.indicator_code) {
-      fetchSPCData(filter.product_code, filter.indicator_code, filter.window)
+      const filters = hasDateOrRemarkFilter
+        ? { date_from: filter.date_from || undefined, date_to: filter.date_to || undefined, remark: filter.remark || undefined }
+        : undefined
+      fetchSPCData(filter.product_code, filter.indicator_code, filter.window, filters, analysisMode)
     }
-  }, [initialized, filter.product_code, filter.indicator_code, filter.window])
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, analysisMode])
 
   // getIndicatorName provided by useAppMetadata hook
 
@@ -90,9 +117,16 @@ export const SPCPage: React.FC = () => {
     const std = spec_limits.std || sigma
     const violationCount = data_points.filter(p => p.is_violation).length
     const total = data_points.length
+
+    // Process status: only check recent 10 points for current state
+    const recentN = Math.min(10, total)
+    const recentStart = total - recentN
+    const recentViolationCount = violations.filter(v =>
+      v.violation_points.some((i: number) => i >= recentStart)
+    ).length
     let status = '受控'
-    if (violations.length > 2) status = '失控'
-    else if (violations.length > 0) status = '基本受控'
+    if (recentViolationCount > 2) status = '失控'
+    else if (recentViolationCount > 0) status = '基本受控'
     return { mean, std, violationCount, total, status }
   }, [spcData])
 
@@ -109,10 +143,10 @@ export const SPCPage: React.FC = () => {
     return { values: mrs, times }
   }, [spcData])
 
-  // Format time for x-axis display
+  // Format time for x-axis display (handles both "2025-07-13 10:30:00" and ISO "2025-07-13T10:30:00")
   const formatTime = (timeStr: string) => {
     if (!timeStr) return ''
-    const parts = timeStr.split(' ')
+    const parts = timeStr.includes('T') ? timeStr.split('T') : timeStr.split(' ')
     const timePart = parts.length > 1 ? parts[1] : parts[0]
     return timePart.substring(0, 5)
   }
@@ -159,6 +193,14 @@ export const SPCPage: React.FC = () => {
       })
     }
 
+    // Prediction overlay data — use full timestamp for exact matching (avoids HH:MM collisions)
+    const showPrediction = predData?.enabled && predData.data && predData.data.length > 0
+    let predValues: (number | null)[] = []
+    if (showPrediction) {
+      const predMap = new Map(predData!.data.map(d => [d.sample_time, d.value]))
+      predValues = data_points.map(p => predMap.get(p.time) ?? null)
+    }
+
     return {
       ...chartTheme,
       tooltip: {
@@ -171,17 +213,29 @@ export const SPCPage: React.FC = () => {
           const sampleInfo = pt?.sample_id ? `<br/>样品编码: ${escapeHtml(pt.sample_id)}` : ''
           const remarkInfo = pt?.remark ? `<br/>备注: ${escapeHtml(pt.remark)}` : ''
           const violation = pt?.is_violation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 违规点</span>' : ''
-          return `<b>${escapeHtml(pt?.time ?? '')}</b>${sampleInfo}${remarkInfo}<br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}`
+          const predInfo = (showPrediction && predValues[idx] != null)
+            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}: <b>${predValues[idx]?.toFixed(4)}</b></span>`
+            : ''
+          return `<b>${escapeHtml(pt?.time ?? '')}</b>${sampleInfo}${remarkInfo}<br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}${predInfo}`
         },
       },
-      grid: { left: 50, right: 80, top: 30, bottom: 30 },
+      grid: { left: 50, right: showPrediction ? 90 : 80, top: 30, bottom: 30 },
       xAxis: {
         type: 'category',
         data: times,
         ...chartTheme.xAxis,
         axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
       },
-      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
+      yAxis: showPrediction
+        ? [
+            { type: 'value' as const, ...chartTheme.yAxis, scale: true },
+            {
+              type: 'value' as const, position: 'right' as const, splitLine: { show: false },
+              axisLabel: { color: '#f59e0b', fontSize: 10 },
+              axisLine: { show: true, lineStyle: { color: '#f59e0b' } },
+            },
+          ]
+        : { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [{
         name: '单值',
         type: 'line',
@@ -205,9 +259,19 @@ export const SPCPage: React.FC = () => {
         symbolSize: 0,
         data: [ucl, cl, lcl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
         silent: true,
-      }],
+      }, ...(showPrediction ? [{
+        name: predData?.model_info?.target_name || '预测值',
+        type: 'line' as const,
+        yAxisIndex: 1,
+        symbol: 'emptyCircle' as const,
+        symbolSize: 6,
+        data: predValues,
+        lineStyle: { color: '#f59e0b', width: 2, type: 'dashed' as const },
+        itemStyle: { color: '#f59e0b' },
+        connectNulls: true,
+      }] : [])],
     }
-  }, [spcData])
+  }, [spcData, predData])
 
   // MR Chart option
   const mrChartOption = useMemo<EChartsOption | null>(() => {
@@ -279,6 +343,17 @@ export const SPCPage: React.FC = () => {
       {/* Filter Bar */}
       <div className={styles.filterBar}>
         <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>分析模式</span>
+          <select
+            className={styles.filterSelect}
+            value={analysisMode}
+            onChange={e => setAnalysisMode(e.target.value as 'process' | 'stability')}
+          >
+            <option value="process">过程分析</option>
+            <option value="stability">稳定性分析</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>品项</span>
           <select
             className={styles.filterSelect}
@@ -308,18 +383,53 @@ export const SPCPage: React.FC = () => {
             <button
               className={styles.stepperBtn}
               onClick={() => setFilter(f => ({ ...f, window: Math.max(10, f.window - 10) }))}
-              disabled={filter.window <= 10}
+              disabled={filter.window <= 10 || !!hasDateOrRemarkFilter}
               aria-label="减少窗口"
             >−</button>
             <span className={styles.stepperValue}>{filter.window}</span>
             <button
               className={styles.stepperBtn}
               onClick={() => setFilter(f => ({ ...f, window: Math.min(100, f.window + 10) }))}
-              disabled={filter.window >= 100}
+              disabled={filter.window >= 100 || !!hasDateOrRemarkFilter}
               aria-label="增加窗口"
             >+</button>
           </div>
         </div>
+        <div className={styles.filterDivider} />
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>开始日期</span>
+          <input
+            type="date"
+            className={styles.filterDateInput}
+            value={filter.date_from}
+            onChange={e => setFilter(f => ({ ...f, date_from: e.target.value }))}
+          />
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>结束日期</span>
+          <input
+            type="date"
+            className={styles.filterDateInput}
+            value={filter.date_to}
+            onChange={e => setFilter(f => ({ ...f, date_to: e.target.value }))}
+          />
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>备注</span>
+          <input
+            type="text"
+            className={styles.filterTextInput}
+            placeholder="模糊搜索备注..."
+            value={filter.remark}
+            onChange={e => setFilter(f => ({ ...f, remark: e.target.value }))}
+          />
+        </div>
+        {hasDateOrRemarkFilter && (
+          <button
+            className={styles.btnReset}
+            onClick={() => setFilter(f => ({ ...f, date_from: '', date_to: '', remark: '' }))}
+          >重置筛选</button>
+        )}
         {loading && <span className={styles.loadingText}>加载中...</span>}
       </div>
 
@@ -372,9 +482,9 @@ export const SPCPage: React.FC = () => {
             <span className={styles.kpiUnit}>/ {stats?.total ?? '-'}</span>
           </div>
         </div>
-        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
+        <div className={`${styles.kpiCard} ${stats?.status === '失控' ? styles.kpiCardRed : stats?.status === '基本受控' ? styles.kpiCardOrange : styles.kpiCardGreen}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>过程状态</span>
+            <span className={styles.kpiLabel}>{analysisMode === 'stability' ? '稳定性状态' : '过程状态'}</span>
             <div className={styles.kpiIcon}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -397,22 +507,25 @@ export const SPCPage: React.FC = () => {
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
             </span>
-            单值控制图 (I Chart)
+            {analysisMode === 'stability' ? '检测稳定性监控图 (I Chart)' : '单值控制图 (I Chart)'}
           </div>
           <div className={styles.chartPanelActions}>
             <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.i_chart.ucl.toFixed(3) || '-'}</span>
             <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.i_chart.cl.toFixed(3) || '-'}</span>
             <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.i_chart.lcl.toFixed(3) || '-'}</span>
-            {spcData?.spec_limits.usl != null && (
+            {analysisMode !== 'stability' && spcData?.spec_limits.usl != null && (
               <span className={`${styles.tag} ${styles.tagCritical}`}>USL: {spcData.spec_limits.usl}</span>
             )}
-            {spcData?.spec_limits.lsl != null && (
+            {analysisMode !== 'stability' && spcData?.spec_limits.lsl != null && (
               <span className={`${styles.tag} ${styles.tagCritical}`}>LSL: {spcData.spec_limits.lsl}</span>
             )}
           </div>
         </div>
         <div className={styles.chartPanelBody}>
           <div ref={iChartRef} style={{ height: 340 }} />
+          {spcData?.data_points.length === 0 && (
+            <div className={styles.emptyChart}>暂无匹配数据，请调整筛选条件</div>
+          )}
         </div>
       </div>
 

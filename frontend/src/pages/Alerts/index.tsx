@@ -208,9 +208,11 @@ export const AlertsPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [resolveNote, setResolveNote] = useState('')
+  const [resolveAction, setResolveAction] = useState<'confirm' | 'void_data'>('confirm')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [batchConfirm, setBatchConfirm] = useState(false)
   const [batchNote, setBatchNote] = useState('')
+  const [batchAction, setBatchAction] = useState<'confirm' | 'void_data'>('confirm')
   const [alertProducts, setAlertProducts] = useState<string[]>([])
   const [alertRules, setAlertRules] = useState<AlertRule[]>([])
 
@@ -284,7 +286,7 @@ export const AlertsPage: React.FC = () => {
   /* ---- 处理单条预警 ---- */
   const handleResolve = async (alertId: string) => {
     try {
-      await api.resolveAlert(alertId, 'user', resolveNote)
+      await api.resolveAlert(alertId, 'user', resolveNote, resolveAction)
       setConfirmId(null)
       setResolveNote('')
       fetchAlerts()
@@ -298,7 +300,7 @@ export const AlertsPage: React.FC = () => {
   /* ---- 批量处理 ---- */
   const handleBatchResolve = async () => {
     try {
-      await api.batchResolveAlerts(Array.from(selected), 'user', batchNote)
+      await api.batchResolveAlerts(Array.from(selected), 'user', batchNote, batchAction)
       setBatchConfirm(false)
       setBatchNote('')
       setSelected(new Set())
@@ -424,7 +426,7 @@ export const AlertsPage: React.FC = () => {
         />
         <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '' }); setSearchInput('') }}>重置</button>
         {selected.size > 0 && (
-          <button className={styles.batchBtn} onClick={() => setBatchConfirm(true)}>批量处理 ({selected.size})</button>
+          <button className={styles.batchBtn} onClick={() => { setBatchConfirm(true); setBatchAction('confirm') }}>批量处理 ({selected.size})</button>
         )}
       </div>
 
@@ -480,7 +482,7 @@ export const AlertsPage: React.FC = () => {
                     <td>{renderStatus(alert)}</td>
                     <td>
                       {alert.status === 'pending' && (
-                        <button className={styles.actionBtn} onClick={() => { setConfirmId(alert.alert_id); setResolveNote('') }}>处理</button>
+                        <button className={styles.actionBtn} onClick={() => { setConfirmId(alert.alert_id); setResolveNote(''); setResolveAction('confirm') }}>处理</button>
                       )}
                     </td>
                   </tr>
@@ -505,7 +507,11 @@ export const AlertsPage: React.FC = () => {
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="处理预警">
             <div className={styles.modalTitle}>处理预警</div>
             <div className={styles.modalBody}>
-              <p>确认处理此预警？处理后状态将变更为已处理。</p>
+              <p>请选择处理方式：</p>
+              <select className={styles.actionSelect} value={resolveAction} onChange={e => setResolveAction(e.target.value as 'confirm' | 'void_data')} aria-label="处理方式">
+                <option value="confirm">确认处理（仅关闭预警）</option>
+                <option value="void_data">作废数据（同时作废关联数据记录）</option>
+              </select>
               <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} aria-label="处理备注" />
             </div>
             <div className={styles.modalActions}>
@@ -523,6 +529,10 @@ export const AlertsPage: React.FC = () => {
             <div className={styles.modalTitle}>批量处理预警</div>
             <div className={styles.modalBody}>
               <p>确认批量处理选中的 {selected.size} 条预警？</p>
+              <select className={styles.actionSelect} value={batchAction} onChange={e => setBatchAction(e.target.value as 'confirm' | 'void_data')} aria-label="处理方式">
+                <option value="confirm">确认处理（仅关闭预警）</option>
+                <option value="void_data">作废数据（同时作废关联数据记录）</option>
+              </select>
               <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={batchNote} onChange={(e) => setBatchNote(e.target.value)} rows={3} aria-label="批量处理备注" />
             </div>
             <div className={styles.modalActions}>

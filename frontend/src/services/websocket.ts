@@ -20,6 +20,12 @@ class WebSocketService {
   connect() {
     if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
 
+    // 取消挂起的重连定时器，避免竞态
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
     // 只在显式调用时重置重连状态
     this.intentionalClose = false
     this.retryCount = 0

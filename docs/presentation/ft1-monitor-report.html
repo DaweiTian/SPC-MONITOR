@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FT1-MONITOR 液奶过程监控系统 - 汇报演示</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" async></script>
+<style>
+  /* ===== Reset & Base ===== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #1a2236;
+    --border: #2a3550;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59,130,246,0.3);
+    --accent: #06b6d4;
+    --accent-glow: rgba(6,182,212,0.25);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --gradient-blue: linear-gradient(135deg, #3b82f6, #06b6d4);
+    --gradient-dark: linear-gradient(180deg, #0a0e1a 0%, #111827 100%);
+  }
+  html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ===== Slide Container ===== */
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 80px;
+    opacity: 0; transform: translateX(60px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    will-change: opacity, transform;
+    contain: layout style;
+  }
+  .slide.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .slide.prev { opacity: 0; transform: translateX(-60px); }
+
+  /* ===== Progress Bar ===== */
+  .progress-bar { position: fixed; bottom: 0; left: 0; height: 3px; background: var(--gradient-blue); transition: width 0.25s ease; z-index: 100; will-change: width; }
+
+  /* ===== Page Indicator ===== */
+  .page-indicator {
+    position: fixed; bottom: 20px; right: 30px;
+    font-size: 13px; color: var(--text-muted); z-index: 100;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== Navigation Hints ===== */
+  .nav-hint {
+    position: fixed; bottom: 20px; left: 30px;
+    font-size: 12px; color: var(--text-muted); z-index: 100;
+    opacity: 0.6;
+  }
+  .nav-hint kbd {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    background: var(--card); border: 1px solid var(--border); font-size: 11px;
+  }
+
+  /* ===== Typography ===== */
+  .slide-title {
+    font-size: 42px; font-weight: 700;
+    background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 12px; text-align: center;
+  }
+  .slide-subtitle { font-size: 18px; color: var(--text-dim); margin-bottom: 40px; text-align: center; }
+  .section-label {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    background: rgba(59,130,246,0.12); color: var(--primary);
+    font-size: 13px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px;
+  }
+
+  /* ===== Cover Slide ===== */
+  .cover { text-align: center; }
+  .cover .logo-area {
+    width: 90px; height: 90px; border-radius: 20px;
+    background: var(--gradient-blue); display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 30px; font-size: 36px; font-weight: 800; color: #fff;
+    box-shadow: 0 0 40px var(--primary-glow);
+  }
+  .cover h1 { font-size: 56px; font-weight: 800; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .cover .ver { font-size: 16px; color: var(--text-muted); margin-bottom: 30px; }
+  .cover .tagline { font-size: 22px; color: var(--text-dim); max-width: 600px; margin: 0 auto 40px; line-height: 1.6; }
+  .cover .meta { display: flex; gap: 40px; justify-content: center; font-size: 14px; color: var(--text-muted); }
+  .cover .meta span { display: flex; align-items: center; gap: 6px; }
+  .cover .pulse-ring {
+    position: absolute; width: 300px; height: 300px; border-radius: 50%;
+    border: 1px solid rgba(59,130,246,0.15); top: 50%; left: 50%;
+    transform: translate(-50%, -50%); animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.3; } 50% { transform: translate(-50%,-50%) scale(1.15); opacity: 0; } }
+
+  /* ===== Cards Grid ===== */
+  .cards { display: grid; gap: 20px; width: 100%; max-width: 1200px; }
+  .cards.cols-2 { grid-template-columns: 1fr 1fr; }
+  .cards.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cards.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px; transition: transform 0.2s, box-shadow 0.2s;
+    contain: layout style paint;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+  .card-icon { font-size: 32px; margin-bottom: 14px; }
+  .card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+  .card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+  .card .tag {
+    display: inline-block; padding: 2px 10px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; margin-top: 10px;
+  }
+  .tag-blue { background: rgba(59,130,246,0.15); color: var(--primary); }
+  .tag-cyan { background: rgba(6,182,212,0.15); color: var(--accent); }
+  .tag-green { background: rgba(16,185,129,0.15); color: var(--success); }
+
+  /* ===== Pain Point Cards ===== */
+  .pain-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; display: flex; gap: 18px; align-items: flex-start;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .pain-card:hover { transform: translateY(-2px); border-color: var(--danger); }
+  .pain-num {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(239,68,68,0.12); color: var(--danger);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800;
+  }
+  .pain-card h4 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .pain-card p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ===== Architecture SVG ===== */
+  .arch-container { width: 100%; max-width: 1000px; }
+  .arch-container svg { width: 100%; height: auto; }
+
+  /* ===== Stats Row ===== */
+  .stats-row { display: flex; gap: 24px; justify-content: center; margin-bottom: 30px; }
+  .stat-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 30px; text-align: center; min-width: 160px;
+  }
+  .stat-box .num {
+    font-size: 36px; font-weight: 800;
+    background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .stat-box .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ===== Chart Container ===== */
+  .chart-row { display: flex; gap: 20px; width: 100%; max-width: 1200px; }
+  .chart-box {
+    flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; min-height: 300px;
+  }
+  .chart-box h4 { font-size: 14px; color: var(--text-dim); margin-bottom: 10px; font-weight: 600; }
+  .chart-area { width: 100%; height: 260px; }
+
+  /* ===== Tech Highlight ===== */
+  .tech-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 100%; max-width: 1200px; }
+  .tech-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px; position: relative; overflow: hidden;
+  }
+  .tech-item::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--gradient-blue);
+  }
+  .tech-item h3 { font-size: 17px; font-weight: 700; color: #fff; margin: 12px 0 8px; }
+  .tech-item p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .tech-item .tech-icon { font-size: 28px; }
+  .tech-item .metric {
+    display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 8px;
+    background: rgba(16,185,129,0.12); color: var(--success); font-size: 12px; font-weight: 600;
+  }
+
+  /* ===== Value Cards ===== */
+  .value-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 1100px; }
+  .value-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px; display: flex; gap: 18px; align-items: flex-start;
+  }
+  .value-icon {
+    flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+  .value-card h4 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .value-card p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ===== Roadmap ===== */
+  .roadmap { width: 100%; max-width: 1100px; position: relative; }
+  .roadmap-line {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(180deg, var(--primary), var(--accent), var(--success));
+  }
+  .roadmap-item {
+    display: flex; align-items: flex-start; margin-bottom: 30px; position: relative;
+  }
+  .roadmap-item:nth-child(odd) { flex-direction: row; }
+  .roadmap-item:nth-child(even) { flex-direction: row-reverse; }
+  .roadmap-content {
+    width: 44%; background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px;
+  }
+  .roadmap-item:nth-child(odd) .roadmap-content { margin-right: auto; }
+  .roadmap-item:nth-child(even) .roadmap-content { margin-left: auto; }
+  .roadmap-dot {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--primary);
+    background: var(--bg); z-index: 2;
+  }
+  .roadmap-content .phase {
+    font-size: 12px; font-weight: 700; color: var(--primary); letter-spacing: 1px; margin-bottom: 6px;
+  }
+  .roadmap-content h4 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .roadmap-content ul { list-style: none; }
+  .roadmap-content li { font-size: 13px; color: var(--text-dim); padding: 3px 0; padding-left: 16px; position: relative; }
+  .roadmap-content li::before {
+    content: ''; position: absolute; left: 0; top: 10px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  }
+
+  /* ===== Summary Slide ===== */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; max-width: 900px; margin-bottom: 40px; }
+  .summary-item { text-align: center; }
+  .summary-item .icon { font-size: 40px; margin-bottom: 12px; }
+  .summary-item h4 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .summary-item p { font-size: 14px; color: var(--text-dim); }
+
+  /* ===== Animated Entry ===== */
+  .animate-in {
+    opacity: 0; transform: translateY(16px);
+    will-change: opacity, transform;
+  }
+  .slide.active .animate-in.anim-ready { animation: fadeUp 0.35s ease forwards; }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .delay-1 { animation-delay: 0.06s !important; }
+  .delay-2 { animation-delay: 0.12s !important; }
+  .delay-3 { animation-delay: 0.18s !important; }
+  .delay-4 { animation-delay: 0.24s !important; }
+  .delay-5 { animation-delay: 0.30s !important; }
+  .delay-6 { animation-delay: 0.36s !important; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1024px) {
+    .slide { padding: 40px 30px; }
+    .cards.cols-3, .cards.cols-4, .tech-grid { grid-template-columns: 1fr 1fr; }
+    .cover h1 { font-size: 40px; }
+    .slide-title { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ==================== SLIDE 1: COVER ==================== -->
+  <div class="slide cover active" data-index="0">
+    <div class="pulse-ring"></div>
+    <div class="logo-area animate-in">FT1</div>
+    <h1 class="animate-in delay-1">液奶过程监控系统</h1>
+    <div class="ver animate-in delay-2">FT1-MONITOR v1.5.4</div>
+    <div class="tagline animate-in delay-3">
+      基于 SPC 统计过程控制与 AI 预测分析的<br>乳制品全流程质量智能监控平台
+    </div>
+    <div class="meta animate-in delay-4">
+      <span>2025 年度技术汇报</span>
+      <span>质量管控中心</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 2: OVERVIEW ==================== -->
+  <div class="slide" data-index="1">
+    <div class="section-label animate-in">OVERVIEW</div>
+    <div class="slide-title animate-in delay-1">项目概述</div>
+    <div class="slide-subtitle animate-in delay-2">覆盖液奶生产全流程的实时质量监控与智能分析平台</div>
+    <div class="stats-row animate-in delay-3">
+      <div class="stat-box"><div class="num">3</div><div class="label">仪器数据源接入</div></div>
+      <div class="stat-box"><div class="num">9</div><div class="label">核心功能模块</div></div>
+      <div class="stat-box"><div class="num">8</div><div class="label">Nelson 判异规则</div></div>
+      <div class="stat-box"><div class="num">4+</div><div class="label">预测分析模型</div></div>
+    </div>
+    <div class="cards cols-3 animate-in delay-4">
+      <div class="card">
+        <div class="card-icon">&#9881;</div>
+        <h3>多源数据采集</h3>
+        <p>无缝对接 FT1、FT120、FTA 三类乳品分析仪，自适应频率调度，自动降级与恢复</p>
+        <span class="tag tag-blue">自动化</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#128200;</div>
+        <h3>SPC 过程控制</h3>
+        <p>I-MR 控制图、8 条 Nelson 判异规则、过程能力指数 (Cp/Cpk/Pp/Ppk) 实时计算</p>
+        <span class="tag tag-cyan">统计分析</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#129302;</div>
+        <h3>AI 智能预测</h3>
+        <p>ETS/ARIMA 时序预测、GBDT 特征重要性、CUSUM 漂移检测、越限风险预警</p>
+        <span class="tag tag-green">AI 驱动</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 3: PAIN POINTS ==================== -->
+  <div class="slide" data-index="2">
+    <div class="section-label animate-in">PAIN POINTS</div>
+    <div class="slide-title animate-in delay-1">行业痛点</div>
+    <div class="slide-subtitle animate-in delay-2">传统液奶生产质量监控面临的六大挑战</div>
+    <div class="cards cols-2 animate-in delay-3">
+      <div class="pain-card">
+        <div class="pain-num">1</div>
+        <div>
+          <h4>数据采集依赖人工</h4>
+          <p>操作员需手动查看仪器数据、手工记录，效率低且易出错，无法实现 7x24 小时不间断监控</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">2</div>
+        <div>
+          <h4>质量异常发现滞后</h4>
+          <p>依赖班后人工分析，问题往往在批量不合格后才被发现，缺乏实时告警与过程判异能力</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">3</div>
+        <div>
+          <h4>设备数据孤岛</h4>
+          <p>FT1、FT120、FTA 等不同品牌仪器各自为政，数据格式不统一，无法关联分析</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">4</div>
+        <div>
+          <h4>质量管控被动滞后</h4>
+          <p>仅有事后检验，缺乏基于统计过程控制 (SPC) 的过程能力评估和趋势预警机制</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">5</div>
+        <div>
+          <h4>缺乏预测性维护</h4>
+          <p>无法基于历史数据预测质量指标走势，无法提前识别工艺漂移和越限风险</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">6</div>
+        <div>
+          <h4>配置变更困难</h4>
+          <p>规格限、产品参数、告警规则等调整需修改代码或数据库，缺乏灵活的运行时配置能力</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 4: ARCHITECTURE ==================== -->
+  <div class="slide" data-index="3">
+    <div class="section-label animate-in">ARCHITECTURE</div>
+    <div class="slide-title animate-in delay-1">系统架构</div>
+    <div class="slide-subtitle animate-in delay-2">桌面应用 + Web 前端 + Python 后端 + 多源数据库</div>
+    <div class="arch-container animate-in delay-3">
+      <svg viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background grid -->
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1"/>
+          </linearGradient>
+          <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#10b981;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1"/>
+          </linearGradient>
+          <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/></filter>
+        </defs>
+
+        <!-- Layer 1: Desktop -->
+        <rect x="30" y="20" width="940" height="80" rx="12" fill="#1a2236" stroke="#2a3550" stroke-width="1" filter="url(#shadow)"/>
+        <text x="500" y="48" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="2">桌面应用层 &mdash; TAURI V2 (RUST)</text>
+        <rect x="60" y="58" width="140" height="30" rx="6" fill="url(#g1)" opacity="0.9"/>
+        <text x="130" y="78" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">系统托盘</text>
+        <rect x="220" y="58" width="140" height="30" rx="6" fill="url(#g1)" opacity="0.9"/>
+        <text x="290" y="78" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">原生通知</text>
+        <rect x="380" y="58" width="140" height="30" rx="6" fill="url(#g1)" opacity="0.9"/>
+        <text x="450" y="78" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">自启动管理</text>
+        <rect x="540" y="58" width="140" height="30" rx="6" fill="url(#g1)" opacity="0.9"/>
+        <text x="610" y="78" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">进程管理</text>
+        <rect x="700" y="58" width="140" height="30" rx="6" fill="url(#g1)" opacity="0.9"/>
+        <text x="770" y="78" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">声音告警</text>
+
+        <!-- Arrow down -->
+        <line x1="500" y1="100" x2="500" y2="120" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4"/>
+        <polygon points="495,118 505,118 500,125" fill="#3b82f6"/>
+
+        <!-- Layer 2: Frontend -->
+        <rect x="30" y="125" width="460" height="100" rx="12" fill="#1a2236" stroke="#2a3550" stroke-width="1" filter="url(#shadow)"/>
+        <text x="260" y="150" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="2">前端展示层 &mdash; REACT 18 + TYPESCRIPT</text>
+        <rect x="50" y="162" width="100" height="26" rx="5" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="100" y="180" text-anchor="middle" fill="#3b82f6" font-size="11" font-weight="600">ECharts 5</text>
+        <rect x="165" y="162" width="100" height="26" rx="5" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="215" y="180" text-anchor="middle" fill="#3b82f6" font-size="11" font-weight="600">Ant Design</text>
+        <rect x="280" y="162" width="100" height="26" rx="5" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="330" y="180" text-anchor="middle" fill="#3b82f6" font-size="11" font-weight="600">WebSocket</text>
+        <rect x="395" y="162" width="80" height="26" rx="5" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="435" y="180" text-anchor="middle" fill="#3b82f6" font-size="11" font-weight="600">Vite 5</text>
+        <!-- 9 pages label -->
+        <text x="260" y="210" text-anchor="middle" fill="#64748b" font-size="10">9 个功能页面 / 10+ 个公共组件 / 深色科技主题</text>
+
+        <!-- Layer 2 right: Backend -->
+        <rect x="510" y="125" width="460" height="100" rx="12" fill="#1a2236" stroke="#2a3550" stroke-width="1" filter="url(#shadow)"/>
+        <text x="740" y="150" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="2">后端服务层 &mdash; FASTAPI + PYTHON 3.11</text>
+        <rect x="530" y="162" width="90" height="26" rx="5" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1"/>
+        <text x="575" y="180" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">SPC 引擎</text>
+        <rect x="635" y="162" width="90" height="26" rx="5" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1"/>
+        <text x="680" y="180" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">告警引擎</text>
+        <rect x="740" y="162" width="90" height="26" rx="5" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1"/>
+        <text x="785" y="180" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">预测引擎</text>
+        <rect x="845" y="162" width="105" height="26" rx="5" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1"/>
+        <text x="897" y="180" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">采集调度器</text>
+        <text x="740" y="210" text-anchor="middle" fill="#64748b" font-size="10">7 个 API 模块 / WebSocket 推送 / API Key 认证</text>
+
+        <!-- Arrow between frontend and backend -->
+        <line x1="490" y1="175" x2="510" y2="175" stroke="#06b6d4" stroke-width="2"/>
+        <polygon points="508,170 508,180 516,175" fill="#06b6d4"/>
+        <text x="500" y="167" text-anchor="middle" fill="#06b6d4" font-size="9">HTTP+WS</text>
+
+        <!-- Arrows down to data layer -->
+        <line x1="260" y1="225" x2="260" y2="255" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4"/>
+        <line x1="740" y1="225" x2="740" y2="255" stroke="#10b981" stroke-width="2" stroke-dasharray="4"/>
+
+        <!-- Layer 3: Analysis Engine -->
+        <rect x="30" y="255" width="940" height="65" rx="12" fill="#1a2236" stroke="#2a3550" stroke-width="1" filter="url(#shadow)"/>
+        <text x="500" y="278" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="2">分析引擎层</text>
+        <rect x="60" y="288" width="120" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="120" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">NumPy / SciPy</text>
+        <rect x="200" y="288" width="120" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="260" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">statsmodels</text>
+        <rect x="340" y="288" width="120" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="400" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">scikit-learn</text>
+        <rect x="480" y="288" width="100" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="530" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">pandas</text>
+        <rect x="600" y="288" width="130" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="665" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">APScheduler</text>
+        <rect x="750" y="288" width="100" height="24" rx="5" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="800" y="305" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Pydantic</text>
+
+        <!-- Arrow down -->
+        <line x1="500" y1="320" x2="500" y2="345" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4"/>
+
+        <!-- Layer 4: Data Sources -->
+        <rect x="30" y="345" width="940" height="65" rx="12" fill="#1a2236" stroke="#2a3550" stroke-width="1" filter="url(#shadow)"/>
+        <text x="500" y="368" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="2">数据存储层</text>
+        <rect x="100" y="378" width="160" height="24" rx="5" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="180" y="395" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="600">SQLite (WAL)</text>
+        <rect x="310" y="378" width="160" height="24" rx="5" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="390" y="395" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="600">SQL Server (FT1)</text>
+        <rect x="520" y="378" width="160" height="24" rx="5" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="600" y="395" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="600">MDB (FT120)</text>
+        <rect x="730" y="378" width="160" height="24" rx="5" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="810" y="395" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="600">FTA Perten DB</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 5: FEATURES ==================== -->
+  <div class="slide" data-index="4">
+    <div class="section-label animate-in">FEATURES</div>
+    <div class="slide-title animate-in delay-1">核心功能</div>
+    <div class="slide-subtitle animate-in delay-2">9 大功能模块，覆盖数据采集、过程分析、智能预警全链路</div>
+    <div class="tech-grid animate-in delay-3">
+      <div class="tech-item">
+        <div class="tech-icon">&#128202;</div>
+        <h3>实时监控仪表盘</h3>
+        <p>5 大 KPI 指标卡、实时趋势图（含 USL/LSL 标线）、产品 Cpk 矩阵、产品自动轮播、采集状态面板</p>
+        <span class="metric">30s 自动刷新</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128201;</div>
+        <h3>SPC 控制图分析</h3>
+        <p>I-MR 个体值-移动极差控制图、Nelson 8 条判异规则自动检测、过程稳定性评估、违规点高亮标注</p>
+        <span class="metric">8 条判异规则</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128200;</div>
+        <h3>过程能力分析</h3>
+        <p>Cp/Cpk/Pp/Ppk 四大能力指数、直方图+正态曲线叠加、Sigma 水平仪表盘、Cpk 历史趋势追踪</p>
+        <span class="metric">支持单侧规格限</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#129302;</div>
+        <h3>智能预测预警</h3>
+        <p>ETS/ARIMA/MA 多模型自动择优、95% 置信区间、越限概率分析、CUSUM 漂移检测</p>
+        <span class="metric">MASE 自动选模</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128276;</div>
+        <h3>告警管理中心</h3>
+        <p>三级告警 (CRITICAL/WARNING/INFO)、24h 自动去重、7 天趋势图、规则分布统计、批量处置</p>
+        <span class="metric">实时 WebSocket 推送</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128190;</div>
+        <h3>数据管理与配置</h3>
+        <p>分页数据浏览、修正值管理、作废/恢复、CSV 导出、仪器切换、规格限配置、产品管理</p>
+        <span class="metric">17+ 配置项</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 6: DASHBOARD DEMO ==================== -->
+  <div class="slide" data-index="5">
+    <div class="section-label animate-in">DATA INSIGHT</div>
+    <div class="slide-title animate-in delay-1">数据看板</div>
+    <div class="slide-subtitle animate-in delay-2">实时监控仪表盘与 SPC 控制图交互演示</div>
+    <div class="chart-row animate-in delay-3">
+      <div class="chart-box">
+        <h4>实时质量趋势（模拟数据）</h4>
+        <div class="chart-area" id="chart-trend"></div>
+      </div>
+      <div class="chart-box">
+        <h4>SPC 控制图 (I-MR)</h4>
+        <div class="chart-area" id="chart-spc"></div>
+      </div>
+    </div>
+    <div class="chart-row animate-in delay-4" style="margin-top:16px;">
+      <div class="chart-box">
+        <h4>过程能力分布</h4>
+        <div class="chart-area" id="chart-capability"></div>
+      </div>
+      <div class="chart-box">
+        <h4>预测模型对比</h4>
+        <div class="chart-area" id="chart-prediction"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 7: TECH HIGHLIGHTS ==================== -->
+  <div class="slide" data-index="6">
+    <div class="section-label animate-in">TECHNOLOGY</div>
+    <div class="slide-title animate-in delay-1">技术亮点</div>
+    <div class="slide-subtitle animate-in delay-2">自研分析引擎 + 自适应调度 + 实时推送 + 桌面原生集成</div>
+    <div class="tech-grid animate-in delay-3">
+      <div class="tech-item">
+        <div class="tech-icon">&#9878;</div>
+        <h3>SPC 分析引擎</h3>
+        <p>I-MR 控制图 (d2=1.128)、全 8 条 Nelson 规则实现、过程能力指数含 Ca 偏移系数、支持单/双侧规格限</p>
+        <span class="metric">NumPy + SciPy</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128300;</div>
+        <h3>预测分析引擎</h3>
+        <p>ADF 平稳性检验自动选模、ETS/ARIMA 双模型 MASE 对比、GBDT 特征重要性排序、Pearson 相关矩阵</p>
+        <span class="metric">statsmodels + sklearn</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#9889;</div>
+        <h3>自适应采集调度</h3>
+        <p>频率梯度 [5/15/30/60/120/300] 分钟自动调节，无新数据时降频节能，数据恢复时自动提频</p>
+        <span class="metric">APScheduler</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128225;</div>
+        <h3>实时消息推送</h3>
+        <p>WebSocket 双向通信，支持 data_update / new_alert / risk_alert 等 6 种消息类型，30s 心跳保活</p>
+        <span class="metric">FastAPI WebSocket</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128187;</div>
+        <h3>Tauri v2 桌面应用</h3>
+        <p>Rust 原生启动器，系统托盘常驻、原生通知推送、开机自启、进程生命周期管理</p>
+        <span class="metric">跨平台 &lt;10MB</span>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#128736;</div>
+        <h3>灵活运行时配置</h3>
+        <p>17+ JSON 配置文件支持运行时热更新，仪器源切换、规格限调整、告警规则增删均无需重启</p>
+        <span class="metric">零停机配置</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 8: BUSINESS VALUE ==================== -->
+  <div class="slide" data-index="7">
+    <div class="section-label animate-in">VALUE</div>
+    <div class="slide-title animate-in delay-1">业务价值</div>
+    <div class="slide-subtitle animate-in delay-2">从被动检验到主动预防，全面提升质量管控效能</div>
+    <div class="stats-row animate-in delay-3">
+      <div class="stat-box"><div class="num">7x24</div><div class="label">不间断自动监控</div></div>
+      <div class="stat-box"><div class="num">&lt;5min</div><div class="label">异常发现时效</div></div>
+      <div class="stat-box"><div class="num">100%</div><div class="label">数据自动采集</div></div>
+      <div class="stat-box"><div class="num">3 级</div><div class="label">告警分级处置</div></div>
+    </div>
+    <div class="value-grid animate-in delay-4">
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(59,130,246,0.15)">&#128200;</div>
+        <div>
+          <h4>质量管控前移</h4>
+          <p>从事后检验转变为过程控制，SPC 判异规则实时捕捉异常，将质量问题消灭在萌芽阶段</p>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(16,185,129,0.15)">&#129302;</div>
+        <div>
+          <h4>预测性质量维护</h4>
+          <p>基于时序预测模型提前识别质量指标走势，越限风险分级预警，为工艺调整争取宝贵时间窗口</p>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(245,158,11,0.15)">&#128165;</div>
+        <div>
+          <h4>降本增效</h4>
+          <p>消除人工数据采集和记录工作量，减少因质量异常导致的返工和报废损失</p>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(139,92,246,0.15)">&#127919;</div>
+        <div>
+          <h4>数据驱动决策</h4>
+          <p>过程能力指数、特征重要性、相关性分析等为工艺优化和配方调整提供量化依据</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 9: ROADMAP ==================== -->
+  <div class="slide" data-index="8">
+    <div class="section-label animate-in">ROADMAP</div>
+    <div class="slide-title animate-in delay-1">下一步规划</div>
+    <div class="slide-subtitle animate-in delay-2">分三个阶段持续演进，打造乳制品智能质量管控标杆</div>
+    <div class="roadmap animate-in delay-3">
+      <div class="roadmap-line"></div>
+
+      <div class="roadmap-item">
+        <div class="roadmap-content">
+          <div class="phase">PHASE 1 &mdash; 2025 Q3-Q4</div>
+          <h4>能力增强与体验优化</h4>
+          <ul>
+            <li>多品种并行监控仪表盘，支持产线级总览</li>
+            <li>告警规则引擎升级：支持自定义组合条件和阈值联动</li>
+            <li>移动端适配 (响应式 PPA)，支持手机端告警推送与处置</li>
+            <li>SPC 增加 X-bar/R 图（分组控制图）和 CUSUM/EWMA 图</li>
+            <li>数据导出增强：支持 PDF 分析报告自动生成</li>
+          </ul>
+        </div>
+        <div class="roadmap-dot" style="border-color: var(--primary);"></div>
+      </div>
+
+      <div class="roadmap-item">
+        <div class="roadmap-content">
+          <div class="phase">PHASE 2 &mdash; 2026 Q1-Q2</div>
+          <h4>智能分析深化</h4>
+          <ul>
+            <li>引入 LLM 大模型，支持自然语言查询质量数据和生成分析报告</li>
+            <li>异常根因分析：基于因果推断自动定位质量异常的工艺环节</li>
+            <li>多变量 SPC 分析 (T2 Hotelling / PCA)</li>
+            <li>预测模型升级：引入 Prophet / LSTM 等深度学习模型</li>
+            <li>工艺参数关联分析：温度、压力等工艺数据与质量指标联动</li>
+          </ul>
+        </div>
+        <div class="roadmap-dot" style="border-color: var(--accent);"></div>
+      </div>
+
+      <div class="roadmap-item">
+        <div class="roadmap-content">
+          <div class="phase">PHASE 3 &mdash; 2026 Q3-Q4</div>
+          <h4>平台化与生态扩展</h4>
+          <ul>
+            <li>多工厂/多产线分布式部署架构，支持集团级统一管控</li>
+            <li>质量知识图谱构建，积累工艺-质量关联知识库</li>
+            <li>开放 API 平台，与 MES/ERP/LIMS 系统对接集成</li>
+            <li>数字孪生：建立液奶生产过程的虚拟仿真模型</li>
+            <li>质量溯源体系：从原料到成品的全链路质量追溯</li>
+          </ul>
+        </div>
+        <div class="roadmap-dot" style="border-color: var(--success);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 10: SUMMARY ==================== -->
+  <div class="slide" data-index="9">
+    <div class="section-label animate-in">SUMMARY</div>
+    <div class="slide-title animate-in delay-1">总结</div>
+    <div class="slide-subtitle animate-in delay-2">FT1-MONITOR &mdash; 让液奶质量管控从经验驱动迈向数据智能</div>
+    <div class="summary-grid animate-in delay-3">
+      <div class="summary-item">
+        <div class="icon">&#9878;</div>
+        <h4>全面监控</h4>
+        <p>多源仪器数据统一采集<br>SPC 过程控制实时判异<br>7x24 不间断质量守护</p>
+      </div>
+      <div class="summary-item">
+        <div class="icon">&#129302;</div>
+        <h4>智能预测</h4>
+        <p>时序预测提前识别风险<br>多模型自动择优对比<br>越限概率分级预警</p>
+      </div>
+      <div class="summary-item">
+        <div class="icon">&#128640;</div>
+        <h4>持续演进</h4>
+        <p>LLM 自然语言交互<br>多工厂集团级管控<br>数字孪生与质量溯源</p>
+      </div>
+    </div>
+    <div class="animate-in delay-4" style="text-align:center;">
+      <div style="font-size: 24px; font-weight: 700; background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;">
+        感谢各位领导的关注与支持
+      </div>
+      <div style="font-size: 15px; color: var(--text-muted);">
+        FT1-MONITOR v1.5.4 &nbsp;&bull;&nbsp; 质量管控中心 &nbsp;&bull;&nbsp; 2025
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="progress-bar" id="progressBar"></div>
+<div class="page-indicator" id="pageIndicator"></div>
+<div class="nav-hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> 或点击翻页</div>
+
+<script>
+(function() {
+  const deck = document.getElementById('deck');
+  const slides = Array.from(deck.querySelectorAll('.slide'));
+  const total = slides.length;
+  let current = 0;
+  let transitioning = false;
+
+  // Pre-add anim-ready to all animate-in elements
+  slides.forEach(s => s.querySelectorAll('.animate-in').forEach(el => el.classList.add('anim-ready')));
+
+  function goTo(n) {
+    if (n < 0 || n >= total || n === current || transitioning) return;
+    transitioning = true;
+
+    const oldSlide = slides[current];
+    const newSlide = slides[n];
+
+    // Remove old slide
+    oldSlide.classList.remove('active');
+    oldSlide.classList.add(n > current ? 'prev' : '');
+
+    // Reset old animations by removing and re-adding class (no offsetHeight)
+    oldSlide.querySelectorAll('.animate-in').forEach(el => {
+      el.classList.remove('anim-ready');
+    });
+
+    current = n;
+
+    // Show new slide
+    newSlide.classList.remove('prev');
+    newSlide.classList.add('active');
+
+    // Trigger new animations on next frame
+    requestAnimationFrame(() => {
+      newSlide.querySelectorAll('.animate-in').forEach(el => el.classList.add('anim-ready'));
+      // Clean up old slide class after transition
+      setTimeout(() => { oldSlide.classList.remove('prev'); transitioning = false; }, 320);
+    });
+
+    updateUI();
+    // Init charts lazily
+    if (current === 5) initCharts();
+  }
+
+  function updateUI() {
+    document.getElementById('progressBar').style.width = ((current + 1) / total * 100) + '%';
+    document.getElementById('pageIndicator').textContent = (current + 1) + ' / ' + total;
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1); }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+  });
+
+  // Click navigation
+  deck.addEventListener('click', e => {
+    if (e.target.closest('a, button, input, .chart-area')) return;
+    const x = e.clientX / window.innerWidth;
+    if (x < 0.33) goTo(current - 1); else goTo(current + 1);
+  });
+
+  // Touch
+  let touchStartX = 0;
+  deck.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  deck.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) { dx < 0 ? goTo(current + 1) : goTo(current - 1); }
+  });
+
+  // Init first slide animations
+  slides[0].querySelectorAll('.animate-in').forEach(el => el.classList.add('anim-ready'));
+  updateUI();
+
+  // ===== ECharts (lazy, waits for echarts lib) =====
+  let chartsInit = false;
+  function initCharts() {
+    if (chartsInit) return;
+    if (typeof echarts === 'undefined') { setTimeout(initCharts, 100); return; }
+    chartsInit = true;
+
+    const theme = {
+      backgroundColor: 'transparent',
+      textStyle: { color: '#94a3b8', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' },
+    };
+
+    // --- Chart 1: Trend ---
+    const c1 = echarts.init(document.getElementById('chart-trend'));
+    const trendData = [];
+    const usl = 3.80, lsl = 3.20, target = 3.50;
+    for (let i = 0; i < 50; i++) {
+      trendData.push(+(3.50 + (Math.random() - 0.5) * 0.4 + Math.sin(i / 8) * 0.08).toFixed(3));
+    }
+    c1.setOption({
+      ...theme,
+      grid: { top: 30, right: 20, bottom: 30, left: 50 },
+      xAxis: { type: 'category', data: trendData.map((_, i) => i + 1), axisLabel: { color: '#64748b', fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3550' } } },
+      yAxis: { type: 'value', min: 3.0, max: 4.0, axisLabel: { color: '#64748b', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'line', data: trendData, smooth: true, symbol: 'none',
+        lineStyle: { color: '#3b82f6', width: 2 },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(59,130,246,0.3)' }, { offset: 1, color: 'rgba(59,130,246,0)' }
+        ])}
+      }],
+      markLine: { silent: true, data: [
+        { yAxis: usl, label: { formatter: 'USL', color: '#ef4444', fontSize: 10 }, lineStyle: { color: '#ef4444', type: 'dashed' } },
+        { yAxis: lsl, label: { formatter: 'LSL', color: '#ef4444', fontSize: 10 }, lineStyle: { color: '#ef4444', type: 'dashed' } },
+        { yAxis: target, label: { formatter: 'Target', color: '#10b981', fontSize: 10 }, lineStyle: { color: '#10b981', type: 'dotted' } }
+      ]}
+    });
+
+    // --- Chart 2: SPC ---
+    const c2 = echarts.init(document.getElementById('chart-spc'));
+    const spcData = [];
+    for (let i = 0; i < 40; i++) {
+      spcData.push(+(3.50 + (Math.random() - 0.5) * 0.35).toFixed(3));
+    }
+    const mean = spcData.reduce((a, b) => a + b, 0) / spcData.length;
+    const mr = [];
+    for (let i = 1; i < spcData.length; i++) mr.push(Math.abs(spcData[i] - spcData[i - 1]));
+    const mrMean = mr.reduce((a, b) => a + b, 0) / mr.length;
+    const ucl = +(mean + 3 * mrMean / 1.128).toFixed(3);
+    const lcl = +(mean - 3 * mrMean / 1.128).toFixed(3);
+    const violations = spcData.map((v, i) => (v > ucl || v < lcl) ? [i, v] : null).filter(Boolean);
+    c2.setOption({
+      ...theme,
+      grid: { top: 30, right: 20, bottom: 30, left: 50 },
+      xAxis: { type: 'category', data: spcData.map((_, i) => i + 1), axisLabel: { color: '#64748b', fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3550' } } },
+      yAxis: { type: 'value', min: (lcl - 0.1).toFixed(1) * 1, max: (ucl + 0.1).toFixed(1) * 1, axisLabel: { color: '#64748b', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [
+        { type: 'line', data: spcData, smooth: false, symbol: 'circle', symbolSize: 5, lineStyle: { color: '#3b82f6', width: 1.5 }, itemStyle: { color: '#3b82f6' } },
+        { type: 'scatter', data: violations, symbolSize: 10, itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 1 } }
+      ],
+      markLine: { silent: true, data: [
+        { yAxis: ucl, label: { formatter: 'UCL=' + ucl, color: '#ef4444', fontSize: 10 }, lineStyle: { color: '#ef4444', type: 'dashed' } },
+        { yAxis: mean, label: { formatter: 'CL=' + mean.toFixed(3), color: '#10b981', fontSize: 10 }, lineStyle: { color: '#10b981', type: 'solid', width: 1 } },
+        { yAxis: lcl, label: { formatter: 'LCL=' + lcl, color: '#ef4444', fontSize: 10 }, lineStyle: { color: '#ef4444', type: 'dashed' } }
+      ]}
+    });
+
+    // --- Chart 3: Capability histogram ---
+    const c3 = echarts.init(document.getElementById('chart-capability'));
+    const histBins = [];
+    for (let i = 0; i < 20; i++) histBins.push(0);
+    for (let i = 0; i < 200; i++) {
+      const v = 3.50 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.25;
+      const bin = Math.floor((v - 3.0) / 0.05);
+      if (bin >= 0 && bin < 20) histBins[bin]++;
+    }
+    const binLabels = histBins.map((_, i) => (3.0 + i * 0.05).toFixed(2));
+    const normalY = binLabels.map(x => {
+      const z = (x - 3.50) / 0.12;
+      return Math.round(60 * Math.exp(-0.5 * z * z));
+    });
+    c3.setOption({
+      ...theme,
+      grid: { top: 20, right: 20, bottom: 30, left: 40 },
+      xAxis: { type: 'category', data: binLabels, axisLabel: { color: '#64748b', fontSize: 9, interval: 2 }, axisLine: { lineStyle: { color: '#2a3550' } } },
+      yAxis: { type: 'value', axisLabel: { color: '#64748b', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [
+        { type: 'bar', data: histBins, barWidth: '60%', itemStyle: { color: 'rgba(59,130,246,0.5)', borderRadius: [3, 3, 0, 0] } },
+        { type: 'line', data: normalY, smooth: true, symbol: 'none', lineStyle: { color: '#f59e0b', width: 2 } }
+      ]
+    });
+
+    // --- Chart 4: Prediction model comparison ---
+    const c4 = echarts.init(document.getElementById('chart-prediction'));
+    c4.setOption({
+      ...theme,
+      grid: { top: 20, right: 20, bottom: 40, left: 50 },
+      xAxis: { type: 'category', data: ['ETS', 'ARIMA(d=0)', 'ARIMA(d=1)', 'MA'], axisLabel: { color: '#64748b', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3550' } } },
+      yAxis: { type: 'value', name: 'MASE', nameTextStyle: { color: '#64748b' }, axisLabel: { color: '#64748b', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'bar', data: [
+          { value: 0.82, itemStyle: { color: '#10b981' } },
+          { value: 0.91, itemStyle: { color: '#3b82f6' } },
+          { value: 1.05, itemStyle: { color: '#3b82f6' } },
+          { value: 1.18, itemStyle: { color: '#3b82f6' } }
+        ], barWidth: '40%', label: { show: true, position: 'top', color: '#94a3b8', fontSize: 11 }, itemStyle: { borderRadius: [4, 4, 0, 0] }
+      }],
+      markLine: { silent: true, data: [{ yAxis: 1, label: { formatter: 'MASE=1', color: '#ef4444', fontSize: 10 }, lineStyle: { color: '#ef4444', type: 'dashed' } }] }
+    });
+
+    window.addEventListener('resize', () => { c1.resize(); c2.resize(); c3.resize(); c4.resize(); });
+  }
+})();
+</script>
+</body>
+</html>

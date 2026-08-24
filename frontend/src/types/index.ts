@@ -11,6 +11,7 @@ export interface MonitorData {
   upper_limit?: number
   lower_limit?: number
   is_qualified: number
+  is_voided?: number
   sample_time: string
   sample_id?: string | null
   remark?: string | null

@@ -46,9 +46,18 @@ def get_alert_products():
 def resolve_alert(alert_id: str, body: dict = None):
     resolved_by = "user"
     note = ""
+    action = "confirm"
     if body:
         resolved_by = body.get("resolved_by", "user")
         note = body.get("note", "")
+        action = body.get("action", "confirm")
+
+    if action == "void_data":
+        voided = storage.resolve_alert_and_void(alert_id, resolved_by, note)
+        if voided:
+            return {"status": "resolved", "alert_id": alert_id, "action": "void_data"}
+        return {"status": "not_found", "alert_id": alert_id}
+
     ok = storage.resolve_alert(alert_id, resolved_by, note)
     if ok:
         return {"status": "resolved", "alert_id": alert_id}
@@ -59,8 +68,13 @@ def batch_resolve_alerts(body: dict):
     alert_ids = body.get("alert_ids", [])
     resolved_by = body.get("resolved_by", "user")
     note = body.get("note", "")
+    action = body.get("action", "confirm")
     resolved = 0
     for aid in alert_ids:
-        if storage.resolve_alert(aid, resolved_by, note):
-            resolved += 1
+        if action == "void_data":
+            if storage.resolve_alert_and_void(aid, resolved_by, note):
+                resolved += 1
+        else:
+            if storage.resolve_alert(aid, resolved_by, note):
+                resolved += 1
     return {"status": "done", "resolved": resolved, "total": len(alert_ids)}

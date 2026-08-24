@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import { useChart } from '../../components/Charts'
-import { FloatingToc } from '../../components/FloatingToc'
 import s from './Manual.module.css'
 
 /* ─── Reusable bits ─── */
@@ -457,7 +456,7 @@ const DMAICChart: React.FC = () => {
 
 /* ════════════════════ MAIN COMPONENT ════════════════════ */
 export const ManualPage: React.FC = () => {
-  const floatingTocItems = [
+  const tocItems = [
     { id: 'stats', title: '统计学基础' },
     { id: 'normal', title: '正态分布与3σ' },
     { id: 'spc', title: 'SPC 统计过程控制' },
@@ -476,14 +475,58 @@ export const ManualPage: React.FC = () => {
     { id: 'sliding', title: '滑动窗口' },
     { id: 'compliance', title: '3σ合规判定' },
     { id: 'products', title: '液奶指标体系' },
+    { id: 'cross-predict', title: '交叉预测' },
     { id: 'appendix', title: '术语速查表' },
   ]
 
+  const [activeId, setActiveId] = useState('')
+
+  // Track which section is currently visible
+  useEffect(() => {
+    const observers: IntersectionObserver[] = []
+    const visible = new Map<string, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) visible.set(entry.target.id, entry.intersectionRatio)
+          else visible.delete(entry.target.id)
+        })
+        let bestId = ''
+        let bestRatio = 0
+        visible.forEach((ratio, id) => { if (ratio > bestRatio) { bestRatio = ratio; bestId = id } })
+        if (bestId) setActiveId(bestId)
+      },
+      { threshold: [0, 0.25, 0.5], rootMargin: '-80px 0px -60% 0px' }
+    )
+    tocItems.forEach(({ id }) => { const el = document.getElementById(id); if (el) observer.observe(el) })
+    observers.push(observer)
+    return () => observers.forEach(o => o.disconnect())
+  }, [])
+
+  const handleNav = useCallback((id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
   return (
     <div className={s.page}>
-      <FloatingToc items={floatingTocItems} />
-      {/* Hero */}
-      <div className={s.hero}>
+      {/* Fixed Left Sidebar */}
+      <nav className={s.sidebar}>
+        <div className={s.sidebarTitle}>目录</div>
+        {tocItems.map(item => (
+          <button
+            key={item.id}
+            className={`${s.sidebarItem} ${activeId === item.id ? s.sidebarItemActive : ''}`}
+            onClick={() => handleNav(item.id)}
+          >
+            {item.title}
+          </button>
+        ))}
+      </nav>
+
+      {/* Scrollable Content */}
+      <div className={s.content}>
+        {/* Hero */}
+        <div className={s.hero}>
         <div className={s.heroTitle}>液奶成品检验数据分析手册</div>
         <div className={s.heroSub}>专有名词 · 计算逻辑 · 可视化图解 · 乳品行业应用</div>
         <div className={s.heroMeta}>
@@ -950,9 +993,90 @@ export const ManualPage: React.FC = () => {
         </table>
       </SectionCard>
 
+      {/* ─── 交叉预测系数参考与方法对比 ─── */}
+      <SectionCard id="cross-predict" icon={svgMean} title="交叉预测 — 脂肪→饱和脂肪" subtitle="通过已有指标实时预测关联指标的方法、系数参考与精度分析" tag="预测" tagClass={s.tagStat}>
+        <Concept id="predict-overview" title="什么是交叉预测？" tag="预测" tagClass={s.tagStat}>
+          <p>交叉预测是通过一个已采集指标的实时值，乘以一个系数，预测另一个关联指标。公式为：</p>
+          <div className={s.formulaBox}>目标指标值 = 源指标值 × 系数(k)</div>
+          <p>首期实现：脂肪 → 饱和脂肪。系数由用户在品项管理页面配置，选择产品类别时自动填入推荐值，可手动修改。</p>
+        </Concept>
+
+        <Concept id="predict-coefficients" title="推荐系数参考（基于4138条历史数据建模）" tag="参考" tagClass={s.tagStat}>
+          <table className={s.table}>
+            <thead><tr><th>产品类别</th><th>推荐系数k</th><th>拟合度(R²)</th><th>样本数</th><th>建议</th></tr></thead>
+            <tbody>
+              <tr><td>灭菌乳</td><td>0.6277</td><td>0.92</td><td>2226</td><td>★★★★★ 直接使用</td></tr>
+              <tr><td>调制乳</td><td>0.6320</td><td>0.98</td><td>604</td><td>★★★★★ 直接使用</td></tr>
+              <tr><td>乳饮料</td><td>0.6230</td><td>0.97</td><td>837</td><td>★★★★★ 直接使用</td></tr>
+              <tr><td>发酵乳</td><td>0.6232</td><td>0.67</td><td>299</td><td>★★★★☆ 可用，波动稍大</td></tr>
+              <tr><td>超滤纯牛奶</td><td>0.6255</td><td>—</td><td>10</td><td>★★★☆☆ 样本少，建议验证</td></tr>
+              <tr><td>乳味饮料</td><td>0.6301</td><td>0.13</td><td>35</td><td>★★★☆☆ 样本少，建议验证</td></tr>
+              <tr><td>果蔬汁类饮料</td><td>0.6187</td><td>0.96</td><td>48</td><td>★★★★☆ 可用</td></tr>
+              <tr><td>植物蛋白饮品</td><td>0.1742</td><td>—</td><td>23</td><td>★★☆☆☆ 数据离散，仅作参考</td></tr>
+              <tr><td>风味饮料</td><td>0.5480</td><td>0.81</td><td>23</td><td>★★★☆☆ 样本少</td></tr>
+              <tr><td>复合蛋白饮料</td><td>0.3231</td><td>—</td><td>3</td><td>★★☆☆☆ 样本极少</td></tr>
+              <tr><td>奶油</td><td>0.6470</td><td>0.99</td><td>3</td><td>★★★★★ 样本少但拟合好</td></tr>
+            </tbody>
+          </table>
+          <p style={{ marginTop: 8, color: 'var(--text-muted, #64748b)', fontSize: 13 }}>如不区分类别，乳制品统一使用 <b>k ≈ 0.6278</b>（R²=0.98，覆盖灭菌乳/发酵乳/乳饮料/调制乳）</p>
+        </Concept>
+
+        <Concept id="predict-accuracy" title="方法对比与精度分析" tag="分析" tagClass={s.tagStat}>
+          <h4>乳制品主组（灭菌乳/调制乳/乳饮料，n=3667）</h4>
+          <table className={s.table}>
+            <thead><tr><th>方法</th><th>R²</th><th>平均误差(MAE)</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td><b>线性公式（当前采用）</b></td><td><b>0.985</b></td><td><b>0.071</b></td><td>饱和脂肪 = 脂肪 × 0.6278</td></tr>
+              <tr><td>线性+截距</td><td>0.985</td><td>0.071</td><td>饱和脂肪 = 0.6187×脂肪 + 0.036</td></tr>
+              <tr><td>随机森林(ML)</td><td>0.986</td><td>0.068</td><td>仅提升0.001，不值得增加复杂度</td></tr>
+              <tr><td>梯度提升(ML)</td><td>0.986</td><td>0.068</td><td>同上</td></tr>
+            </tbody>
+          </table>
+          <p>线性公式已是该场景的最优解。机器学习方法仅提升0.1%的R²，但增加了模型复杂度和维护成本。</p>
+
+          <h4>误差分布</h4>
+          <table className={s.table}>
+            <thead><tr><th>指标</th><th>值</th></tr></thead>
+            <tbody>
+              <tr><td>平均绝对误差</td><td>0.071 g/100g</td></tr>
+              <tr><td>中位绝对误差</td><td>0.052 g/100g</td></tr>
+              <tr><td>90%样本误差</td><td>&lt; 0.155 g/100g</td></tr>
+              <tr><td>误差 &lt; ±5% 的比例</td><td>74.7%</td></tr>
+              <tr><td><b>误差 &lt; ±10% 的比例</b></td><td><b>96.5%</b></td></tr>
+              <tr><td>误差 &lt; ±15% 的比例</td><td>98.4%</td></tr>
+            </tbody>
+          </table>
+
+          <h4>发酵乳（R²=0.67）</h4>
+          <p>发酵乳精度偏低是发酵工艺固有特征（乳酸菌分解脂肪比例不固定），ML方法（随机森林R²=0.61、GBDT R²=0.60）反而更差。任何预测模型都无法消除工艺波动。</p>
+
+          <h4>植物蛋白饮品</h4>
+          <p>所有方法R²均为负值。23个样本，ratio从0.14到0.36跨度太大。建议该类型不做预测，或仅作极粗略参考。</p>
+
+          <h4>为什么不用机器学习？</h4>
+          <table className={s.table}>
+            <thead><tr><th>维度</th><th>线性公式</th><th>机器学习</th></tr></thead>
+            <tbody>
+              <tr><td>乳制品R²</td><td>0.985</td><td>0.986（仅+0.001）</td></tr>
+              <tr><td>可解释性</td><td>公式直观，可手工验算</td><td>黑盒，无法手工验证</td></tr>
+              <tr><td>计算开销</td><td>一次乘法，&lt;1ms</td><td>需加载模型，~10ms</td></tr>
+              <tr><td>维护成本</td><td>改系数即可</td><td>需重新训练、版本管理</td></tr>
+            </tbody>
+          </table>
+          <p>当单指标线性关系已经很强（R²&gt;0.98）时，ML方法的边际收益极小，但引入的复杂度显著增加。线性公式是实时生产环境的最佳选择。</p>
+        </Concept>
+
+        <Concept id="predict-future" title="未来提升方向" tag="展望" tagClass={s.tagStat}>
+          <p>如果需要更高精度，唯一的路径是<b>多指标联合预测</b>：</p>
+          <div className={s.formulaBox}>饱和脂肪 = a×脂肪 + b×蛋白质 + c×非脂乳固体 + d</div>
+          <p>FT1/FT120仪器通常已采集蛋白质和非脂乳固体数据，多指标模型对发酵乳和植物蛋白饮品可能有实质提升。</p>
+        </Concept>
+      </SectionCard>
+
       {/* Footer */}
       <div style={{ textAlign: 'center', padding: '32px 0 16px', color: 'var(--text-muted, #64748b)', fontSize: 13, borderTop: '1px solid var(--border-color, #1e293b)', marginTop: 8 }}>
         由液态奶中心实验室编制
+      </div>
       </div>
     </div>
   )

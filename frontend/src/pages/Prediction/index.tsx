@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import * as echarts from 'echarts/core'
 import { HeatmapChart } from 'echarts/charts'
+import { VisualMapComponent, TooltipComponent, GridComponent } from 'echarts/components'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { api } from '../../services'
 import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import styles from './Prediction.module.css'
 
-echarts.use([HeatmapChart])
+echarts.use([HeatmapChart, VisualMapComponent, TooltipComponent, GridComponent])
 
 const HORIZON_MAP: Record<string, number> = { '1h': 12, '2h': 24, 'shift': 60 }
 
@@ -139,9 +140,13 @@ const RISK_LABELS: Record<string, string> = {
 }
 
 const CAPABILITY_LABELS: Record<string, string> = {
-  capable: '过程能力充足',
-  marginal: '过程能力临界',
-  incapable: '过程能力不足',
+  excellent: '优秀',
+  sufficient: '充足',
+  insufficient: '不足',
+  severe_insufficient: '严重不足',
+  capable: '充足',
+  marginal: '临界',
+  incapable: '不足',
 }
 
 // ====== Component ======
@@ -372,7 +377,7 @@ export const PredictionPage: React.FC = () => {
     return {
       ...chartTheme,
       tooltip: { trigger: 'axis' as const, ...tooltipStyle },
-      grid: { left: 50, right: 20, top: 27, bottom: 30 },
+      grid: { left: 50, right: 20, top: 10, bottom: 30 },
       xAxis: { type: 'category' as const, data: residuals.map((_, i) => `#${i + 1}`), ...chartTheme.xAxis },
       yAxis: { type: 'value' as const, ...chartTheme.yAxis, name: '残差' },
       series: [{
@@ -399,7 +404,7 @@ export const PredictionPage: React.FC = () => {
           return `<b>${params[0].name}</b><br/>MASE: ${params[0].value.toFixed(3)}`
         },
       },
-      grid: { left: 50, right: 20, top: 10, bottom: 30 },
+      grid: { left: 50, right: 100, top: 10, bottom: 30 },
       xAxis: {
         type: 'category' as const,
         data: models.map(m => m.model.toUpperCase()),
@@ -467,8 +472,9 @@ export const PredictionPage: React.FC = () => {
       }
     }
 
-    // Shorten indicator names for display
-    const shortNames = indNames.map(n => n.length > 12 ? n.slice(0, 12) + '…' : n)
+    // Map indicator codes to display names (alias > code)
+    const displayNames = indNames.map(n => aliases.indicators[n] || n)
+    const shortNames = displayNames.map(n => n.length > 12 ? n.slice(0, 12) + '…' : n)
 
     return {
       ...chartTheme,
@@ -476,7 +482,7 @@ export const PredictionPage: React.FC = () => {
         ...tooltipStyle,
         formatter: (p: { value: [number, number, number] }) => {
           const [x, y, v] = p.value
-          return `${indNames[y]} × ${indNames[x]}<br/>相关系数: <b>${v.toFixed(3)}</b>`
+          return `${displayNames[y]} × ${displayNames[x]}<br/>相关系数: <b>${v.toFixed(3)}</b>`
         },
       },
       grid: { left: 10, right: 10, top: 10, bottom: 10, containLabel: true },
@@ -511,7 +517,7 @@ export const PredictionPage: React.FC = () => {
         emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } },
       }],
     }
-  }, [corrData])
+  }, [corrData, aliases])
 
   const correlationChartRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -535,7 +541,7 @@ export const PredictionPage: React.FC = () => {
     return {
       ...chartTheme,
       tooltip: { trigger: 'axis' as const, ...tooltipStyle },
-      grid: { left: 20, right: 20, top: 10, bottom: 30, containLabel: true },
+      grid: { left: 20, right: 60, top: 10, bottom: 30, containLabel: true },
       xAxis: {
         type: 'value' as const,
         ...chartTheme.xAxis,
@@ -543,7 +549,10 @@ export const PredictionPage: React.FC = () => {
       },
       yAxis: {
         type: 'category' as const,
-        data: features.map(f => f.name.length > 15 ? f.name.slice(0, 15) + '…' : f.name),
+        data: features.map(f => {
+          const displayName = aliases.indicators[f.name] || f.name
+          return displayName.length > 15 ? displayName.slice(0, 15) + '…' : displayName
+        }),
         ...chartTheme.yAxis,
         axisLabel: { ...chartTheme.yAxis.axisLabel, fontSize: 11 },
       },
@@ -566,7 +575,7 @@ export const PredictionPage: React.FC = () => {
         label: { show: true, position: 'right' as const, color: '#8b95a7', fontSize: 11, formatter: '{c}' },
       }],
     }
-  }, [featData])
+  }, [featData, aliases])
 
   const featureChartRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -630,7 +639,7 @@ export const PredictionPage: React.FC = () => {
   // ====== Task 4: Risk breach KPI helpers ======
   const riskLevelColor = result?.risk ? (RISK_COLORS[result.risk.risk_level] || '#10b981') : '#10b981'
   const breachProbDisplay = result?.risk ? `${(result.risk.breach_prob * 100).toFixed(1)}%` : '--'
-  const breachTimeDisplay = result?.risk?.breach_time
+  const breachTimeDisplay = result?.risk?.breach_time && typeof result.risk.breach_time === 'string'
     ? result.risk.breach_time.slice(5, 16)
     : '暂无越限'
   const breachDirectionDisplay = result?.risk?.breach_direction === 'upper'
@@ -697,8 +706,8 @@ export const PredictionPage: React.FC = () => {
         </div>
 
         {/* Direction Accuracy Card (Task 2) */}
-        <div className={`${styles.kpiCard}`} style={{ borderLeft: 'none' }}>
-          <div className={`${styles.kpiCard}`} style={{
+        <div className={`${styles.kpiCard}`}>
+          <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 3,
             background: result?.accuracy.direction_acc != null
               ? (result.accuracy.direction_acc > 70 ? 'var(--gradient-green)' : result.accuracy.direction_acc > 60 ? 'var(--gradient-orange)' : '#ef4444')
@@ -793,11 +802,11 @@ export const PredictionPage: React.FC = () => {
               预测残差分析
             </div>
           </div>
-          <div className={styles.panelBody}>
+          <div className={styles.panelBody} style={{ paddingTop: 35 }}>
             <div
               ref={residualChartRef}
               className={styles.chartContainer}
-              style={{ height: 290 }}
+              style={{ height: 405 }}
             />
           </div>
         </div>
@@ -893,7 +902,7 @@ export const PredictionPage: React.FC = () => {
               {cpkData?.cpk_current?.toFixed(2) ?? '--'}
             </div>
             <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
-              {cpkData ? `趋势: ${cpkData.cpk_trend}` : '加载中...'}
+              {cpkData ? (cpkData.cpk_trend != null ? `趋势: ${cpkData.cpk_trend}` : '数据窗口不足') : '加载中...'}
             </div>
           </div>
           <div className={styles.riskCard}>
@@ -906,19 +915,19 @@ export const PredictionPage: React.FC = () => {
             </div>
           </div>
           <div className={styles.riskCard}>
-            <div className={styles.riskCardTitle}>漂移幅度</div>
+            <div className={styles.riskCardTitle}>漂移幅度 (σ)</div>
             <div className={styles.riskCardValue} style={{ color: driftData ? (driftData.alert ? '#ef4444' : '#10b981') : 'var(--text-muted)' }}>
-              {driftData ? `${(driftData.current_segment_drift * 100).toFixed(1)}%` : '--'}
+              {driftData?.current_segment_drift != null ? `${driftData.current_segment_drift.toFixed(2)}σ` : '--'}
             </div>
             <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
-              {driftData ? `方向: ${driftData.drift_direction === 'upward' ? '↑ 上升' : driftData.drift_direction === 'downward' ? '↓ 下降' : driftData.drift_direction}` : '加载中...'}
+              {driftData ? `方向: ${driftData.drift_direction === 'up' || driftData.drift_direction === 'upward' ? '↑ 上升' : driftData.drift_direction === 'down' || driftData.drift_direction === 'downward' ? '↓ 下降' : '→ 稳定'}` : '加载中...'}
             </div>
           </div>
           <div className={styles.riskCard}>
             <div className={styles.riskCardTitle}>能力评估</div>
             <div className={styles.riskCardValue} style={{
               fontSize: 16,
-              color: cpkData?.capability === 'capable' ? '#10b981' : cpkData?.capability === 'marginal' ? '#f59e0b' : cpkData ? '#ef4444' : 'var(--text-muted)',
+              color: (cpkData?.capability === 'excellent' || cpkData?.capability === 'capable') ? '#10b981' : (cpkData?.capability === 'sufficient' || cpkData?.capability === 'marginal') ? '#f59e0b' : cpkData ? '#ef4444' : 'var(--text-muted)',
             }}>
               {cpkData ? CAPABILITY_LABELS[cpkData.capability] || cpkData.capability : '--'}
             </div>

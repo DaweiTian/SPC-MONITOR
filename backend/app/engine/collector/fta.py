@@ -261,8 +261,8 @@ class FTACollector(BaseCollector):
             ]
         except Exception as e:
             logger.error(f"FTA 获取产品列表失败: {e}")
-            self._products_cache = []
-        return self._products_cache
+            self._products_cache = None  # 不缓存失败结果，下次重试
+        return self._products_cache or []
 
     def get_indicators(self) -> List[Dict[str, Any]]:
         if self._indicators_cache is not None:
@@ -284,8 +284,8 @@ class FTACollector(BaseCollector):
             ]
         except Exception as e:
             logger.error(f"FTA 获取指标列表失败: {e}")
-            self._indicators_cache = []
-        return self._indicators_cache
+            self._indicators_cache = None  # 不缓存失败结果，下次重试
+        return self._indicators_cache or []
 
     def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
         # FTA 的规格限存储在 ProductSpecParameter 表中

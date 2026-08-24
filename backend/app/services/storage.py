@@ -330,12 +330,20 @@ class OnlineStorage:
         date: str | None = None,
         product_code: str | None = None,
         indicator_code: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> dict[str, Any]:
         conn = self._connect()
         try:
             conditions: list[str] = []
             params: list[Any] = []
-            if date:
+            if date_from:
+                conditions.append("sample_time >= ?")
+                params.append(date_from)
+            if date_to:
+                conditions.append("sample_time <= ?")
+                params.append(date_to + " 23:59:59")
+            elif date:
                 conditions.append("sample_time LIKE ?")
                 params.append(f"{date}%")
             if product_code:

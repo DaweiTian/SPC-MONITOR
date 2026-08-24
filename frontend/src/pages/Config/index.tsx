@@ -198,6 +198,15 @@ export const ConfigPage: React.FC = () => {
   const [indicatorAliases, setIndicatorAliases] = useState<Record<string, string>>({})
   const [savedSpecLimits, setSavedSpecLimits] = useState<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>({})
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
+  const [excludedRemarks, setExcludedRemarks] = useState<string[]>([])
+  const [newRemarkKeyword, setNewRemarkKeyword] = useState('')
+  const [productCategories, setProductCategories] = useState<Record<string, string>>({})
+  const [predictionCategories, setPredictionCategories] = useState<Record<string, { name: string; k: number }>>({})
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
+  const [predCoefficient, setPredCoefficient] = useState('')
+  const [productSearch, setProductSearch] = useState('')
   const [frequencyStatus, setFrequencyStatus] = useState<{
     current_level: number
     current_interval_minutes: number
@@ -255,7 +264,7 @@ export const ConfigPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult, aliasResult, savedIndResult] = await Promise.all([
+      const [productsResult, indicatorsResult, statusResult, limitsResult, rulesResult, aliasResult, savedIndResult, exclRemarksResult, categoriesResult, predCategoriesResult, predConfigResult] = await Promise.all([
         api.getProducts(),
         api.getIndicators(),
         api.getProductStatus().catch(() => ({} as Record<string, string>)),
@@ -263,7 +272,13 @@ export const ConfigPage: React.FC = () => {
         api.getAlertRules().catch(() => null),
         api.getAliases().catch(() => ({ products: {}, indicators: {} })),
         api.getSavedIndicators().catch(() => ({} as Record<string, string[]>)),
+        api.getExcludedRemarks().catch(() => ['基准样']),
+        api.getProductCategories().catch(() => ({})),
+        api.getPredictionCategories().catch(() => ({})),
+        api.getPredictionConfig().catch(() => ({})),
       ])
+
+      if (exclRemarksResult) setExcludedRemarks(exclRemarksResult)
 
       if (indicatorsResult?.indicators) {
         setAvailableIndicators(indicatorsResult.indicators)
@@ -291,6 +306,10 @@ export const ConfigPage: React.FC = () => {
       if (savedIndResult) {
         setSavedIndicators(savedIndResult)
       }
+
+      if (categoriesResult) setProductCategories(categoriesResult)
+      if (predCategoriesResult) setPredictionCategories(predCategoriesResult)
+      if (predConfigResult) setPredictionConfig(predConfigResult)
 
       if (productsResult?.products) {
         // Fetch recent collection counts for sorting
@@ -417,27 +436,38 @@ export const ConfigPage: React.FC = () => {
       } else {
         result = await api.updateDBConfig({ ...dbConfig, enabled: true })
       }
-      
+
       if (result?.success) {
-        setSaveResult({ success: true, message: '配置已保存，正在分析数据源...' })
-        
-        // Fetch init status for MDB
-        if (instrumentInfo.type === 'mdb') {
-          try {
-            const status = await api.getMDBInitStatus()
-            if (status?.success) {
-              setInitStatus(status)
-              setShowConfirmDialog(true)
-              setSaveResult({ success: true, message: '配置已保存，请确认数据源信息' })
-            } else {
-              setSaveResult({ success: false, message: status?.message || '获取数据源信息失败' })
-            }
-          } catch {
-            setSaveResult({ success: false, message: '获取数据源信息失败' })
-          }
+        setSaveResult({ success: true, message: '配置已保存，正在连接数据源...' })
+
+        // Switch instrument immediately so collector is ready before preview/import
+        const switchResult = await api.switchInstrument(currentInstrument, initLimit)
+        if (switchResult?.success) {
+          setSaveResult({ success: true, message: '数据源已连接，正在获取预览...' })
         } else {
-          // For SQL Server / FTA, activate and trigger first collection
-          await handleActivateInstrument(currentInstrument)
+          setSaveResult({ success: true, message: switchResult?.message || '数据源连接中...' })
+        }
+
+        // Fetch init status for preview dialog (all instrument types)
+        let status: any = null
+        try {
+          if (instrumentInfo.type === 'mdb') {
+            status = await api.getMDBInitStatus()
+          } else if (instrumentInfo.type === 'fta') {
+            status = await api.getFTAInitStatus()
+          } else {
+            status = await api.getDbInitStatus()
+          }
+        } catch {
+          // ignore
+        }
+
+        if (status?.success) {
+          setInitStatus(status)
+          setShowConfirmDialog(true)
+          setSaveResult({ success: true, message: '配置已保存，请确认数据源信息' })
+        } else {
+          // Preview failed, but instrument is already switched — collect directly
           try {
             const collectResult = await api.manualCollect()
             if (collectResult?.status === 'success') {
@@ -468,9 +498,8 @@ export const ConfigPage: React.FC = () => {
     setImportProgress({ current: 0, total: initLimit, elapsed: 0 })
     const startTime = Date.now()
     try {
-      // Auto-match products from MDB if available
+      // Auto-match products from preview if available
       if (initStatus?.recent_records) {
-        // Fetch latest products first to avoid stale closure
         await fetchProducts()
         const mdbProducts = initStatus.recent_records.reduce((acc, record) => {
           if (!acc.find(p => p.name === record.product_name)) {
@@ -478,19 +507,11 @@ export const ConfigPage: React.FC = () => {
           }
           return acc
         }, [] as Array<{ name: string; code: string }>)
-        
+
         handleAutoMatchProducts(mdbProducts)
       }
 
-      // Activate instrument with init_limit
-      const activateResult = await api.switchInstrument(currentInstrument, initLimit)
-      if (!activateResult?.success) {
-        setCollectResult({ success: false, message: activateResult?.message || '激活失败' })
-        setImporting(false)
-        return
-      }
-      
-      // Perform first collection (with 60s timeout)
+      // Instrument is already switched in handleSaveConfig — just collect
       setCollectResult({ success: true, message: '正在采集数据...' })
       const collectResult = await Promise.race([
         api.manualCollect(),
@@ -549,6 +570,12 @@ export const ConfigPage: React.FC = () => {
       target: '',
       unit: ''
     })))
+
+    // Reset prediction-related state for new product
+    setSelectedCategory('')
+    setPredictSaturatedFat(false)
+    setPredCoefficient('')
+
     setShowProductDialog(true)
   }
 
@@ -583,6 +610,19 @@ export const ConfigPage: React.FC = () => {
         unit: ''
       }
     }))
+
+    // Load category and prediction config
+    setSelectedCategory(productCategories[product.code] || '')
+    const prodPred = predictionConfig[product.code] || {} as Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>
+    const satFatCfg = prodPred.saturated_fat
+    setPredictSaturatedFat(satFatCfg?.enabled || false)
+    if (satFatCfg?.coefficient != null) {
+      setPredCoefficient(satFatCfg.coefficient.toString())
+    } else if (productCategories[product.code] && predictionCategories[productCategories[product.code]]) {
+      setPredCoefficient(predictionCategories[productCategories[product.code]].k.toFixed(4))
+    } else {
+      setPredCoefficient('')
+    }
 
     setShowProductDialog(true)
   }
@@ -687,6 +727,30 @@ export const ConfigPage: React.FC = () => {
     }
     setSavedSpecLimits(prev => ({ ...prev, [newProduct.code]: productLimits }))
 
+    // Save product category
+    try {
+      await api.updateProductCategory(newProduct.code, selectedCategory)
+      setProductCategories(prev => ({ ...prev, [newProduct.code]: selectedCategory }))
+    } catch (e) {
+      console.error('保存产品类别失败:', e)
+    }
+
+    // Save prediction config (source→target with user-configured coefficient)
+    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean }> = {}
+    if (predictSaturatedFat) {
+      predIndicators.saturated_fat = {
+        source_indicator: 'fat',
+        coefficient: parseFloat(predCoefficient) || 0.6278,
+        enabled: true,
+      }
+    }
+    try {
+      await api.updatePredictionConfig(newProduct.code, predIndicators)
+      setPredictionConfig(prev => ({ ...prev, [newProduct.code]: predIndicators }))
+    } catch (e) {
+      console.error('保存预测配置失败:', e)
+    }
+
     setShowProductDialog(false)
   }
 
@@ -694,6 +758,21 @@ export const ConfigPage: React.FC = () => {
     if (confirm('确定要删除这个品项吗？')) {
       setProducts(prev => prev.filter(p => p.id !== productId))
     }
+  }
+
+  const handleAddExcludedRemark = async () => {
+    const keyword = newRemarkKeyword.trim()
+    if (!keyword || excludedRemarks.includes(keyword)) return
+    const updated = [...excludedRemarks, keyword]
+    setExcludedRemarks(updated)
+    setNewRemarkKeyword('')
+    try { await api.updateExcludedRemarks(updated) } catch (e) { console.error('保存失败:', e) }
+  }
+
+  const handleRemoveExcludedRemark = async (keyword: string) => {
+    const updated = excludedRemarks.filter(k => k !== keyword)
+    setExcludedRemarks(updated)
+    try { await api.updateExcludedRemarks(updated) } catch (e) { console.error('保存失败:', e) }
   }
 
   const handleAutoMatchProducts = (mdbProducts: Array<{ name: string; code: string }>) => {
@@ -739,6 +818,14 @@ export const ConfigPage: React.FC = () => {
             <span className={styles.cardTitleDot} />
             品项管理
           </span>
+          <input
+            type="text"
+            className={styles.formInput}
+            value={productSearch}
+            onChange={e => setProductSearch(e.target.value)}
+            placeholder="搜索品项名称或编码..."
+            style={{ width: '200px', padding: '4px 10px', fontSize: '12px', marginLeft: 'auto' }}
+          />
         </div>
         <div className={styles.cardBody}>
           <table className={styles.table}>
@@ -746,6 +833,7 @@ export const ConfigPage: React.FC = () => {
               <tr>
                 <th>品项名称</th>
                 <th>编码</th>
+                <th>样品类别</th>
                 <th>监测指标数</th>
                 <th>规格限 (USL/LSL)</th>
                 <th>状态</th>
@@ -753,10 +841,19 @@ export const ConfigPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map(p => (
+              {products.filter(p => {
+                if (!productSearch.trim()) return true
+                const q = productSearch.trim().toLowerCase()
+                return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
+              }).map(p => (
                 <tr key={p.id}>
                   <td className={styles.tableCellPrimary}>{p.name}</td>
                   <td className={styles.tableCellMono}>{p.code}</td>
+                  <td>
+                    {productCategories[p.code]
+                      ? (predictionCategories[productCategories[p.code]]?.name || productCategories[p.code])
+                      : <span style={{ color: 'var(--text-muted)' }}>未配置</span>}
+                  </td>
                   <td>{p.indicatorCount}</td>
                   <td>
                     {savedSpecLimits[p.code] && Object.keys(savedSpecLimits[p.code]).length > 0
@@ -786,6 +883,40 @@ export const ConfigPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ── 排除备注关键词 ─────────────────────── */}
+      <div className={styles.card} style={{ marginBottom: '20px' }}>
+        <div className={styles.cardHeader}>
+          <span className={styles.cardTitle}>
+            <span className={styles.cardTitleDot} />
+            排除备注关键词
+          </span>
+          <span className={styles.cardHint}>包含这些关键词的备注数据不参与SPC/过程能力计算</span>
+        </div>
+        <div className={styles.remarksSection}>
+          <div className={styles.remarksChips}>
+            {excludedRemarks.length === 0 && (
+              <span className={styles.remarksEmpty}>暂无排除关键词</span>
+            )}
+            {excludedRemarks.map(kw => (
+              <span key={kw} className={styles.tagChip}>
+                {kw}
+                <button className={styles.tagChipRemove} onClick={() => handleRemoveExcludedRemark(kw)}>×</button>
+              </span>
+            ))}
+          </div>
+          <div className={styles.remarksInputRow}>
+            <input
+              className={styles.formInput}
+              placeholder="输入关键词（如：基准样）"
+              value={newRemarkKeyword}
+              onChange={e => setNewRemarkKeyword(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddExcludedRemark() }}
+            />
+            <button className={styles.btnSmall} onClick={handleAddExcludedRemark}>添加</button>
+          </div>
         </div>
       </div>
 
@@ -1666,7 +1797,7 @@ export const ConfigPage: React.FC = () => {
       {/* ── Product Dialog ── */}
       {showProductDialog && (
         <div className={styles.confirmOverlay}>
-          <div className={styles.confirmDialog} style={{ maxWidth: '700px' }} role="dialog" aria-modal="true" aria-label={editingProduct ? '编辑品项' : '新增品项'}>
+          <div className={styles.confirmDialog} style={{ maxWidth: '820px' }} role="dialog" aria-modal="true" aria-label={editingProduct ? '编辑品项' : '新增品项'}>
             <div className={styles.confirmHeader}>
               <h3>{editingProduct ? '编辑品项' : '新增品项'}</h3>
               <button className={styles.confirmClose} onClick={() => setShowProductDialog(false)}>×</button>
@@ -1728,12 +1859,34 @@ export const ConfigPage: React.FC = () => {
                     aria-label="品项别名"
                   />
                 </div>
+                <div className={styles.formGroup} style={{ marginTop: '12px' }}>
+                  <label className={styles.formLabel}>样品类别</label>
+                  <select
+                    className={styles.formSelect}
+                    value={selectedCategory}
+                    onChange={e => {
+                      const newCategory = e.target.value
+                      setSelectedCategory(newCategory)
+                      if (newCategory && predictionCategories[newCategory]) {
+                        setPredCoefficient(predictionCategories[newCategory].k.toFixed(4))
+                      }
+                    }}
+                  >
+                    <option value="">-- 请选择 --</option>
+                    {Object.entries(predictionCategories).map(([code, info]) => (
+                      <option key={code} value={code}>{info.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    选择类别后自动填入推荐系数，可在预测指标中手动修改
+                  </div>
+                </div>
               </div>
 
               {/* Indicator Selection & Spec Limits */}
               <div className={styles.confirmSection}>
                 <h4>监测指标与规格限</h4>
-                <div className={styles.confirmTableWrapper} style={{ maxHeight: '300px' }}>
+                <div className={styles.confirmTableWrapper} style={{ maxHeight: '420px' }}>
                   <table className={styles.confirmTable}>
                     <thead>
                       <tr>
@@ -1827,6 +1980,68 @@ export const ConfigPage: React.FC = () => {
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
                   已选择 {indicatorSpecs.filter(s => s.enabled).length} / {indicatorSpecs.length} 个指标
+                </div>
+              </div>
+
+              {/* Prediction Indicators */}
+              <div className={styles.confirmSection}>
+                <h4>预测指标</h4>
+                <div style={{ padding: '8px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={predictSaturatedFat}
+                        onChange={e => setPredictSaturatedFat(e.target.checked)}
+                      />
+                      <span>饱和脂肪</span>
+                    </label>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      来源: 脂肪(fat) → 饱和脂肪(saturated_fat)
+                    </span>
+                  </div>
+
+                  {predictSaturatedFat && (
+                    <div style={{
+                      marginTop: '4px', padding: '10px 12px', fontSize: '12px',
+                      background: 'var(--bg-secondary)', borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span>预测系数 (k):</span>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          className={styles.formInput}
+                          style={{ width: '100px', padding: '4px 8px' }}
+                          value={predCoefficient}
+                          onChange={e => setPredCoefficient(e.target.value)}
+                          placeholder="例: 0.6278"
+                        />
+                        {selectedCategory && predictionCategories[selectedCategory] && (
+                          <button
+                            className={styles.btnEdit}
+                            style={{ fontSize: '11px', padding: '2px 8px' }}
+                            onClick={() => setPredCoefficient(predictionCategories[selectedCategory].k.toFixed(4))}
+                          >
+                            恢复默认
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)' }}>
+                        公式: 饱和脂肪 = 脂肪 × {predCoefficient || '____'}
+                        {selectedCategory && predictionCategories[selectedCategory] && (
+                          <span> (类别推荐值: {predictionCategories[selectedCategory].k.toFixed(4)})</span>
+                        )}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+                        系数值可在帮助说明页面查阅参考
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    预测类型: 交叉预测（通过已有指标预测关联指标）
+                  </div>
                 </div>
               </div>
             </div>

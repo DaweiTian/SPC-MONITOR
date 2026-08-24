@@ -15,6 +15,7 @@ from backend.app.models.requests import (
     InstrumentSwitchRequest,
     AliasRequest,
     ProductStatusRequest,
+    ProductCategoryRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -725,6 +726,149 @@ def test_fta_connection(config: dict):
         return {"success": False, "message": f"测试失败: {str(e)}"}
 
 
+# ========== FT1 / FTA Init Status (data preview before import) ==========
+
+@router.get("/db/init-status")
+def get_db_init_status():
+    """获取 FT1 数据源初始化状态（数据预览）"""
+    config = _load_json_config(DB_CONFIG_FILE, _default_db_config)
+    mapping = _load_json_config(DB_MAPPING_FILE, _default_mapping)
+
+    try:
+        from backend.app.engine.collector.sqlserver import SQLServerCollector
+        collector = SQLServerCollector.from_config(db_config=config, mapping_config=mapping)
+        if not collector.test_connection():
+            return {"success": False, "message": "SQL Server 连接失败"}
+
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+
+        # 断点信息
+        breakpoint_info = None
+        bp_file = "sqlserver_breakpoint.json"
+        if os.path.exists(bp_file):
+            try:
+                with open(bp_file, 'r', encoding='utf-8') as f:
+                    breakpoint_info = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                pass
+
+        # 最近数据预览
+        recent_records = []
+        try:
+            rep_no_ref = mapping.get("rep_no_ref", 32000)
+            conn = collector._build_pymssql_connection(collector._db_config)
+            cursor = conn.cursor()
+            time_col = mapping.get("time_column", "DateTime")
+            prod_ref_col = mapping.get("product_ref_column", "ProdRef")
+            comp_ref_col = mapping.get("component_ref_column", "CompRef")
+            value_col = mapping.get("value_column", "Value")
+            sample_table = mapping.get("sample_table", "Sample")
+            prediction_table = mapping.get("prediction_table", "Prediction")
+            cursor.execute(f"""
+                SELECT TOP 10
+                    s.[{time_col}], s.[{prod_ref_col}],
+                    p.[{comp_ref_col}], p.[{value_col}]
+                FROM [{sample_table}] s
+                INNER JOIN [{prediction_table}] p ON s.[SampNo] = p.[SampRef]
+                WHERE p.[RepNoRef] = %s
+                ORDER BY s.[{time_col}] DESC
+            """, (rep_no_ref,))
+            rows = cursor.fetchall()
+            conn.close()
+
+            products_map = collector._load_products_sql()
+            components_map = collector._load_components_sql()
+            for row in rows:
+                recent_records.append({
+                    'product_name': products_map.get(row[1], f'Product_{row[1]}'),
+                    'indicator_name': components_map.get(row[2], f'Component_{row[2]}'),
+                    'value': str(row[3]),
+                    'sample_time': str(row[0]),
+                })
+        except Exception as e:
+            logger.warning(f"获取 FT1 预览数据失败: {e}")
+
+        collector.close()
+
+        return {
+            "success": True,
+            "breakpoint": breakpoint_info,
+            "recent_records": recent_records,
+            "total_samples": len(recent_records),  # SQL Server 不方便快速 COUNT，用预览数量
+            "total_products": len(products),
+            "total_indicators": len(indicators),
+        }
+    except Exception as e:
+        return {"success": False, "message": f"获取数据源状态失败: {str(e)}"}
+
+
+@router.get("/fta/init-status")
+def get_fta_init_status():
+    """获取 FTA 数据源初始化状态（数据预览）"""
+    config = _load_json_config(FTA_CONFIG_FILE, _default_fta_config)
+
+    try:
+        from backend.app.engine.collector.fta import FTACollector
+        collector = FTACollector.from_config(db_config=config)
+        if not collector.test_connection():
+            return {"success": False, "message": "FTA 数据库连接失败"}
+
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+
+        # 断点信息
+        breakpoint_info = None
+        bp_file = "fta_breakpoint.json"
+        if os.path.exists(bp_file):
+            try:
+                with open(bp_file, 'r', encoding='utf-8') as f:
+                    breakpoint_info = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                pass
+
+        # 最近数据预览
+        recent_records = []
+        try:
+            conn = collector._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT TOP 10
+                    ee.AnalysisStartTime,
+                    ee.ProductSpecProfileName,
+                    e.ParameterTypeName,
+                    e.ReportedResult
+                FROM EstimateEvent ee
+                INNER JOIN Estimate e ON ee.EstimateEventID = e.EstimateEventID
+                WHERE ee.ProductSpecProfileName IS NOT NULL
+                ORDER BY ee.AnalysisStartTime DESC
+            """)
+            rows = cursor.fetchall()
+            conn.close()
+            for row in rows:
+                recent_records.append({
+                    'product_name': row[1] or '',
+                    'indicator_name': row[2] or '',
+                    'value': str(row[3]) if row[3] is not None else '',
+                    'sample_time': str(row[0]) if row[0] else '',
+                })
+        except Exception as e:
+            logger.warning(f"获取 FTA 预览数据失败: {e}")
+
+        collector.close()
+
+        return {
+            "success": True,
+            "breakpoint": breakpoint_info,
+            "recent_records": recent_records,
+            "total_samples": len(recent_records),
+            "total_products": len(products),
+            "total_indicators": len(indicators),
+        }
+    except Exception as e:
+        return {"success": False, "message": f"获取 FTA 数据源状态失败: {str(e)}"}
+
+
 # ========== Alias Configuration ==========
 
 ALIAS_CONFIG_FILE = "alias_config.json"
@@ -818,6 +962,27 @@ def update_single_product_status(product_code: str, body: dict):
     if success:
         return {"success": True, "message": f"品项状态已更新为{status}"}
     return {"success": False, "message": "更新失败"}
+
+
+# ========== Excluded Remarks Configuration ==========
+
+EXCLUDED_REMARKS_FILE = "excluded_remarks.json"
+_default_excluded_remarks: list[str] = ["基准样"]
+
+@router.get("/excluded-remarks")
+def get_excluded_remarks():
+    return _load_json_config(EXCLUDED_REMARKS_FILE, _default_excluded_remarks)
+
+@router.put("/excluded-remarks")
+def update_excluded_remarks(body: dict):
+    keywords = body.get("keywords", [])
+    if not isinstance(keywords, list):
+        return {"success": False, "message": "keywords 必须是数组"}
+    success = _save_json_config(EXCLUDED_REMARKS_FILE, keywords)
+    if success:
+        storage.set_excluded_remarks(keywords)
+        return {"success": True, "message": "排除关键词已更新"}
+    return {"success": False, "message": "保存失败"}
 
 
 @router.get("/recent-counts")
@@ -998,4 +1163,74 @@ def update_correction_values(product_code: str, body: dict):
     success = _save_json_config(SPEC_LIMITS_FILE, raw)
     if success:
         return {"success": True, "message": "修正值已保存"}
+    return {"success": False, "message": "保存失败"}
+
+
+# ── 产品类别配置 ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES_FILE = "product_categories.json"
+
+PREDICTION_CATEGORIES = {
+    "sterilized_milk": {"name": "灭菌乳", "k": 0.6277},
+    "fermented_milk": {"name": "发酵乳", "k": 0.6232},
+    "milk_drink": {"name": "乳饮料", "k": 0.6230},
+    "modified_milk": {"name": "调制乳", "k": 0.6320},
+    "uf_pure_milk": {"name": "超滤纯牛奶", "k": 0.6255},
+    "milk_flavored_drink": {"name": "乳味饮料", "k": 0.6301},
+    "plant_protein": {"name": "植物蛋白饮品", "k": 0.1742},
+    "juice_drink": {"name": "果蔬汁类饮料", "k": 0.6187},
+    "flavored_drink": {"name": "风味饮料", "k": 0.5480},
+    "compound_protein": {"name": "复合蛋白饮料", "k": 0.3231},
+    "cream": {"name": "奶油", "k": 0.6470},
+    "tea_drink": {"name": "茶饮料", "k": 0.7370},
+    "grain_drink": {"name": "谷物类饮料", "k": 0.1310},
+    "mineral_water": {"name": "矿泉水", "k": 0.6250},
+}
+
+
+@router.get("/product-categories")
+def get_product_categories():
+    """获取所有产品类别映射"""
+    return _load_json_config(PRODUCT_CATEGORIES_FILE, {})
+
+
+@router.put("/product-categories/{product_code}")
+def update_product_category(product_code: str, req: ProductCategoryRequest):
+    """更新单个产品的类别"""
+    data = _load_json_config(PRODUCT_CATEGORIES_FILE, {})
+    if req.category:
+        data[product_code] = req.category
+    else:
+        data.pop(product_code, None)
+    success = _save_json_config(PRODUCT_CATEGORIES_FILE, data)
+    if success:
+        return {"success": True, "message": "产品类别已保存"}
+    return {"success": False, "message": "保存失败"}
+
+
+@router.get("/prediction-categories")
+def get_prediction_categories():
+    """获取可用的预测类别定义（含推荐系数）"""
+    return PREDICTION_CATEGORIES
+
+
+# ── 交叉预测配置 ────────────────────────────────────────────
+
+PREDICTION_CONFIG_FILE = "prediction_config.json"
+
+
+@router.get("/prediction-config")
+def get_prediction_config():
+    """获取所有产品的交叉预测指标配置"""
+    return _load_json_config(PREDICTION_CONFIG_FILE, {})
+
+
+@router.put("/prediction-config/{product_code}")
+def update_prediction_config(product_code: str, indicators: dict):
+    """更新某产品的交叉预测指标配置"""
+    data = _load_json_config(PREDICTION_CONFIG_FILE, {})
+    data[product_code] = indicators
+    success = _save_json_config(PREDICTION_CONFIG_FILE, data)
+    if success:
+        return {"success": True, "message": "预测配置已保存"}
     return {"success": False, "message": "保存失败"}

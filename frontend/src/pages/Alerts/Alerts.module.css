@@ -554,6 +554,24 @@
   margin: 0 0 12px;
 }
 
+.actionSelect {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 12px;
+  appearance: auto;
+  cursor: pointer;
+}
+
+.actionSelect:focus {
+  border-color: var(--accent-cyan);
+}
+
 .noteInput {
   width: 100%;
   background: var(--bg-secondary);

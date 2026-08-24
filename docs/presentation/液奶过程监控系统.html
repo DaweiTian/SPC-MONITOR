@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FT1-MONITOR 液奶过程监控系统 - 功能汇报</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" async></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0b1120;
+    --surface: #111b2e;
+    --card: #162036;
+    --card-hover: #1a2740;
+    --border: #1e3050;
+    --primary: #3b82f6;
+    --primary-light: #60a5fa;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --success-bg: rgba(16,185,129,0.1);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245,158,11,0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239,68,68,0.1);
+    --purple: #8b5cf6;
+    --text: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    --gradient-green: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+    --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.7; font-size: 15px;
+  }
+  ::selection { background: rgba(59,130,246,0.3); }
+
+  /* ===== Layout ===== */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  @media (max-width: 768px) { .container { padding: 0 20px; } }
+
+  /* ===== Sticky Nav ===== */
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(11,17,32,0.85); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border); padding: 0;
+  }
+  .top-nav .container { display: flex; align-items: center; height: 56px; gap: 8px; overflow-x: auto; }
+  .top-nav a {
+    color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500;
+    padding: 6px 14px; border-radius: 6px; white-space: nowrap; transition: all 0.2s;
+  }
+  .top-nav a:hover, .top-nav a.active { color: var(--text); background: rgba(59,130,246,0.1); }
+
+  /* ===== Hero ===== */
+  .hero {
+    padding: 100px 0 80px; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.08) 0%, transparent 60%);
+    position: relative;
+  }
+  .hero::after {
+    content: ''; position: absolute; bottom: 0; left: 10%; right: 10%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+  .hero .badge {
+    display: inline-block; padding: 6px 18px; border-radius: 20px;
+    background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
+    color: var(--primary-light); font-size: 13px; font-weight: 600; letter-spacing: 1px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: 52px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;
+    background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero .subtitle { font-size: 20px; color: var(--text-secondary); max-width: 700px; margin: 0 auto 40px; }
+  .hero .meta-row {
+    display: flex; gap: 48px; justify-content: center; flex-wrap: wrap;
+    font-size: 14px; color: var(--text-muted);
+  }
+  .hero .meta-row span { display: flex; align-items: center; gap: 6px; }
+  .hero .meta-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+
+  /* ===== Section ===== */
+  .section { padding: 80px 0; position: relative; }
+  .section + .section { border-top: 1px solid rgba(30,48,80,0.5); }
+  .section-tag {
+    display: inline-block; padding: 4px 14px; border-radius: 4px;
+    background: rgba(59,130,246,0.1); color: var(--primary-light);
+    font-size: 12px; font-weight: 700; letter-spacing: 2px; margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .section-title {
+    font-size: 36px; font-weight: 800; color: #fff; margin-bottom: 8px; line-height: 1.3;
+  }
+  .section-desc { font-size: 16px; color: var(--text-secondary); max-width: 700px; margin-bottom: 48px; }
+
+  /* ===== Big Number Row ===== */
+  .big-numbers {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 48px;
+  }
+  .big-num-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 24px; text-align: center; position: relative; overflow: hidden;
+  }
+  .big-num-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .big-num-card:nth-child(1)::before { background: var(--gradient-blue); }
+  .big-num-card:nth-child(2)::before { background: var(--gradient-green); }
+  .big-num-card:nth-child(3)::before { background: var(--gradient-purple); }
+  .big-num-card:nth-child(4)::before { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+  .big-num { font-size: 42px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+  .big-num.blue { background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .big-num.green { background: var(--gradient-green); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .big-num.purple { background: var(--gradient-purple); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .big-num.orange { background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .big-num-label { font-size: 14px; color: var(--text-muted); }
+
+  /* ===== Value Cards ===== */
+  .value-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .value-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; transition: all 0.25s;
+  }
+  .value-card:hover { background: var(--card-hover); border-color: rgba(59,130,246,0.3); transform: translateY(-2px); }
+  .value-card .v-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .value-card .v-icon {
+    width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; flex-shrink: 0;
+  }
+  .value-card h3 { font-size: 20px; font-weight: 700; color: #fff; }
+  .value-card .v-sub { font-size: 13px; color: var(--primary-light); font-weight: 600; margin-top: 2px; }
+  .value-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 16px; }
+  .value-card .v-detail {
+    background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.1); border-radius: 10px;
+    padding: 16px;
+  }
+  .value-card .v-detail h4 { font-size: 13px; color: var(--primary-light); font-weight: 600; margin-bottom: 8px; }
+  .value-card .v-detail ul { list-style: none; }
+  .value-card .v-detail li {
+    font-size: 13px; color: var(--text-secondary); padding: 4px 0; padding-left: 20px; position: relative;
+  }
+  .value-card .v-detail li::before {
+    content: ''; position: absolute; left: 0; top: 12px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
+  }
+
+  /* ===== Before/After Comparison ===== */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+  .compare-card {
+    border-radius: 16px; padding: 32px; position: relative; overflow: hidden;
+  }
+  .compare-card.before { background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.2); }
+  .compare-card.after { background: var(--success-bg); border: 1px solid rgba(16,185,129,0.2); }
+  .compare-card .cc-label {
+    display: inline-block; padding: 3px 12px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 20px;
+  }
+  .compare-card.before .cc-label { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .compare-card.after .cc-label { background: rgba(16,185,129,0.15); color: var(--success); }
+  .compare-card h4 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+  .compare-card ul { list-style: none; }
+  .compare-card li {
+    font-size: 14px; color: var(--text-secondary); padding: 8px 0; padding-left: 28px; position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .compare-card li:last-child { border-bottom: none; }
+  .compare-card.before li::before {
+    content: '\00d7'; position: absolute; left: 2px; top: 7px;
+    font-size: 18px; color: var(--danger); font-weight: 700;
+  }
+  .compare-card.after li::before {
+    content: '\2713'; position: absolute; left: 2px; top: 8px;
+    font-size: 15px; color: var(--success); font-weight: 700;
+  }
+
+  /* ===== Pain Points ===== */
+  .pain-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .pain-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px; position: relative; transition: all 0.25s;
+  }
+  .pain-card:hover { border-color: var(--danger); transform: translateY(-2px); }
+  .pain-num {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--danger-bg);
+    color: var(--danger); display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; margin-bottom: 16px;
+  }
+  .pain-card h4 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .pain-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+  .pain-card .pain-impact {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--warning); font-weight: 600;
+  }
+
+  /* ===== Architecture ===== */
+  .arch-svg { width: 100%; max-width: 1100px; margin: 0 auto; display: block; }
+
+  /* ===== Feature Cards ===== */
+  .feature-section { margin-bottom: 48px; }
+  .feature-header {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+  }
+  .feature-header .f-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .feature-header h3 { font-size: 22px; font-weight: 700; color: #fff; }
+  .feature-header .f-badge {
+    padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  }
+  .feature-body {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px;
+  }
+  .feature-body p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 20px; }
+  .feature-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .feature-list li {
+    font-size: 14px; color: var(--text-secondary); padding: 10px 16px;
+    background: rgba(59,130,246,0.04); border-radius: 8px; border-left: 3px solid var(--primary);
+    list-style: none;
+  }
+  .feature-list li strong { color: var(--text); }
+
+  /* ===== Tech Grid ===== */
+  .tech-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .tech-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px; position: relative; overflow: hidden; transition: all 0.25s;
+  }
+  .tech-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient-blue); }
+  .tech-card:hover { transform: translateY(-2px); }
+  .tech-card .t-icon { font-size: 28px; margin-bottom: 14px; }
+  .tech-card h4 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .tech-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 12px; }
+  .tech-card .t-metric {
+    display: inline-block; padding: 3px 10px; border-radius: 6px;
+    background: rgba(16,185,129,0.1); color: var(--success);
+    font-size: 12px; font-weight: 600;
+  }
+
+  /* ===== Charts ===== */
+  .chart-row { display: flex; gap: 24px; margin-bottom: 24px; }
+  .chart-box {
+    flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px;
+  }
+  .chart-box h4 { font-size: 14px; color: var(--text-muted); font-weight: 600; margin-bottom: 12px; }
+  .chart-area { width: 100%; height: 280px; }
+
+  /* ===== Roadmap ===== */
+  .roadmap { position: relative; padding-left: 40px; }
+  .roadmap::before {
+    content: ''; position: absolute; left: 15px; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(180deg, var(--primary), var(--accent), var(--success));
+  }
+  .rm-phase { margin-bottom: 40px; position: relative; }
+  .rm-dot {
+    position: absolute; left: -33px; top: 6px;
+    width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--primary);
+    background: var(--bg);
+  }
+  .rm-phase:nth-child(2) .rm-dot { border-color: var(--accent); }
+  .rm-phase:nth-child(3) .rm-dot { border-color: var(--success); }
+  .rm-phase .rm-tag {
+    display: inline-block; padding: 3px 12px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .rm-phase:nth-child(1) .rm-tag { background: rgba(59,130,246,0.12); color: var(--primary-light); }
+  .rm-phase:nth-child(2) .rm-tag { background: rgba(6,182,212,0.12); color: var(--accent); }
+  .rm-phase:nth-child(3) .rm-tag { background: rgba(16,185,129,0.12); color: var(--success); }
+  .rm-phase h4 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .rm-phase .rm-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; }
+  .rm-items { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rm-item {
+    padding: 12px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    font-size: 13px; color: var(--text-secondary);
+  }
+  .rm-item strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+  /* ===== Summary Footer ===== */
+  .summary-footer {
+    padding: 80px 0; text-align: center;
+    background: radial-gradient(ellipse at 50% 100%, rgba(59,130,246,0.06) 0%, transparent 60%);
+    border-top: 1px solid var(--border);
+  }
+  .summary-footer h2 {
+    font-size: 32px; font-weight: 800; margin-bottom: 16px;
+    background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .summary-footer p { font-size: 16px; color: var(--text-secondary); margin-bottom: 12px; }
+  .summary-footer .footer-meta {
+    margin-top: 40px; font-size: 13px; color: var(--text-muted);
+    padding-top: 24px; border-top: 1px solid var(--border);
+    display: inline-block;
+  }
+
+  /* ===== Table ===== */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .data-table th {
+    text-align: left; padding: 12px 16px; background: rgba(59,130,246,0.06);
+    color: var(--text-secondary); font-weight: 600; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 12px 16px; border-bottom: 1px solid rgba(30,48,80,0.4); color: var(--text-secondary);
+  }
+  .data-table tr:hover td { background: rgba(59,130,246,0.03); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .big-numbers { grid-template-columns: 1fr 1fr; }
+    .value-grid, .compare-grid, .feature-list, .rm-items { grid-template-columns: 1fr; }
+    .pain-grid, .tech-grid { grid-template-columns: 1fr; }
+    .chart-row { flex-direction: column; }
+    .hero h1 { font-size: 36px; }
+    .section-title { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Navigation ===== -->
+<nav class="top-nav">
+  <div class="container">
+    <a href="#value">业务价值</a>
+    <a href="#compare">效果对比</a>
+    <a href="#pain">行业痛点</a>
+    <a href="#architecture">系统架构</a>
+    <a href="#features">核心功能</a>
+    <a href="#dashboard">数据看板</a>
+    <a href="#tech">技术亮点</a>
+    <a href="#roadmap">规划路线</a>
+  </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<header class="hero">
+  <div class="container">
+    <div class="badge">LIQUID MILK PROCESS MONITORING</div>
+    <h1>FT1-MONITOR<br>液奶过程监控系统</h1>
+    <p class="subtitle">基于 SPC 统计过程控制与 AI 预测分析的乳制品全流程质量智能监控平台</p>
+    <div class="meta-row">
+      <span><i class="dot"></i>版本 v1.5.4</span>
+      <span><i class="dot"></i>技术汇报</span>
+      <span><i class="dot"></i>质量管控中心</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: 业务价值 -->
+<!-- ================================================================ -->
+<section class="section" id="value">
+  <div class="container">
+    <div class="section-tag">Business Value</div>
+    <h2 class="section-title">业务价值</h2>
+    <p class="section-desc">FT1-MONITOR 将液奶生产质量管控从"事后检验、人工巡检"升级为"实时监控、智能预警、主动预防"，全面提升质量管控效能，降低质量风险与运营成本。</p>
+
+    <!-- Big Numbers -->
+    <div class="big-numbers">
+      <div class="big-num-card">
+        <div class="big-num blue">7&times;24</div>
+        <div class="big-num-label">不间断自动监控</div>
+      </div>
+      <div class="big-num-card">
+        <div class="big-num green">&lt;5 min</div>
+        <div class="big-num-label">异常发现时效</div>
+      </div>
+      <div class="big-num-card">
+        <div class="big-num purple">100%</div>
+        <div class="big-num-label">数据自动采集率</div>
+      </div>
+      <div class="big-num-card">
+        <div class="big-num orange">3 级</div>
+        <div class="big-num-label">告警分级处置</div>
+      </div>
+    </div>
+
+    <!-- Value Cards -->
+    <div class="value-grid">
+      <div class="value-card">
+        <div class="v-header">
+          <div class="v-icon" style="background:rgba(59,130,246,0.12)">&#128200;</div>
+          <div>
+            <h3>质量管控前移</h3>
+            <div class="v-sub">从事后检验到过程控制</div>
+          </div>
+        </div>
+        <p>传统模式下，质量问题往往在产品下线后才被发现，此时已经造成了批量不合格。FT1-MONITOR 通过 SPC 统计过程控制技术，在生产过程中实时监控关键质量指标（脂肪、蛋白质、乳糖等），利用 Nelson 8 条判异规则自动识别过程异常，将质量管控节点从"成品检验"前移到"生产过程"。</p>
+        <div class="v-detail">
+          <h4>具体效果</h4>
+          <ul>
+            <li>过程异常实时捕捉，问题发现时间从"班后分析"缩短到分钟级</li>
+            <li>控制图违规点自动高亮标注，操作员无需人工判图</li>
+            <li>过程能力指数 (Cpk) 实时评估，低于阈值自动预警</li>
+            <li>趋势异常提前识别，在指标越限前发出风险提醒</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="value-card">
+        <div class="v-header">
+          <div class="v-icon" style="background:rgba(16,185,129,0.12)">&#129302;</div>
+          <div>
+            <h3>预测性质量维护</h3>
+            <div class="v-sub">从被动响应到主动预防</div>
+          </div>
+        </div>
+        <p>系统内置 ETS、ARIMA 等多种时序预测模型，基于历史质量数据自动预测未来走势，并计算越限概率。当预测到质量指标有较高概率超出规格限时，系统以 CRITICAL 级别发出风险预警，为工艺调整争取宝贵的时间窗口，实现"未越限先预防"。</p>
+        <div class="v-detail">
+          <h4>具体效果</h4>
+          <ul>
+            <li>时序预测模型自动择优 (MASE 指标)，无需人工选模</li>
+            <li>越限概率分为 LOW / MEDIUM / HIGH / CRITICAL 四级</li>
+            <li>CUSUM 漂移检测可识别缓慢的工艺漂移趋势</li>
+            <li>95% 置信区间量化预测不确定性，辅助决策</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="value-card">
+        <div class="v-header">
+          <div class="v-icon" style="background:rgba(245,158,11,0.12)">&#128165;</div>
+          <div>
+            <h3>降本增效</h3>
+            <div class="v-sub">减少人工与质量损失</div>
+          </div>
+        </div>
+        <p>系统自动完成数据采集、统计分析、异常判定、告警推送全流程，大幅减少人工操作和分析工作量。通过及时发现并纠正过程异常，有效减少因质量波动导致的返工、报废和客诉损失。自适应采集调度在无新数据时自动降频，节约系统资源。</p>
+        <div class="v-detail">
+          <h4>具体效果</h4>
+          <ul>
+            <li>消除人工数据采集、手工记录、人工判图等重复性工作</li>
+            <li>自适应频率调度 [5/15/30/60/120/300] 分钟，智能节能</li>
+            <li>告警自动去重 (24h 窗口)，避免重复告警干扰</li>
+            <li>批量告警处置能力，提高异常处理效率</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="value-card">
+        <div class="v-header">
+          <div class="v-icon" style="background:rgba(139,92,246,0.12)">&#127919;</div>
+          <div>
+            <h3>数据驱动决策</h3>
+            <div class="v-sub">从经验判断到量化分析</div>
+          </div>
+        </div>
+        <p>系统提供过程能力分析 (Cp/Cpk/Pp/Ppk)、指标相关性分析 (Pearson 矩阵)、特征重要性排序 (GBDT)、跨指标预测等深度分析能力，帮助技术人员深入理解工艺-质量关联关系，为配方优化、工艺参数调整提供量化数据支撑。</p>
+        <div class="v-detail">
+          <h4>具体效果</h4>
+          <ul>
+            <li>Sigma 水平仪表盘直观展示过程能力等级 (1&sigma;~6&sigma;)</li>
+            <li>相关性热力图揭示脂肪、蛋白等指标间的关联关系</li>
+            <li>GBDT 特征重要性排序，识别影响目标指标的关键因子</li>
+            <li>CSV 数据导出支持进一步离线分析</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: 效果对比 -->
+<!-- ================================================================ -->
+<section class="section" id="compare">
+  <div class="container">
+    <div class="section-tag">Before & After</div>
+    <h2 class="section-title">效果对比</h2>
+    <p class="section-desc">系统上线前后，液奶生产质量管控模式发生了根本性转变。</p>
+
+    <div class="compare-grid">
+      <div class="compare-card before">
+        <span class="cc-label">BEFORE</span>
+        <h4>传统模式</h4>
+        <ul>
+          <li>操作员定期手动查看仪器数据，手工记录到表格</li>
+          <li>质量异常依赖班后人工分析，发现问题时已批量产出</li>
+          <li>FT1、FT120、FTA 各品牌仪器数据各自独立，无法关联</li>
+          <li>仅靠成品检验把关，缺少过程控制和能力评估</li>
+          <li>无法预测质量走势，工艺漂移发现滞后</li>
+          <li>规格限、告警规则等调整需修改数据库或代码</li>
+          <li>质量分析报告依赖人工编写，耗时且易遗漏</li>
+          <li>不同产线/班次的质量数据缺乏统一视图</li>
+        </ul>
+      </div>
+      <div class="compare-card after">
+        <span class="cc-label">AFTER</span>
+        <h4>FT1-MONITOR 模式</h4>
+        <ul>
+          <li>系统 7x24 自动采集数据，自适应频率调度，无需人工干预</li>
+          <li>SPC 判异规则实时监控，异常 5 分钟内自动告警推送</li>
+          <li>三类仪器数据统一接入，一个平台查看所有质量数据</li>
+          <li>I-MR 控制图 + Cpk 能力指数，过程质量一目了然</li>
+          <li>ETS/ARIMA 预测模型自动选模，越限概率分级预警</li>
+          <li>17+ 配置项运行时热更新，零停机调整参数</li>
+          <li>ECharts 交互式图表，支持在线钻取和数据探索</li>
+          <li>桌面原生应用常驻系统托盘，原生通知和声音告警</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Detailed comparison table -->
+    <div class="feature-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>传统模式</th>
+            <th>FT1-MONITOR</th>
+            <th>提升效果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:#fff">数据采集</strong></td>
+            <td>人工定时查看，手动记录</td>
+            <td>自动采集，自适应频率</td>
+            <td style="color:var(--success)">效率提升 100%</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">异常发现</strong></td>
+            <td>班后分析，延迟数小时</td>
+            <td>实时告警，&lt;5 分钟</td>
+            <td style="color:var(--success)">时效提升 95%+</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">过程控制</strong></td>
+            <td>无 SPC，仅靠成品检验</td>
+            <td>8 条 Nelson 规则实时判异</td>
+            <td style="color:var(--success)">从事后到过程</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">能力评估</strong></td>
+            <td>无定量评估手段</td>
+            <td>Cp/Cpk/Pp/Ppk 实时计算</td>
+            <td style="color:var(--success)">量化评估</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">质量预测</strong></td>
+            <td>无预测能力</td>
+            <td>多模型自动预测+越限风险</td>
+            <td style="color:var(--success)">从无到有</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">数据整合</strong></td>
+            <td>各仪器数据分散</td>
+            <td>三类仪器统一平台</td>
+            <td style="color:var(--success)">消除数据孤岛</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fff">配置灵活度</strong></td>
+            <td>改数据库/代码</td>
+            <td>17+ 项运行时热更新</td>
+            <td style="color:var(--success)">零停机配置</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: 行业痛点 -->
+<!-- ================================================================ -->
+<section class="section" id="pain">
+  <div class="container">
+    <div class="section-tag">Pain Points</div>
+    <h2 class="section-title">行业痛点</h2>
+    <p class="section-desc">传统液奶生产质量监控面临的六大核心挑战，FT1-MONITOR 逐一攻克。</p>
+
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-num">1</div>
+        <h4>数据采集依赖人工</h4>
+        <p>操作员需定期到仪器前查看数据、手工记录到 Excel 或纸质表格。不仅效率低下，而且容易出现抄录错误、遗漏数据等问题，无法实现全天候不间断监控。</p>
+        <div class="pain-impact">影响：数据完整性 &lt;80%，存在人为误差</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">2</div>
+        <h4>质量异常发现滞后</h4>
+        <p>质量分析通常在班后或次日进行，当发现指标异常时，不合格品已经批量产出。缺乏实时监控和即时告警机制，问题发现存在数小时的延迟。</p>
+        <div class="pain-impact">影响：批量不合格风险，返工/报废成本高</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">3</div>
+        <h4>设备数据孤岛</h4>
+        <p>工厂通常配备 FT1、FT120、FTA 等多个品牌型号的乳品分析仪，各仪器数据格式不同、存储方式各异（SQL Server、MDB 文件、独立数据库），无法统一查看和关联分析。</p>
+        <div class="pain-impact">影响：数据碎片化，无法全局分析</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">4</div>
+        <h4>缺乏过程控制手段</h4>
+        <p>质量管控主要依靠成品检验（终点把关），缺少基于 SPC 统计过程控制的过程能力评估。无法定量衡量生产过程的稳定性和能力水平，只能"检出不合格"而无法"预防不合格"。</p>
+        <div class="pain-impact">影响：被动质量管控，无法预防</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">5</div>
+        <h4>缺乏预测性分析</h4>
+        <p>完全没有基于历史数据的预测分析能力。工艺参数漂移、设备状态变化等导致的质量趋势恶化，只有在指标越限后才能被发现，无法提前预警和干预。</p>
+        <div class="pain-impact">影响：工艺漂移发现滞后，越限后才知道</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-num">6</div>
+        <h4>配置变更困难</h4>
+        <p>产品规格限、告警规则、采集频率等关键参数的调整需要修改数据库记录或配置文件，部分场景甚至需要修改代码重新部署，无法灵活应对生产需求变化。</p>
+        <div class="pain-impact">影响：响应慢，需停机调整</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: 系统架构 -->
+<!-- ================================================================ -->
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="section-tag">Architecture</div>
+    <h2 class="section-title">系统架构</h2>
+    <p class="section-desc">四层架构设计：桌面应用层、前端展示层、后端服务层、数据存储层，模块化解耦，独立演进。</p>
+
+    <div class="feature-body" style="padding: 40px;">
+      <svg class="arch-svg" viewBox="0 0 1100 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.9"/>
+            <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0.9"/>
+          </linearGradient>
+          <linearGradient id="gGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.9"/>
+            <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0.9"/>
+          </linearGradient>
+          <linearGradient id="gPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.9"/>
+            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.9"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Layer 1: Tauri Desktop -->
+        <rect x="40" y="20" width="1020" height="90" rx="14" fill="#162036" stroke="#1e3050" stroke-width="1"/>
+        <text x="550" y="46" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700" letter-spacing="3">桌面应用层 &mdash; TAURI V2 (RUST)</text>
+        <rect x="70" y="60" width="140" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="140" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">系统托盘常驻</text>
+        <rect x="230" y="60" width="140" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="300" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">原生通知推送</text>
+        <rect x="390" y="60" width="140" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="460" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">开机自启动</text>
+        <rect x="550" y="60" width="140" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="620" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">进程生命周期</text>
+        <rect x="710" y="60" width="140" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="780" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">声音告警</text>
+        <rect x="870" y="60" width="160" height="32" rx="8" fill="url(#gBlue)"/>
+        <text x="950" y="81" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">窗口毛玻璃效果</text>
+
+        <!-- Arrow 1->2 -->
+        <line x1="550" y1="110" x2="550" y2="135" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,4" opacity="0.5"/>
+        <polygon points="545,133 555,133 550,140" fill="#3b82f6" opacity="0.5"/>
+
+        <!-- Layer 2: Frontend + Backend side by side -->
+        <rect x="40" y="140" width="490" height="110" rx="14" fill="#162036" stroke="#1e3050" stroke-width="1"/>
+        <text x="285" y="166" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700" letter-spacing="3">前端展示层 &mdash; REACT 18 + TYPESCRIPT</text>
+        <rect x="65" y="178" width="105" height="28" rx="7" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+        <text x="117" y="197" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">ECharts 5</text>
+        <rect x="185" y="178" width="105" height="28" rx="7" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+        <text x="237" y="197" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">Ant Design</text>
+        <rect x="305" y="178" width="105" height="28" rx="7" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+        <text x="357" y="197" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">WebSocket</text>
+        <rect x="425" y="178" width="85" height="28" rx="7" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+        <text x="467" y="197" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">Vite 5</text>
+        <text x="285" y="235" text-anchor="middle" fill="#475569" font-size="11">9 个功能页面 / 10+ 公共组件 / 深色科技主题</text>
+
+        <!-- Connection -->
+        <line x1="530" y1="195" x2="570" y2="195" stroke="#06b6d4" stroke-width="2"/>
+        <polygon points="568,190 568,200 577,195" fill="#06b6d4"/>
+        <text x="550" y="186" text-anchor="middle" fill="#06b6d4" font-size="10" font-weight="600">HTTP+WS</text>
+
+        <rect x="570" y="140" width="490" height="110" rx="14" fill="#162036" stroke="#1e3050" stroke-width="1"/>
+        <text x="815" y="166" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700" letter-spacing="3">后端服务层 &mdash; FASTAPI + PYTHON 3.11</text>
+        <rect x="595" y="178" width="100" height="28" rx="7" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="645" y="197" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">SPC 引擎</text>
+        <rect x="710" y="178" width="100" height="28" rx="7" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="760" y="197" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">告警引擎</text>
+        <rect x="825" y="178" width="100" height="28" rx="7" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="875" y="197" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">预测引擎</text>
+        <rect x="940" y="178" width="100" height="28" rx="7" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="990" y="197" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">采集调度</text>
+        <text x="815" y="235" text-anchor="middle" fill="#475569" font-size="11">7 个 API 模块 / WebSocket 实时推送 / API Key 认证</text>
+
+        <!-- Arrow 2->3 -->
+        <line x1="550" y1="250" x2="550" y2="280" stroke="#10b981" stroke-width="2" stroke-dasharray="6,4" opacity="0.5"/>
+        <polygon points="545,278 555,278 550,285" fill="#10b981" opacity="0.5"/>
+
+        <!-- Layer 3: Analysis Engine -->
+        <rect x="40" y="285" width="1020" height="75" rx="14" fill="#162036" stroke="#1e3050" stroke-width="1"/>
+        <text x="550" y="310" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700" letter-spacing="3">分析引擎层</text>
+        <rect x="70" y="322" width="130" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="135" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">NumPy / SciPy</text>
+        <rect x="220" y="322" width="130" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="285" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">statsmodels</text>
+        <rect x="370" y="322" width="130" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="435" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">scikit-learn</text>
+        <rect x="520" y="322" width="100" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="570" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">pandas</text>
+        <rect x="640" y="322" width="130" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="705" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">APScheduler</text>
+        <rect x="790" y="322" width="110" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="845" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">Pydantic v2</text>
+        <rect x="920" y="322" width="110" height="26" rx="6" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.25)" stroke-width="1"/>
+        <text x="975" y="340" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">Uvicorn</text>
+
+        <!-- Arrow 3->4 -->
+        <line x1="550" y1="360" x2="550" y2="390" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4" opacity="0.5"/>
+        <polygon points="545,388 555,388 550,395" fill="#f59e0b" opacity="0.5"/>
+
+        <!-- Layer 4: Data -->
+        <rect x="40" y="395" width="1020" height="75" rx="14" fill="#162036" stroke="#1e3050" stroke-width="1"/>
+        <text x="550" y="420" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700" letter-spacing="3">数据存储层</text>
+        <rect x="110" y="432" width="170" height="26" rx="6" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.25)" stroke-width="1"/>
+        <text x="195" y="450" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="600">SQLite (WAL Mode)</text>
+        <rect x="320" y="432" width="180" height="26" rx="6" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.25)" stroke-width="1"/>
+        <text x="410" y="450" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="600">SQL Server (FT1)</text>
+        <rect x="540" y="432" width="170" height="26" rx="6" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.25)" stroke-width="1"/>
+        <text x="625" y="450" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="600">MDB 文件 (FT120)</text>
+        <rect x="750" y="432" width="180" height="26" rx="6" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.25)" stroke-width="1"/>
+        <text x="840" y="450" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="600">FTA Perten DB</text>
+      </svg>
+    </div>
+
+    <!-- Tech stack table -->
+    <div class="feature-body" style="margin-top: 24px;">
+      <table class="data-table">
+        <thead>
+          <tr><th>层次</th><th>技术选型</th><th>版本</th><th>选型理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong style="color:#fff">桌面壳</strong></td><td>Tauri v2 + Rust</td><td>2.x</td><td>体积小 (&lt;10MB)、内存低、原生系统集成</td></tr>
+          <tr><td><strong style="color:#fff">前端框架</strong></td><td>React + TypeScript + Vite</td><td>18 / 5.x</td><td>类型安全、热更新快、生态成熟</td></tr>
+          <tr><td><strong style="color:#fff">UI 组件</strong></td><td>Ant Design</td><td>5.x</td><td>企业级组件库，表单/表格能力强</td></tr>
+          <tr><td><strong style="color:#fff">图表引擎</strong></td><td>ECharts</td><td>5.x</td><td>国产、功能全面、渲染性能好</td></tr>
+          <tr><td><strong style="color:#fff">后端框架</strong></td><td>FastAPI + Uvicorn</td><td>0.115+</td><td>异步高性能、自动 API 文档、类型驱动</td></tr>
+          <tr><td><strong style="color:#fff">数据验证</strong></td><td>Pydantic</td><td>v2</td><td>运行时类型校验、序列化高效</td></tr>
+          <tr><td><strong style="color:#fff">调度器</strong></td><td>APScheduler</td><td>3.x</td><td>自适应调度、后台运行、灵活触发</td></tr>
+          <tr><td><strong style="color:#fff">分析计算</strong></td><td>NumPy + SciPy + statsmodels</td><td>最新</td><td>科学计算标准栈，SPC/预测模型基础</td></tr>
+          <tr><td><strong style="color:#fff">机器学习</strong></td><td>scikit-learn</td><td>1.x</td><td>GBDT 特征重要性分析</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: 核心功能 -->
+<!-- ================================================================ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">核心功能详解</h2>
+    <p class="section-desc">9 大功能模块，覆盖数据采集、实时监控、过程分析、智能预警、数据管理全链路。</p>
+
+    <!-- Feature 1 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(59,130,246,0.12)">&#128202;</div>
+        <div>
+          <h3>实时监控仪表盘</h3>
+          <span class="f-badge" style="background:rgba(59,130,246,0.12);color:var(--primary-light)">核心入口</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>系统主页面，提供液奶生产质量的全局实时视图。顶部 5 大 KPI 指标卡（今日检验量、待处理告警、平均 Cpk、变异系数 CV%、偏移量）一目了然掌握当日质量状况。核心区域展示实时质量趋势图（带 USL/LSL 规格限标线和预测叠加），下方产品 Cpk 矩阵以卡片形式展示当前产品各指标的能力指数，红黄绿色标直观识别。</p>
+        <p>系统每 30 秒自动轮播 Top 3 产品，每 10 秒切换指标，实现无人值守的全局巡检。采集状态面板实时展示当前采集频率、运行状态、上次/下次采集时间、日成功率和数据源连接状态。</p>
+        <ul class="feature-list">
+          <li><strong>5 大 KPI 指标卡</strong> &mdash; 今日检验量、待处理告警、平均 Cpk、CV%、偏移量</li>
+          <li><strong>实时趋势图</strong> &mdash; ECharts 平滑曲线+渐变面积，USL/LSL 标线，预测叠加</li>
+          <li><strong>产品自动轮播</strong> &mdash; 30s 切换产品，10s 切换指标，无人值守巡检</li>
+          <li><strong>Cpk 矩阵</strong> &mdash; 卡片网格展示各指标 Cpk，红黄绿色标分级</li>
+          <li><strong>采集状态面板</strong> &mdash; 频率、成功率、数据源连接、手动采集按钮</li>
+          <li><strong>最新告警表</strong> &mdash; 最近 5 条告警，严重级别标签，可点击跳转</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 2 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(6,182,212,0.12)">&#128201;</div>
+        <div>
+          <h3>SPC 控制图分析</h3>
+          <span class="f-badge" style="background:rgba(6,182,212,0.12);color:var(--accent)">统计核心</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>基于统计过程控制 (SPC) 理论，提供 I-MR（个体值-移动极差）控制图分析。支持两种分析模式：过程分析模式（分析全部数据）和稳定性分析模式（仅分析基准样/标准样）。系统自动计算 UCL（上控制限）、CL（中心线）、LCL（下控制限），并在图上叠加 USL/LSL 规格限标线。</p>
+        <p>内置完整 8 条 Nelson 判异规则自动检测引擎，违规数据点在控制图上以红色圆点高亮标注，下方表格详细列出每条违规的规则编号、规则名称、描述和严重级别 (CRITICAL/WARNING/INFO)。顶部 4 大 KPI 卡片展示均值、标准差、违规次数和过程状态（受控/失控/基本受控）。</p>
+        <ul class="feature-list">
+          <li><strong>I-MR 控制图</strong> &mdash; 个体值图 + 移动极差图，d2=1.128 估算 sigma</li>
+          <li><strong>Nelson 8 条规则</strong> &mdash; R1 超 3&sigma;、R2 连续 9 点同侧、R3 连续 6 点单调等</li>
+          <li><strong>双模式分析</strong> &mdash; 过程分析（全部数据）/ 稳定性分析（基准样）</li>
+          <li><strong>违规高亮</strong> &mdash; 红色标注违规点，表格列出规则详情和严重级别</li>
+          <li><strong>灵活筛选</strong> &mdash; 产品/指标/窗口大小 (10-100)/日期范围/备注过滤</li>
+          <li><strong>预测叠加</strong> &mdash; 可在控制图上叠加跨指标预测曲线</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 3 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(16,185,129,0.12)">&#128200;</div>
+        <div>
+          <h3>过程能力分析</h3>
+          <span class="f-badge" style="background:rgba(16,185,129,0.12);color:var(--success)">能力评估</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>量化评估生产过程满足规格要求的能力。系统计算四大核心能力指数：Cp（过程潜力）、Cpk（过程能力，含偏移修正）、Pp（整体过程潜力）、Ppk（整体过程能力），并支持 Ca（偏移系数）计算。Sigma 水平仪表盘以 ECharts Gauge 组件直观展示当前过程的西格玛水平 (1&sigma;~6&sigma;+)，配套显示 PPM 缺陷率和合格率。</p>
+        <p>直方图+正态曲线叠加展示质量数据的频率分布，USL/LSL 标线清晰标注规格范围。Cpk 历史趋势图追踪能力指数的变化走势，1.33 目标线作为能力达标基准。支持单侧规格限（仅有 USL 或仅有 LSL）的自动检测和计算。</p>
+        <ul class="feature-list">
+          <li><strong>四大指数</strong> &mdash; Cp/Cpk/Pp/Ppk，色标分级（绿/黄/红）</li>
+          <li><strong>Sigma 仪表盘</strong> &mdash; 0~6+ 西格玛水平，PPM 缺陷率，合格率</li>
+          <li><strong>直方图</strong> &mdash; 频率分布 + 正态曲线叠加，USL/LSL 标线</li>
+          <li><strong>Cpk 趋势</strong> &mdash; 历史 Cpk 走势，1.33 目标基准线</li>
+          <li><strong>单侧规格限</strong> &mdash; 自动检测仅有 USL 或 LSL 的场景</li>
+          <li><strong>Ca 偏移系数</strong> &mdash; 量化过程中心与规格中心的偏移程度</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 4 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(139,92,246,0.12)">&#129302;</div>
+        <div>
+          <h3>智能预测预警</h3>
+          <span class="f-badge" style="background:rgba(139,92,246,0.12);color:var(--purple)">AI 驱动</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>系统内置多模型预测引擎，支持 ETS（指数平滑）、ARIMA（自回归积分移动平均）、MA（移动平均+线性趋势）三种预测模型，通过 ADF 平稳性检验自动选择最优模型（MASE 指标对比）。预测结果包含点预测值和 95% 置信区间，可视化展示历史数据+预测曲线+置信区间带。</p>
+        <p>风险监测面板包含四大维度：Cpk 滑动窗口趋势分析、越限概率分析（基于正态分布 CDF 计算，分 LOW/MEDIUM/HIGH/CRITICAL 四级）、CUSUM 漂移检测（按工艺分段）、过程能力综合评估。当越限风险达到 CRITICAL 级别时，系统弹出全屏告警弹窗，强制提醒操作人员关注。</p>
+        <p>此外，系统还提供指标相关性分析（Pearson 相关系数热力图）、GBDT 特征重要性排序（Top 10 关键因子）、跨指标预测（如从脂肪预测饱和脂肪）等深度分析能力。</p>
+        <ul class="feature-list">
+          <li><strong>多模型择优</strong> &mdash; ETS / ARIMA / MA，ADF 检验 + MASE 对比自动选模</li>
+          <li><strong>95% 置信区间</strong> &mdash; 量化预测不确定性，带状可视化展示</li>
+          <li><strong>越限概率</strong> &mdash; 正态分布 CDF 计算，LOW/MEDIUM/HIGH/CRITICAL 四级</li>
+          <li><strong>CUSUM 漂移检测</strong> &mdash; 按 HG/换罐 工艺分段，识别缓慢漂移</li>
+          <li><strong>相关性热力图</strong> &mdash; Pearson 相关系数矩阵，揭示指标间关联</li>
+          <li><strong>GBDT 特征重要性</strong> &mdash; 梯度提升树排序 Top 10 关键影响因子</li>
+          <li><strong>跨指标预测</strong> &mdash; 线性系数预测，如 saturated_fat = fat &times; 0.6278</li>
+          <li><strong>模型评估表</strong> &mdash; MASE/MAPE/RMSE/MAE/方向准确率全指标对比</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 5 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(239,68,68,0.12)">&#128276;</div>
+        <div>
+          <h3>告警管理中心</h3>
+          <span class="f-badge" style="background:rgba(239,68,68,0.12);color:var(--danger)">实时响应</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>统一管理所有质量告警事件。告警来源包括 Nelson 规则违规、Cpk 低于阈值、规格限越限三大类，每条告警自动生成唯一编号 (OM-YYYYMMDD-XXXXXX)。告警分为 CRITICAL（严重）、WARNING（警告）、INFO（信息）三级，不同级别在 UI 上以红/橙/蓝色标区分。</p>
+        <p>系统内置 24 小时去重窗口，相同产品+指标+规则的告警在 24 小时内不重复生成。支持单条和批量处置（确认/作废数据），处置时可添加备注说明。7 天告警趋势图（按日按级别堆叠柱状图）和规则类型分布饼图帮助分析告警模式。WebSocket 实时推送新告警，配合系统通知和声音告警确保及时响应。</p>
+        <ul class="feature-list">
+          <li><strong>三级告警</strong> &mdash; CRITICAL/WARNING/INFO，红/橙/蓝色标</li>
+          <li><strong>24h 去重</strong> &mdash; 同产品+指标+规则不重复告警</li>
+          <li><strong>7 天趋势图</strong> &mdash; 按日按级别堆叠柱状图</li>
+          <li><strong>规则分布饼图</strong> &mdash; 各类告警规则占比分析</li>
+          <li><strong>批量处置</strong> &mdash; 勾选多条告警，一键确认或作废数据</li>
+          <li><strong>实时推送</strong> &mdash; WebSocket + 系统通知 + Web Audio 声音</li>
+          <li><strong>分页浏览</strong> &mdash; 按严重级别/状态/产品/关键词筛选</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 6 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(245,158,11,0.12)">&#9881;</div>
+        <div>
+          <h3>多源数据采集</h3>
+          <span class="f-badge" style="background:rgba(245,158,11,0.12);color:var(--warning)">数据底座</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>系统的核心数据底座，无缝对接三类乳品分析仪：FT1（SQL Server 关系型数据库）、FT120（Access MDB 文件）、FTA Perten（独立 SQL Server 数据库）。每种仪器对应独立的采集器实现，共享统一的基类接口（采集、断点续传、规格限、修正值、产品管理）。</p>
+        <p>自适应采集调度器内置频率梯度 [5, 15, 30, 60, 120, 300] 分钟，在有新数据时保持高频采集（5 分钟），当连续无新数据时自动降频节能，数据恢复时自动提频回到 5 分钟。断点续传机制确保系统重启后不重复采集。修正值系统支持按产品+指标设置校准偏移量，在采集时自动应用。</p>
+        <ul class="feature-list">
+          <li><strong>FT1 采集器</strong> &mdash; SQL Server 4 表关联结构 (Sample/Product/Component/Prediction)</li>
+          <li><strong>FT120 采集器</strong> &mdash; Access MDB 文件解析 (access-parser 库)</li>
+          <li><strong>FTA 采集器</strong> &mdash; Perten FTA 数据库 (EstimateEvent/Estimate 表)</li>
+          <li><strong>自适应调度</strong> &mdash; 频率梯度 [5/15/30/60/120/300] 分钟自动调节</li>
+          <li><strong>断点续传</strong> &mdash; 断点文件记录进度，重启不重复采集</li>
+          <li><strong>修正值系统</strong> &mdash; 按产品+指标校准偏移，采集时自动应用</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 7 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(59,130,246,0.12)">&#128190;</div>
+        <div>
+          <h3>数据管理与配置</h3>
+          <span class="f-badge" style="background:rgba(59,130,246,0.12);color:var(--primary-light)">运维管理</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>系统提供 17+ 项运行时配置能力，均支持热更新（无需重启服务）。包括：SQL Server 连接配置（含连接测试、数据库探索、关系型测试）、MDB 文件配置、FTA 数据库配置、采集频率与 SPC 窗口设置、Nelson 规则启用/禁用和严重级别调整、产品状态管理（启用/禁用监控）、规格限配置（USL/LSL/目标值）、修正值配置、产品分类（14 个乳制品分类）、别名配置、排除备注关键词、预测配置等。</p>
+        <p>数据管理页面提供分页数据浏览、修正值在线编辑、规格限在线调整、数据作废/恢复、CSV 导出等功能。支持按日期范围、产品、指标多维筛选。</p>
+        <ul class="feature-list">
+          <li><strong>仪器切换</strong> &mdash; Mock / FT1 / FT120 / FTA 一键切换数据源</li>
+          <li><strong>规格限配置</strong> &mdash; 按产品+指标设置 USL/LSL/目标值</li>
+          <li><strong>Nelson 规则</strong> &mdash; 8 条规则独立启用/禁用，严重级别可调</li>
+          <li><strong>产品管理</strong> &mdash; 启用/禁用监控、分类管理、别名设置</li>
+          <li><strong>数据浏览</strong> &mdash; 分页列表，多维筛选，修正值编辑，作废/恢复</li>
+          <li><strong>CSV 导出</strong> &mdash; 按筛选条件导出数据用于离线分析</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 8 -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="f-icon" style="background:rgba(139,92,246,0.12)">&#128187;</div>
+        <div>
+          <h3>桌面原生应用</h3>
+          <span class="f-badge" style="background:rgba(139,92,246,0.12);color:var(--purple)">Tauri v2</span>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p>基于 Tauri v2 (Rust) 构建的桌面原生应用，安装包体积 &lt;10MB，内存占用远低于 Electron 方案。提供系统托盘常驻（最小化到托盘不退出）、原生系统通知推送、开机自启动管理、后端进程生命周期管理（自动启动/停止 Python 后端服务）、声音告警（Web Audio API 合成提示音）等原生能力。</p>
+        <ul class="feature-list">
+          <li><strong>系统托盘</strong> &mdash; 最小化到托盘，双击恢复窗口</li>
+          <li><strong>原生通知</strong> &mdash; 系统级弹窗通知，不依赖浏览器权限</li>
+          <li><strong>开机自启</strong> &mdash; 可配置的自启动行为</li>
+          <li><strong>进程管理</strong> &mdash; 自动启停后端服务，窗口关闭即退出</li>
+          <li><strong>声音告警</strong> &mdash; Web Audio API 合成提示音，CRITICAL 级别触发</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: 数据看板 -->
+<!-- ================================================================ -->
+<section class="section" id="dashboard">
+  <div class="container">
+    <div class="section-tag">Data Insight</div>
+    <h2 class="section-title">数据看板</h2>
+    <p class="section-desc">系统核心数据看板交互演示（模拟数据），展示趋势监控、SPC 控制、能力分布和模型对比。</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h4>实时质量趋势</h4>
+        <div class="chart-area" id="chart-trend"></div>
+      </div>
+      <div class="chart-box">
+        <h4>SPC I-MR 控制图</h4>
+        <div class="chart-area" id="chart-spc"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h4>过程能力分布（直方图 + 正态曲线）</h4>
+        <div class="chart-area" id="chart-capability"></div>
+      </div>
+      <div class="chart-box">
+        <h4>预测模型 MASE 对比</h4>
+        <div class="chart-area" id="chart-prediction"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: 技术亮点 -->
+<!-- ================================================================ -->
+<section class="section" id="tech">
+  <div class="container">
+    <div class="section-tag">Technology</div>
+    <h2 class="section-title">技术亮点</h2>
+    <p class="section-desc">自研分析引擎、自适应调度、实时推送、桌面原生集成等核心技术能力。</p>
+
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="t-icon">&#9878;</div>
+        <h4>SPC 分析引擎</h4>
+        <p>完整实现 I-MR 控制图（d2=1.128 估算 sigma，D4=3.267 计算 MR UCL）和全 8 条 Nelson 判异规则。过程能力计算含 Ca 偏移系数，支持单/双侧规格限，PPM 缺陷率基于 scipy.stats.norm 精确计算。</p>
+        <span class="t-metric">NumPy + SciPy</span>
+      </div>
+      <div class="tech-card">
+        <div class="t-icon">&#128300;</div>
+        <h4>预测分析引擎</h4>
+        <p>ADF 平稳性检验自动选择差分阶数，ETS 和 ARIMA 双模型 MASE 对比择优。GBDT 梯度提升树排序特征重要性，Pearson 相关系数矩阵带 p 值检验，越限概率基于正态 CDF 精确计算。</p>
+        <span class="t-metric">statsmodels + sklearn</span>
+      </div>
+      <div class="tech-card">
+        <div class="t-icon">&#9889;</div>
+        <h4>自适应采集调度</h4>
+        <p>频率梯度 [5/15/30/60/120/300] 分钟，基于 BackgroundScheduler 后台运行。连续无新数据时自动降频节能（每级停留一个周期后降级），数据恢复时立即重置到 5 分钟高频采集。</p>
+        <span class="t-metric">APScheduler</span>
+      </div>
+      <div class="tech-card">
+        <div class="t-icon">&#128225;</div>
+        <h4>WebSocket 实时推送</h4>
+        <p>FastAPI 原生 WebSocket 支持，定义 6 种消息类型（data_update / new_alert / stats_update / risk_alert / connected / heartbeat），30 秒心跳保活，前端自动重连。</p>
+        <span class="t-metric">FastAPI WebSocket</span>
+      </div>
+      <div class="tech-card">
+        <div class="t-icon">&#128187;</div>
+        <h4>Tauri v2 桌面应用</h4>
+        <p>Rust 原生启动器，安装包 &lt;10MB。通过 Tauri 插件实现系统托盘 (tray)、原生通知 (notification)、对话框 (dialog)、开机自启 (autostart)、窗口毛玻璃 (window-vibrancy)。</p>
+        <span class="t-metric">跨平台 &lt;10MB</span>
+      </div>
+      <div class="tech-card">
+        <div class="t-icon">&#128736;</div>
+        <h4>运行时热配置</h4>
+        <p>17+ JSON 配置文件支持运行时热更新。仪器源切换、规格限调整、告警规则增删、产品启用/禁用等操作均无需重启服务，实现零停机配置变更。</p>
+        <span class="t-metric">零停机配置</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 8: Roadmap -->
+<!-- ================================================================ -->
+<section class="section" id="roadmap">
+  <div class="container">
+    <div class="section-tag">Roadmap</div>
+    <h2 class="section-title">下一步规划</h2>
+    <p class="section-desc">分三个阶段持续演进，从能力增强到智能深化，最终打造乳制品智能质量管控标杆平台。</p>
+
+    <div class="roadmap">
+      <!-- Phase 1 -->
+      <div class="rm-phase">
+        <div class="rm-dot"></div>
+        <div class="rm-tag">PHASE 1</div>
+        <h4>能力增强与体验优化</h4>
+        <div class="rm-desc">在现有功能基础上深化能力、优化体验，覆盖更多分析场景和使用终端。</div>
+        <div class="rm-items">
+          <div class="rm-item">
+            <strong>多品种并行监控仪表盘</strong>
+            支持产线级总览，一屏查看所有产线的质量状况，快速定位问题产线
+          </div>
+          <div class="rm-item">
+            <strong>告警规则引擎升级</strong>
+            支持自定义组合条件和阈值联动，如"Cpk &lt; 1.33 且连续 3 点下降"触发升级告警
+          </div>
+          <div class="rm-item">
+            <strong>移动端适配 (PWA)</strong>
+            响应式 Web 适配手机端，支持移动端告警推送和快速处置
+          </div>
+          <div class="rm-item">
+            <strong>SPC 图表扩展</strong>
+            增加 X-bar/R 分组控制图、CUSUM 图、EWMA 图，覆盖更多 SPC 分析需求
+          </div>
+          <div class="rm-item">
+            <strong>PDF 分析报告自动生成</strong>
+            一键生成包含控制图、能力分析、趋势预测的 PDF 质量分析报告
+          </div>
+          <div class="rm-item">
+            <strong>历史数据回溯分析</strong>
+            支持选择历史时间段进行 SPC 和能力分析，对比不同时期的过程表现
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2 -->
+      <div class="rm-phase">
+        <div class="rm-dot"></div>
+        <div class="rm-tag">PHASE 2</div>
+        <h4>智能分析深化</h4>
+        <div class="rm-desc">引入 AI 大模型和高级分析方法，从数据展示升级到智能洞察和自动决策支持。</div>
+        <div class="rm-items">
+          <div class="rm-item">
+            <strong>LLM 自然语言交互</strong>
+            集成大语言模型，支持自然语言查询质量数据（如"最近一周脂肪指标的 Cpk 趋势"）和自动生成分析报告
+          </div>
+          <div class="rm-item">
+            <strong>异常根因分析</strong>
+            基于因果推断算法，自动定位质量异常的工艺环节和可能原因，缩短排查时间
+          </div>
+          <div class="rm-item">
+            <strong>多变量 SPC 分析</strong>
+            引入 T2 Hotelling 控制图和 PCA 主成分分析，支持多指标联合监控
+          </div>
+          <div class="rm-item">
+            <strong>预测模型升级</strong>
+            引入 Prophet / LSTM / Transformer 等深度学习时序模型，提升长周期预测精度
+          </div>
+          <div class="rm-item">
+            <strong>工艺参数关联分析</strong>
+            将温度、压力、流量等工艺参数纳入分析，建立工艺-质量关联模型
+          </div>
+          <div class="rm-item">
+            <strong>智能告警降噪</strong>
+            基于历史处置数据训练模型，自动识别低价值告警并降级，减少告警疲劳
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 3 -->
+      <div class="rm-phase">
+        <div class="rm-dot"></div>
+        <div class="rm-tag">PHASE 3</div>
+        <h4>平台化与生态扩展</h4>
+        <div class="rm-desc">从单工厂工具升级为集团级平台，打通上下游系统，构建质量知识生态。</div>
+        <div class="rm-items">
+          <div class="rm-item">
+            <strong>多工厂分布式部署</strong>
+            支持集团级统一管控，多工厂/多产线数据汇聚，总部实时查看各工厂质量状况
+          </div>
+          <div class="rm-item">
+            <strong>质量知识图谱</strong>
+            构建工艺-质量-原料关联知识库，积累和传承质量管控经验
+          </div>
+          <div class="rm-item">
+            <strong>开放 API 平台</strong>
+            提供标准化 RESTful API，与 MES/ERP/LIMS 等上下游系统对接集成
+          </div>
+          <div class="rm-item">
+            <strong>数字孪生</strong>
+            建立液奶生产过程的虚拟仿真模型，支持工艺参数优化的虚拟实验
+          </div>
+          <div class="rm-item">
+            <strong>全链路质量溯源</strong>
+            从原料到成品的全链路质量追溯，支持质量问题的快速定位和召回
+          </div>
+          <div class="rm-item">
+            <strong>质量对标管理</strong>
+            多工厂间质量指标对标分析，识别最佳实践并推广
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Summary Footer ===== -->
+<footer class="summary-footer">
+  <div class="container">
+    <h2>FT1-MONITOR</h2>
+    <p style="font-size:18px; color: var(--text); font-weight: 600;">让液奶质量管控从经验驱动迈向数据智能</p>
+    <p style="margin-top: 20px;">全面监控 &bull; 智能预测 &bull; 实时告警 &bull; 持续演进</p>
+    <div class="footer-meta">
+      FT1-MONITOR v1.5.4 &nbsp;&bull;&nbsp; 质量管控中心 &nbsp;&bull;&nbsp; 技术汇报
+    </div>
+  </div>
+</footer>
+
+<!-- ===== Charts ===== -->
+<script>
+(function() {
+  function initCharts() {
+    if (typeof echarts === 'undefined') { setTimeout(initCharts, 200); return; }
+    const theme = { backgroundColor: 'transparent', textStyle: { color: '#94a3b8' } };
+
+    // Trend
+    const c1 = echarts.init(document.getElementById('chart-trend'));
+    const td = [];
+    for (let i = 0; i < 60; i++) td.push(+(3.50 + (Math.random()-0.5)*0.4 + Math.sin(i/8)*0.08).toFixed(3));
+    c1.setOption({...theme,
+      grid:{top:30,right:20,bottom:30,left:50},
+      xAxis:{type:'category',data:td.map((_,i)=>i+1),axisLabel:{color:'#64748b',fontSize:10},axisLine:{lineStyle:{color:'#1e3050'}}},
+      yAxis:{type:'value',min:3.0,max:4.0,axisLabel:{color:'#64748b',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},
+      series:[{type:'line',data:td,smooth:true,symbol:'none',lineStyle:{color:'#3b82f6',width:2},
+        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(59,130,246,0.25)'},{offset:1,color:'rgba(59,130,246,0)'}])}}],
+      markLine:{silent:true,data:[{yAxis:3.8,label:{formatter:'USL',color:'#ef4444',fontSize:10},lineStyle:{color:'#ef4444',type:'dashed'}},{yAxis:3.2,label:{formatter:'LSL',color:'#ef4444',fontSize:10},lineStyle:{color:'#ef4444',type:'dashed'}},{yAxis:3.5,label:{formatter:'Target',color:'#10b981',fontSize:10},lineStyle:{color:'#10b981',type:'dotted'}}]}
+    });
+
+    // SPC
+    const c2 = echarts.init(document.getElementById('chart-spc'));
+    const sd = []; for(let i=0;i<50;i++) sd.push(+(3.50+(Math.random()-0.5)*0.35).toFixed(3));
+    const m=sd.reduce((a,b)=>a+b,0)/sd.length;
+    const mr=[]; for(let i=1;i<sd.length;i++) mr.push(Math.abs(sd[i]-sd[i-1]));
+    const mm=mr.reduce((a,b)=>a+b,0)/mr.length;
+    const u=+(m+3*mm/1.128).toFixed(3), l=+(m-3*mm/1.128).toFixed(3);
+    const v=sd.map((x,i)=>(x>u||x<l)?[i,x]:null).filter(Boolean);
+    c2.setOption({...theme,
+      grid:{top:30,right:20,bottom:30,left:50},
+      xAxis:{type:'category',data:sd.map((_,i)=>i+1),axisLabel:{color:'#64748b',fontSize:10},axisLine:{lineStyle:{color:'#1e3050'}}},
+      yAxis:{type:'value',min:+(l-0.1).toFixed(1),max:+(u+0.1).toFixed(1),axisLabel:{color:'#64748b',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},
+      series:[
+        {type:'line',data:sd,symbol:'circle',symbolSize:5,lineStyle:{color:'#3b82f6',width:1.5},itemStyle:{color:'#3b82f6'}},
+        {type:'scatter',data:v,symbolSize:10,itemStyle:{color:'#ef4444',borderColor:'#fff',borderWidth:1}}
+      ],
+      markLine:{silent:true,data:[{yAxis:u,label:{formatter:'UCL='+u,color:'#ef4444',fontSize:10},lineStyle:{color:'#ef4444',type:'dashed'}},{yAxis:m,label:{formatter:'CL='+m.toFixed(3),color:'#10b981',fontSize:10},lineStyle:{color:'#10b981',width:1}},{yAxis:l,label:{formatter:'LCL='+l,color:'#ef4444',fontSize:10},lineStyle:{color:'#ef4444',type:'dashed'}}]}
+    });
+
+    // Capability
+    const c3 = echarts.init(document.getElementById('chart-capability'));
+    const hb=[]; for(let i=0;i<20;i++) hb.push(0);
+    for(let i=0;i<300;i++){const v=3.50+(Math.random()+Math.random()+Math.random()-1.5)*0.25;const b=Math.floor((v-3.0)/0.05);if(b>=0&&b<20)hb[b]++;}
+    const bl=hb.map((_,i)=>(3.0+i*0.05).toFixed(2));
+    const ny=bl.map(x=>{const z=(x-3.50)/0.12;return Math.round(80*Math.exp(-0.5*z*z));});
+    c3.setOption({...theme,
+      grid:{top:20,right:20,bottom:30,left:40},
+      xAxis:{type:'category',data:bl,axisLabel:{color:'#64748b',fontSize:9,interval:2},axisLine:{lineStyle:{color:'#1e3050'}}},
+      yAxis:{type:'value',axisLabel:{color:'#64748b',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},
+      series:[{type:'bar',data:hb,barWidth:'60%',itemStyle:{color:'rgba(59,130,246,0.5)',borderRadius:[3,3,0,0]}},{type:'line',data:ny,smooth:true,symbol:'none',lineStyle:{color:'#f59e0b',width:2}}]
+    });
+
+    // Prediction
+    const c4 = echarts.init(document.getElementById('chart-prediction'));
+    c4.setOption({...theme,
+      grid:{top:20,right:20,bottom:40,left:50},
+      xAxis:{type:'category',data:['ETS','ARIMA(d=0)','ARIMA(d=1)','MA'],axisLabel:{color:'#64748b',fontSize:11},axisLine:{lineStyle:{color:'#1e3050'}}},
+      yAxis:{type:'value',name:'MASE',nameTextStyle:{color:'#64748b'},axisLabel:{color:'#64748b',fontSize:10},splitLine:{lineStyle:{color:'#1e293b'}}},
+      series:[{type:'bar',data:[{value:0.82,itemStyle:{color:'#10b981'}},{value:0.91,itemStyle:{color:'#3b82f6'}},{value:1.05,itemStyle:{color:'#3b82f6'}},{value:1.18,itemStyle:{color:'#3b82f6'}}],barWidth:'40%',label:{show:true,position:'top',color:'#94a3b8',fontSize:11},itemStyle:{borderRadius:[4,4,0,0]}}],
+      markLine:{silent:true,data:[{yAxis:1,label:{formatter:'MASE=1',color:'#ef4444',fontSize:10},lineStyle:{color:'#ef4444',type:'dashed'}}]}
+    });
+
+    window.addEventListener('resize',()=>{c1.resize();c2.resize();c3.resize();c4.resize();});
+  }
+
+  // IntersectionObserver for lazy chart init
+  const el = document.getElementById('chart-trend');
+  if (el) {
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) { initCharts(); obs.disconnect(); }
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+  }
+
+  // Active nav highlight
+  const sections = document.querySelectorAll('.section[id]');
+  const navLinks = document.querySelectorAll('.top-nav a');
+  const navObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const link = document.querySelector(`.top-nav a[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  sections.forEach(s => navObs.observe(s));
+})();
+</script>
+</body>
+</html>

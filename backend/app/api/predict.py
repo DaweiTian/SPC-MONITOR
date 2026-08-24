@@ -3,6 +3,7 @@ import numpy as np
 import json
 import asyncio
 import logging
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,49 @@ router = APIRouter(prefix="/predict", tags=["prediction"])
 storage = None  # injected from main.py
 
 SPEC_LIMITS_FILE = Path(__file__).resolve().parents[3] / "spec_limits.json"
+
+
+def _sanitize(obj):
+    """Replace NaN/inf floats with None for JSON serialization."""
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
+class _TTLCache:
+    def __init__(self, ttl: int = 300):
+        self._store: dict[str, tuple[float, object]] = {}
+        self._ttl = ttl
+
+    def get(self, key: str):
+        entry = self._store.get(key)
+        if entry and time.time() - entry[0] < self._ttl:
+            return entry[1]
+        self._store.pop(key, None)
+        return None
+
+    def set(self, key: str, value):
+        if len(self._store) > 200:
+            now = time.time()
+            self._store = {k: v for k, v in self._store.items() if now - v[0] < self._ttl}
+        self._store[key] = (time.time(), value)
+
+_cache = _TTLCache(ttl=300)
+
+
+def _get_data(indicator: str, product: str, limit: int = 200):
+    """Fetch recent data with excluded remarks filter (same as SPC)."""
+    excl = getattr(storage, '_excluded_remarks', None) or None
+    return storage.get_recent_data(
+        indicator_code=indicator, product_code=product,
+        limit=limit, exclude_remarks=excl,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -461,10 +505,14 @@ def forecast(
     model: str = Query("ets", description="Forecast model: ets, arima, auto"),
     horizon: int = Query(12, ge=1, le=100, description="Forecast horizon"),
 ):
-    # Fetch recent data from storage
-    data = storage.get_recent_data(
-        indicator_code=indicator, product_code=product, limit=200
-    )
+    # Check cache
+    cache_key = f"forecast:{product}:{indicator}:{model}:{horizon}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Fetch recent data from storage (with excluded remarks filter)
+    data = _get_data(indicator, product, limit=200)
     if len(data) < 20:
         return {"success": False, "message": "Not enough data (need >= 20 points)"}
 
@@ -515,8 +563,8 @@ def forecast(
     )
 
     risk = {
-        "level": risk_level,
-        "breach_probability": round(breach_prob, 6),
+        "risk_level": risk_level,
+        "breach_prob": round(breach_prob, 6),
         "breach_direction": breach_dir,
         "breach_time": breach_time,
         "usl": usl,
@@ -541,7 +589,7 @@ def forecast(
         except Exception as e:
             logger.debug(f"WebSocket push failed: {e}")
 
-    return {
+    result = _sanitize({
         "success": True,
         "data": {
             "product": product,
@@ -558,7 +606,9 @@ def forecast(
             "select_reason": select_reason,
             "risk": risk,
         },
-    }
+    })
+    _cache.set(cache_key, result)
+    return result
 
 
 @router.get("/models/compare")
@@ -568,9 +618,12 @@ def compare_models(
     horizon: int = Query(12, ge=1, le=100, description="Forecast horizon"),
 ):
     """Compare all models' MASE scores."""
-    data = storage.get_recent_data(
-        indicator_code=indicator, product_code=product, limit=200
-    )
+    cache_key = f"compare:{product}:{indicator}:{horizon}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
+    data = _get_data(indicator, product, limit=200)
     if len(data) < 20:
         return {"success": False, "message": "Not enough data"}
 
@@ -592,9 +645,21 @@ def compare_models(
 
     # Auto selection
     auto_model, auto_reason = _auto_select_model(values, horizon)
-    results.append({"model": "auto", "selected": auto_model, "reason": auto_reason})
 
-    return {"success": True, "data": results}
+    # Mark the recommended model
+    for r in results:
+        r["recommended"] = r["model"] == auto_model
+
+    result = _sanitize({
+        "success": True,
+        "data": {
+            "models": results,
+            "recommended_model": auto_model,
+            "recommendation_reason": auto_reason,
+        },
+    })
+    _cache.set(cache_key, result)
+    return result
 
 
 @router.get("/risk/cpk")
@@ -604,21 +669,51 @@ def risk_cpk(
     window: int = Query(100, ge=10, le=500, description="Sliding window size"),
 ):
     """Sliding window Cpk analysis."""
+    cache_key = f"cpk:{product}:{indicator}:{window}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
     usl, lsl = _get_spec_limits(product, indicator)
     if usl is None or lsl is None:
         return {"success": False, "message": "No spec limits defined for this product/indicator"}
 
-    data = storage.get_recent_data(
-        indicator_code=indicator, product_code=product, limit=500
-    )
+    data = _get_data(indicator, product, limit=500)
     if len(data) < 20:
         return {"success": False, "message": "Not enough data"}
 
     values = np.array([d["value"] for d in data], dtype=float)[::-1]
     result = _sliding_window_cpk(values, usl, lsl, window)
+
+    # Determine capability level
+    cpk = result.get("cpk_current")
+    if cpk is None:
+        capability = "unknown"
+    elif cpk >= 2.0:
+        capability = "excellent"
+    elif cpk >= 1.33:
+        capability = "sufficient"
+    elif cpk >= 1.0:
+        capability = "insufficient"
+    else:
+        capability = "severe_insufficient"
+
+    # Format trend as string
+    trend = result.get("cpk_trend")
+    if trend is not None:
+        trend_str = f"{'+' if trend > 0 else ''}{trend}"
+    else:
+        trend_str = None
+
+    result["capability"] = capability
+    result["cpk_trend"] = trend_str
+    result["alert"] = cpk is not None and cpk < 1.0
+    result["window_size"] = result.pop("cpk_window", window)
     result["usl"] = usl
     result["lsl"] = lsl
-    return {"success": True, "data": result}
+    resp = _sanitize({"success": True, "data": result})
+    _cache.set(cache_key, resp)
+    return resp
 
 
 @router.get("/risk/breach")
@@ -629,9 +724,7 @@ def risk_breach(
     model: str = Query("ets", description="Forecast model: ets, arima, auto"),
 ):
     """Standalone breach probability analysis."""
-    data = storage.get_recent_data(
-        indicator_code=indicator, product_code=product, limit=200
-    )
+    data = _get_data(indicator, product, limit=200)
     if len(data) < 20:
         return {"success": False, "message": "Not enough data"}
 
@@ -676,9 +769,12 @@ def risk_drift(
     indicator: str = Query(..., description="Indicator code"),
 ):
     """CUSUM drift detection per process segment."""
-    data = storage.get_recent_data(
-        indicator_code=indicator, product_code=product, limit=500
-    )
+    cache_key = f"drift:{product}:{indicator}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
+    data = _get_data(indicator, product, limit=500)
     if len(data) < 20:
         return {"success": False, "message": "Not enough data"}
 
@@ -688,14 +784,30 @@ def risk_drift(
     segments = _parse_segments(data_chrono)
     cusum_results = _segmented_cusum(values, segments)
 
-    return {
+    # Find the current (last) segment's drift info
+    current_drift = 0.0
+    drift_direction = "stable"
+    alert = False
+    if cusum_results:
+        last = cusum_results[-1]
+        current_drift = round(max(last["cusum_pos_max"], last["cusum_neg_max"]) / 5.0, 4)
+        if last.get("drift_detected"):
+            drift_direction = last.get("drift_direction", "stable")
+            alert = True
+
+    result = {
         "success": True,
         "data": {
             "segments": cusum_results,
             "total_segments": len(cusum_results),
             "any_drift": any(r["drift_detected"] for r in cusum_results),
+            "current_segment_drift": round(current_drift, 4),
+            "drift_direction": drift_direction,
+            "alert": alert,
         },
     }
+    _cache.set(cache_key, result)
+    return result
 
 
 @router.get("/correlation")
@@ -704,6 +816,11 @@ def correlation(
     limit: int = Query(200, ge=20, le=1000, description="Data limit"),
 ):
     """Pearson correlation matrix across indicators for a product."""
+    cache_key = f"corr:{product}:{limit}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         import pandas as pd
     except ImportError:
@@ -715,7 +832,7 @@ def correlation(
 
     series_dict: dict[str, dict[str, float]] = {}
     for ind in indicators:
-        data = storage.get_recent_data(ind, product, limit=limit)
+        data = _get_data(ind, product, limit=limit)
         if data:
             data_rev = data[::-1]
             for d in data_rev:
@@ -733,22 +850,47 @@ def correlation(
         return {"success": False, "message": "Need at least 2 indicators with data"}
 
     corr = df.corr()
-    return {
+    indicators_list = list(corr.columns)
+    n = len(indicators_list)
+    corr_matrix = [[0.0] * n for _ in range(n)]
+    p_matrix = [[0.0] * n for _ in range(n)]
+    from scipy.stats import pearsonr as _pearsonr
+    cols = [df[c].values for c in indicators_list]
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                corr_matrix[i][j] = 1.0
+            elif j > i:
+                r, p = _pearsonr(cols[i], cols[j])
+                corr_matrix[i][j] = round(float(r), 4)
+                corr_matrix[j][i] = round(float(r), 4)
+                p_matrix[i][j] = round(float(p), 6)
+                p_matrix[j][i] = round(float(p), 6)
+
+    result = {
         "success": True,
         "data": {
-            "matrix": corr.round(4).to_dict(),
-            "indicators": list(corr.columns),
+            "indicators": indicators_list,
+            "correlation_matrix": corr_matrix,
+            "p_values": p_matrix,
         },
     }
+    _cache.set(cache_key, result)
+    return result
 
 
 @router.get("/feature/importance")
 def feature_importance(
     product: str = Query(..., description="Product code"),
-    target: str = Query(..., description="Target indicator code"),
+    indicator: str = Query(..., description="Target indicator code"),
     limit: int = Query(200, ge=20, le=1000),
 ):
     """GBDT feature importance for predicting target indicator."""
+    cache_key = f"feat:{product}:{indicator}:{limit}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         import pandas as pd
         from sklearn.ensemble import GradientBoostingRegressor
@@ -761,7 +903,7 @@ def feature_importance(
 
     series_dict: dict[str, dict[str, float]] = {}
     for ind in indicators:
-        data = storage.get_recent_data(ind, product, limit=limit)
+        data = _get_data(ind, product, limit=limit)
         if data:
             data_rev = data[::-1]
             for d in data_rev:
@@ -773,12 +915,12 @@ def feature_importance(
     df = pd.DataFrame.from_dict(series_dict, orient="index")
     df = df.dropna()
 
-    if target not in df.columns or df.shape[1] < 2:
+    if indicator not in df.columns or df.shape[1] < 2:
         return {"success": False, "message": "Insufficient data for analysis"}
 
-    feature_cols = [c for c in df.columns if c != target]
+    feature_cols = [c for c in df.columns if c != indicator]
     X = df[feature_cols].values
-    y = df[target].values
+    y = df[indicator].values
 
     if len(X) < 20:
         return {"success": False, "message": "Not enough rows (need >= 20)"}
@@ -792,15 +934,16 @@ def feature_importance(
         key=lambda x: x[1], reverse=True,
     )
 
-    return {
+    result = {
         "success": True,
         "data": {
-            "target": target,
-            "features": [{"feature": f, "importance": v} for f, v in feature_importance_pairs],
-            "r2_score": round(float(gbdt.score(X, y)), 4),
-            "n_samples": len(X),
+            "indicator": indicator,
+            "model": "gbdt",
+            "features": [{"name": f, "importance": v} for f, v in feature_importance_pairs],
         },
     }
+    _cache.set(cache_key, result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -831,7 +974,7 @@ def get_cross_indicator_prediction(
     meta = TARGET_INDICATOR_META.get(target, {"name": target, "unit": ""})
     source_meta = SOURCE_INDICATOR_META.get(source, {"name": source})
 
-    source_data = storage.get_recent_data(source, product, limit=limit)
+    source_data = _get_data(source, product, limit=limit)
     source_data.reverse()
 
     predicted_data = []

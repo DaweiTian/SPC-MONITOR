@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '../../services'
 import styles from './Correction.module.css'
 
@@ -26,6 +26,24 @@ const CorrectionPage: React.FC = () => {
   const [editItems, setEditItems] = useState<Record<string, EditItem>>({})
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [correctionStatus, setCorrectionStatus] = useState<'all' | 'configured' | 'unconfigured'>('all')
+
+  const filteredProducts = useMemo(() => {
+    let list = products
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      list = list.filter(p => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
+    }
+    if (correctionStatus !== 'all') {
+      list = list.filter(p => {
+        const data = correctionValues[p.code]
+        const hasCorrections = data?.values && Object.values(data.values).some(v => v !== 0)
+        return correctionStatus === 'configured' ? hasCorrections : !hasCorrections
+      })
+    }
+    return list
+  }, [products, searchQuery, correctionStatus, correctionValues])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -190,6 +208,33 @@ const CorrectionPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
+      <div className={styles.filterBar}>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>品项搜索</span>
+          <input
+            type="text"
+            className={styles.filterInput}
+            placeholder="输入品项名称或编码"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>修正状态</span>
+          <select
+            className={styles.filterSelect}
+            value={correctionStatus}
+            onChange={e => setCorrectionStatus(e.target.value as 'all' | 'configured' | 'unconfigured')}
+          >
+            <option value="all">全部</option>
+            <option value="configured">已配置修正值</option>
+            <option value="unconfigured">未配置修正值</option>
+          </select>
+        </div>
+        <div className={styles.filterSpacer} />
+        <span className={styles.filterCount}>共 {filteredProducts.length} / {products.length} 条</span>
+      </div>
+
       <div className={styles.card}>
         <div className={styles.cardBody}>
           <table className={styles.table}>
@@ -203,7 +248,7 @@ const CorrectionPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map(p => (
+              {filteredProducts.map(p => (
                 <tr key={p.code}>
                   <td className={styles.tableCellPrimary}>{p.name}</td>
                   <td className={styles.tableCellMono}>{p.code}</td>

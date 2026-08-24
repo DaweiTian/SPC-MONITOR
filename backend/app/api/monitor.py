@@ -85,35 +85,97 @@ def get_widget_spc():
 
     return {"spc_points": [], "spc_mean": 0, "spc_ucl": 0, "spc_lcl": 0}
 
+@router.get("/widget_capability")
+def get_widget_capability():
+    """小组件用的聚合过程能力数据"""
+    if not storage or not collector:
+        return {"avg_cp": 0, "avg_cpk": 0, "avg_pp": 0, "avg_ppk": 0, "avg_sigma": 0, "avg_ppm": 0}
+
+    try:
+        from backend.app.engine.spc.capability import ProcessCapability
+        import numpy as np
+
+        products = collector.get_products()
+        indicators = collector.get_indicators()
+        capability = ProcessCapability()
+
+        results = {"cp": [], "cpk": [], "pp": [], "ppk": [], "sigma": [], "ppm": []}
+
+        for product in products[:3]:
+            spec_limits_map = collector.get_spec_limits(product_code=product['code'])
+            for indicator in indicators[:10]:
+                spec = spec_limits_map.get(indicator['code'], {})
+                if spec.get('lsl') is None and spec.get('usl') is None:
+                    continue
+                data = storage.get_recent_data(
+                    indicator_code=indicator['code'],
+                    product_code=product['code'],
+                    limit=30,
+                )
+                if len(data) < 5:
+                    continue
+                values = np.array([d['value'] for d in data], dtype=float)
+                has_lsl = spec.get('lsl') is not None
+                has_usl = spec.get('usl') is not None
+                try:
+                    if has_lsl and has_usl:
+                        r = capability.analyze(values, spec['lsl'], spec['usl'])
+                    elif has_usl:
+                        r = capability.analyze_one_sided(values, spec['usl'], 'upper')
+                    else:
+                        r = capability.analyze_one_sided(values, spec['lsl'], 'lower')
+                    if r.cpk > 0:
+                        results["cp"].append(r.cp)
+                        results["cpk"].append(r.cpk)
+                        results["pp"].append(r.pp)
+                        results["ppk"].append(r.ppk)
+                        results["sigma"].append(r.sigma_level)
+                        results["ppm"].append(r.defect_rate_ppm)
+                except Exception:
+                    continue
+
+        def avg(lst):
+            return round(sum(lst) / len(lst), 4) if lst else 0
+
+        return {
+            "avg_cp": avg(results["cp"]),
+            "avg_cpk": avg(results["cpk"]),
+            "avg_pp": avg(results["pp"]),
+            "avg_ppk": avg(results["ppk"]),
+            "avg_sigma": avg(results["sigma"]),
+            "avg_ppm": avg(results["ppm"]),
+        }
+    except Exception as e:
+        logger.warning(f"Widget capability 数据获取失败: {e}")
+        return {"avg_cp": 0, "avg_cpk": 0, "avg_pp": 0, "avg_ppk": 0, "avg_sigma": 0, "avg_ppm": 0}
+
 @router.get("/products")
 def get_products():
     if not collector:
         return {"products": []}
-    
-    # Get products from collector
+
+    # Get products from collector (SQL Server Product table / MDB Product table)
     all_products = collector.get_products()
-    
-    # If MDB collector, limit to products that have data in database
-    if hasattr(collector, 'mdb_path'):  # MDB collector
-        try:
-            # Get products that have data in database
-            db_products = storage.get_products_with_data(limit=100)
-            if db_products:
-                # Filter collector products to only include those with data
-                db_product_codes = {p['product_code'] for p in db_products}
-                seen = set()
-                filtered = []
-                for p in all_products:
-                    if p['code'] in db_product_codes and p['code'] not in seen:
-                        seen.add(p['code'])
-                        filtered.append(p)
-                    if len(filtered) >= 50:
-                        break
+
+    # Filter to products that have actual data in the local SQLite database.
+    # This ensures consistency between 数据管理 (reads SQLite directly) and
+    # all other pages (use this endpoint for product dropdowns).
+    try:
+        db_products = storage.get_products_with_data(limit=200)
+        if db_products:
+            db_product_codes = {p['product_code'] for p in db_products}
+            seen = set()
+            filtered = []
+            for p in all_products:
+                if p['code'] in db_product_codes and p['code'] not in seen:
+                    seen.add(p['code'])
+                    filtered.append(p)
+            if filtered:
                 return {"products": filtered}
-        except Exception:
-            pass
-    
-    # Deduplicate and limit
+    except Exception:
+        pass
+
+    # Fallback: deduplicate and limit (when no data in DB yet)
     seen = set()
     unique = []
     for p in all_products:
@@ -170,10 +232,23 @@ def get_recent_data(
     indicator_code: str = Query(...),
     product_code: str = Query(...),
     limit: int = Query(100, le=500),
+    date_from: str = Query(None),
+    date_to: str = Query(None),
+    remark: str = Query(None),
 ):
-    data = storage.get_recent_data(
-        indicator_code=indicator_code,
-        product_code=product_code,
-        limit=limit,
-    )
+    if date_from or date_to or remark:
+        data = storage.get_filtered_data(
+            indicator_code=indicator_code,
+            product_code=product_code,
+            date_from=date_from,
+            date_to=date_to,
+            remark=remark,
+            limit=limit,
+        )
+    else:
+        data = storage.get_recent_data(
+            indicator_code=indicator_code,
+            product_code=product_code,
+            limit=limit,
+        )
     return {"data": data}

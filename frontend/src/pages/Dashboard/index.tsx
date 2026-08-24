@@ -92,6 +92,8 @@ export const Dashboard: React.FC = () => {
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
   const [alertRules, setAlertRules] = useState<Record<string, { rule: string; description: string }>>({})
   const [collecting, setCollecting] = useState(false)
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   
   /* ── 品项选择状态（从 localStorage 恢复） ── */
   const [productMode, setProductMode] = useState<ProductMode>(() => {
@@ -161,6 +163,7 @@ export const Dashboard: React.FC = () => {
       })
       setAlertRules(map)
     }).catch(() => { console.warn('获取预警规则失败，使用默认映射') })
+    api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -252,6 +255,22 @@ export const Dashboard: React.FC = () => {
       console.error('获取趋势数据失败:', e)
     }
   }, [currentProduct, currentIndicator])
+
+  /* ── 获取交叉预测数据 ── */
+  useEffect(() => {
+    if (!currentProduct || !currentIndicator) { setPredData(null); return }
+    const prodPreds = predictionConfig[currentProduct.code] || {}
+    const matchingTarget = Object.entries(prodPreds).find(
+      ([, cfg]) => cfg.source_indicator === currentIndicator.code && cfg.enabled
+    )
+    if (matchingTarget) {
+      const [targetCode] = matchingTarget
+      api.getCrossIndicatorPrediction(currentProduct.code, targetCode, 100)
+        .then(setPredData).catch(() => setPredData(null))
+    } else {
+      setPredData(null)
+    }
+  }, [currentProduct?.code, currentIndicator?.code, predictionConfig])
 
   /* ── 获取过程能力数据（只获取当前品项的） ── */
   const fetchCapMatrix = useCallback(async () => {
@@ -452,6 +471,14 @@ export const Dashboard: React.FC = () => {
       })
     }
 
+    // Prediction overlay
+    const showPrediction = predData?.enabled && predData.data && predData.data.length > 0
+    let predValues: (number | null)[] = []
+    if (showPrediction) {
+      const predMap = new Map(predData!.data.map(d => [d.sample_time, d.value]))
+      predValues = sorted.map(d => predMap.get(d.sample_time) ?? null)
+    }
+
     return {
       ...chartTheme,
       tooltip: {
@@ -463,22 +490,34 @@ export const Dashboard: React.FC = () => {
           const d = sorted[idx]
           const sampleInfo = d?.sample_id ? `<br/>样品编码: ${escapeHtml(d.sample_id)}` : ''
           const remarkInfo = d?.remark ? `<br/>备注: ${escapeHtml(d.remark)}` : ''
-          return `<b>${escapeHtml(d?.sample_time ? new Date(d.sample_time).toLocaleString('zh-CN') : '')}</b>${sampleInfo}${remarkInfo}<br/>${escapeHtml(currentIndicator.name)}: <b>${escapeHtml(String(p.value))}</b>`
+          const predInfo = (showPrediction && predValues[idx] != null)
+            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}: <b>${predValues[idx]?.toFixed(4)}</b></span>`
+            : ''
+          return `<b>${escapeHtml(d?.sample_time ? new Date(d.sample_time).toLocaleString('zh-CN') : '')}</b>${sampleInfo}${remarkInfo}<br/>${escapeHtml(currentIndicator.name)}: <b>${escapeHtml(String(p.value))}</b>${predInfo}`
         },
       },
       legend: {
-        data: [currentIndicator.name],
+        data: [currentIndicator.name, ...(showPrediction ? [predData?.model_info?.target_name || '预测值'] : [])],
         textStyle: { color: '#8b95a7' },
         top: 0,
         right: 10,
       },
-      grid: { left: 50, right: 60, top: 40, bottom: 30 },
+      grid: { left: 50, right: showPrediction ? 90 : 60, top: 40, bottom: 30 },
       xAxis: {
         type: 'category',
         data: times,
         ...chartTheme.xAxis,
       },
-      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
+      yAxis: showPrediction
+        ? [
+            { type: 'value' as const, ...chartTheme.yAxis, scale: true },
+            {
+              type: 'value' as const, position: 'right' as const, splitLine: { show: false },
+              axisLabel: { color: '#f59e0b', fontSize: 10 },
+              axisLine: { show: true, lineStyle: { color: '#f59e0b' } },
+            },
+          ]
+        : { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [
         {
           name: currentIndicator.name,
@@ -510,9 +549,21 @@ export const Dashboard: React.FC = () => {
           data: [...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
           silent: true,
         },
+        ...(showPrediction ? [{
+          name: predData?.model_info?.target_name || '预测值',
+          type: 'line' as const,
+          yAxisIndex: 1,
+          smooth: true,
+          symbol: 'emptyCircle' as const,
+          symbolSize: 5,
+          data: predValues,
+          lineStyle: { color: '#f59e0b', width: 2, type: 'dashed' as const },
+          itemStyle: { color: '#f59e0b' },
+          connectNulls: true,
+        }] : []),
       ],
     }
-  }, [recentData, currentIndicator, currentProduct, allSpecLimits])
+  }, [recentData, currentIndicator, currentProduct, allSpecLimits, predData])
 
   const { containerRef } = useChart(chartOption)
 

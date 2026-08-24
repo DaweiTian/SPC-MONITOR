@@ -133,6 +133,51 @@
   padding: 6px 0;
 }
 
+.filterDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-color);
+  margin: 0 4px;
+}
+
+.filterDateInput {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 140px;
+}
+
+.filterDateInput:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.filterTextInput {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 160px;
+}
+
+.filterTextInput::placeholder {
+  color: var(--text-muted);
+}
+
+.filterTextInput:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
 .btnQuery {
   display: inline-flex;
   align-items: center;
@@ -160,6 +205,24 @@
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+.btnReset {
+  padding: 7px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btnReset:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.05);
 }
 
 .loadingText {
@@ -210,6 +273,7 @@
 .kpiCardPurple::before { background: var(--gradient-purple); }
 .kpiCardOrange::before { background: var(--gradient-orange); }
 .kpiCardGreen::before { background: var(--gradient-green); }
+.kpiCardRed::before { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
 
 .kpiHeader {
   display: flex;
@@ -237,6 +301,7 @@
 .kpiCardPurple .kpiIcon { background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); }
 .kpiCardOrange .kpiIcon { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
 .kpiCardGreen .kpiIcon { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
+.kpiCardRed .kpiIcon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
 .kpiValue {
   font-size: 32px;
@@ -249,6 +314,7 @@
 .kpiCardPurple .kpiValue { color: var(--accent-purple); }
 .kpiCardOrange .kpiValue { color: var(--accent-orange); }
 .kpiCardGreen .kpiValue { color: var(--accent-green); }
+.kpiCardRed .kpiValue { color: #ef4444; }
 
 .kpiUnit {
   font-size: 14px;
@@ -302,6 +368,19 @@
 
 .chartPanelBody {
   padding: 20px;
+  position: relative;
+}
+
+.emptyChart {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ========== Tags ========== */

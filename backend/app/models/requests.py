@@ -70,3 +70,7 @@ class AliasRequest(BaseModel):
 
 class ProductStatusRequest(BaseModel):
     products: Dict[str, bool]
+
+
+class ProductCategoryRequest(BaseModel):
+    category: str

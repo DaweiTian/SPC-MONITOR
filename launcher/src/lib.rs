@@ -251,6 +251,23 @@ async fn get_widget_data(
         }
     }
 
+    if let Ok(resp) = client
+        .get(format!("{}/api/monitor/widget_capability", base))
+        .header("X-API-Key", &key)
+        .send()
+        .await
+    {
+        if let Ok(cap) = resp.json::<serde_json::Value>().await {
+            if let Some(obj) = data.as_object_mut() {
+                for field in &["avg_cp", "avg_cpk", "avg_pp", "avg_ppk", "avg_sigma", "avg_ppm"] {
+                    if let Some(val) = cap.get(*field) {
+                        obj.insert((*field).into(), val.clone());
+                    }
+                }
+            }
+        }
+    }
+
     Ok(data)
 }
 

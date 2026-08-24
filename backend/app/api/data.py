@@ -14,6 +14,8 @@ def list_data(
     date: str = Query(None),
     product_code: str = Query(None),
     indicator_code: str = Query(None),
+    date_from: str = Query(None),
+    date_to: str = Query(None),
 ):
     return storage.get_all_data(
         page=page,
@@ -21,6 +23,8 @@ def list_data(
         date=date,
         product_code=product_code,
         indicator_code=indicator_code,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
@@ -46,6 +50,22 @@ def update_record(record_id: int, body: dict):
     if success:
         return {"success": True, "message": "记录已更新"}
     return {"success": False, "message": "更新失败，记录不存在或无有效字段"}
+
+
+@router.post("/void/{record_id}")
+def void_record(record_id: int):
+    success = storage.void_record(record_id)
+    if success:
+        return {"success": True, "message": "记录已作废"}
+    return {"success": False, "message": "操作失败，记录不存在"}
+
+
+@router.post("/unvoid/{record_id}")
+def unvoid_record(record_id: int):
+    success = storage.unvoid_record(record_id)
+    if success:
+        return {"success": True, "message": "记录已恢复"}
+    return {"success": False, "message": "操作失败，记录不存在"}
 
 
 @router.get("/export")

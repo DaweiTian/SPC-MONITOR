@@ -112,6 +112,9 @@ export const CapabilityPage: React.FC = () => {
     product_code: '',
     indicator_code: 'fat',
     window: 30,
+    date_from: '',
+    date_to: '',
+    remark: '',
   })
 
   // Products with spec limits (at least one indicator has USL or LSL)
@@ -167,13 +170,15 @@ export const CapabilityPage: React.FC = () => {
   }, [filter.product_code, initialized])
 
   // Auto-fetch when filter changes (after initialization)
-  const fetchData = async (productCode: string, indicatorCode: string, window: number) => {
+  const hasDateOrRemarkFilter = filter.date_from || filter.date_to || filter.remark
+
+  const fetchData = async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }) => {
     if (!productCode || !indicatorCode) return
     setLoading(true)
     try {
       const [capData, recent] = await Promise.all([
-        api.getCapabilityData(productCode, indicatorCode, window),
-        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window }),
+        api.getCapabilityData(productCode, indicatorCode, window, filters),
+        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window, ...filters }),
       ])
       setCapabilityData(capData)
       const values = (recent.data || recent).map((d: MonitorData) => d.value as number)
@@ -187,9 +192,12 @@ export const CapabilityPage: React.FC = () => {
 
   useEffect(() => {
     if (initialized && filter.product_code && filter.indicator_code) {
-      fetchData(filter.product_code, filter.indicator_code, filter.window)
+      const filters = hasDateOrRemarkFilter
+        ? { date_from: filter.date_from || undefined, date_to: filter.date_to || undefined, remark: filter.remark || undefined }
+        : undefined
+      fetchData(filter.product_code, filter.indicator_code, filter.window, filters)
     }
-  }, [initialized, filter.product_code, filter.indicator_code, filter.window])
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark])
 
   // getIndicatorName provided by useAppMetadata hook
 
@@ -351,8 +359,11 @@ export const CapabilityPage: React.FC = () => {
       return null
     }
 
-    const dates = historicalCpk.map(h => h.time)
-    const cpkData = historicalCpk.map(h => h.value)
+    const dates = historicalCpk.map(h => h.time).reverse()
+    const cpkData = historicalCpk.map(h => h.value).reverse()
+
+    const dataMin = Math.min(...cpkData)
+    const dataMax = Math.max(...cpkData)
 
     return {
       ...chartTheme,
@@ -366,8 +377,8 @@ export const CapabilityPage: React.FC = () => {
       yAxis: {
         type: 'value' as const,
         ...chartTheme.yAxis,
-        min: Math.min(1.0, Math.min(...cpkData) - 0.1),
-        max: Math.max(1.7, Math.max(...cpkData) + 0.1),
+        min: Math.floor(Math.min(1.0, dataMin - 0.1)),
+        max: Math.ceil(dataMax + 0.1),
       },
       series: [
         {
@@ -441,6 +452,22 @@ export const CapabilityPage: React.FC = () => {
             <option key={i.code} value={i.code}>{getIndicatorName(i.code)}</option>
           ))}
         </select>
+        <div className={styles.filterDivider} />
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>开始日期</span>
+          <input type="date" className={styles.filterDateInput} value={filter.date_from} onChange={e => setFilter(f => ({ ...f, date_from: e.target.value }))} />
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>结束日期</span>
+          <input type="date" className={styles.filterDateInput} value={filter.date_to} onChange={e => setFilter(f => ({ ...f, date_to: e.target.value }))} />
+        </div>
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>备注</span>
+          <input type="text" className={styles.filterTextInput} placeholder="模糊搜索备注..." value={filter.remark} onChange={e => setFilter(f => ({ ...f, remark: e.target.value }))} />
+        </div>
+        {hasDateOrRemarkFilter && (
+          <button className={styles.btnReset} onClick={() => setFilter(f => ({ ...f, date_from: '', date_to: '', remark: '' }))}>重置筛选</button>
+        )}
         {loading && <span className={styles.loadingText}>加载中...</span>}
       </div>
 
@@ -558,9 +585,8 @@ export const CapabilityPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.panelBody}>
-          {cpkTrendOption ? (
-            <div ref={cpkTrendRef} style={{ height: 280, width: '100%' }} />
-          ) : (
+          <div ref={cpkTrendRef} style={{ height: 280, width: '100%', display: cpkTrendOption ? 'block' : 'none' }} />
+          {!cpkTrendOption && (
             <div style={{ height: 280, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b95a7', fontSize: 14 }}>
               暂无历史 Cpk 数据
             </div>

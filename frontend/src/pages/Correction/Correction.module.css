@@ -30,6 +30,79 @@
   min-height: 0;
 }
 
+/* ========== Filter Bar ========== */
+.filterBar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filterLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.filterInput {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  outline: none;
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.filterInput::placeholder {
+  color: var(--text-muted);
+}
+
+.filterInput:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.filterSelect {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  appearance: auto;
+  min-width: 130px;
+}
+
+.filterSelect:focus {
+  border-color: var(--accent-cyan);
+}
+
+.filterSpacer {
+  flex: 1;
+}
+
+.filterCount {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 /* ========== Table ========== */
 .table {
   width: 100%;

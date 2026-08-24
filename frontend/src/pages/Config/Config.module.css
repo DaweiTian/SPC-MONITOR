@@ -75,6 +75,65 @@
   box-shadow: var(--glow-cyan);
 }
 
+.cardHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--accent-cyan);
+}
+
+.tagChipRemove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.tagChipRemove:hover {
+  color: var(--accent-red);
+}
+
+/* ── Excluded Remarks Section ── */
+.remarksSection {
+  padding: 16px 20px;
+}
+.remarksChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+  margin-bottom: 16px;
+}
+.remarksEmpty {
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.remarksInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.remarksInputRow input {
+  flex: 1;
+  max-width: 280px;
+}
+
 .cardBody {
   padding: 0;
   flex: 1;
@@ -249,8 +308,19 @@
 }
 
 .btnSmall {
-  padding: 4px 10px;
+  padding: 6px 14px;
   font-size: 12px;
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnSmall:hover {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.5);
 }
 
 /* ========== Data Source Section ========== */
@@ -610,9 +680,9 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 16px;
-  width: 90%;
-  max-width: 700px;
-  max-height: 85vh;
+  width: 92%;
+  max-width: 820px;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);

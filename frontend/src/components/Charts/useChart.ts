@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
 import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
 import { LineChart, BarChart, GaugeChart, PieChart, ScatterChart, BoxplotChart } from 'echarts/charts'
@@ -76,8 +76,11 @@ export function useChart(option: EChartsOption | null) {
 
   // Update options when they change
   useEffect(() => {
-    if (!chartRef.current || !option) return
-
+    if (!chartRef.current) return
+    if (!option) {
+      chartRef.current.clear()
+      return
+    }
     chartRef.current.setOption(option, true)
   }, [option])
 

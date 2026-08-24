@@ -480,8 +480,8 @@ class SQLServerCollector(BaseCollector):
             self._products_cache = {row[0]: row[1] for row in rows if row[0] is not None}
         except Exception as e:
             logger.error(f"加载产品表失败: {e}")
-            self._products_cache = {}
-        return self._products_cache
+            self._products_cache = None  # 不缓存失败结果，下次重试
+        return self._products_cache or {}
 
     def _load_components_sql(self) -> Dict[int, str]:
         """从 SQL Server 加载指标映射"""
@@ -504,8 +504,8 @@ class SQLServerCollector(BaseCollector):
             self._components_cache = {row[0]: row[1] for row in rows if row[0] is not None}
         except Exception as e:
             logger.error(f"加载指标表失败: {e}")
-            self._components_cache = {}
-        return self._components_cache
+            self._components_cache = None  # 不缓存失败结果，下次重试
+        return self._components_cache or {}
     
     def get_breakpoint(self) -> Dict[str, Any]:
         return {

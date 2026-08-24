@@ -24,19 +24,21 @@ export const DataPage: React.FC = () => {
   const { indicators } = useIndicators()
   const { aliases, productStatus, specLimits } = useAppMetadata()
 
-  const today = new Date().toISOString().split('T')[0]
   const [data, setData] = useState<MonitorData[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const [page, setPage] = useState(1)
   const [correctionEdit, setCorrectionEdit] = useState<CorrectionEdit | null>(null)
   const [fieldEdit, setFieldEdit] = useState<FieldEdit | null>(null)
   const [saving, setSaving] = useState(false)
+  const [voidConfirmId, setVoidConfirmId] = useState<number | null>(null)
 
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
-    date: today,
+    date_from: '',
+    date_to: '',
   })
 
   const enabledProducts = products.filter(p => productStatus[p.code] !== 'disabled')
@@ -47,7 +49,8 @@ export const DataPage: React.FC = () => {
       const result = await api.getDataList({
         page,
         page_size: PAGE_SIZE,
-        date: filter.date || undefined,
+        date_from: filter.date_from || undefined,
+        date_to: filter.date_to || undefined,
         product_code: filter.product_code || undefined,
         indicator_code: filter.indicator_code || undefined,
       })
@@ -58,10 +61,32 @@ export const DataPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [filter.product_code, filter.indicator_code, filter.date, page])
+  }, [filter.product_code, filter.indicator_code, filter.date_from, filter.date_to, page])
 
-  useEffect(() => { fetchData() }, [fetchData])
-  useEffect(() => { setPage(1) }, [filter.product_code, filter.indicator_code, filter.date])
+  useEffect(() => {
+    if (!hasSearched) return
+    setPage(1)
+  }, [filter.product_code, filter.indicator_code, filter.date_from, filter.date_to])
+
+  useEffect(() => { if (hasSearched) fetchData() }, [fetchData, hasSearched])
+
+  const handleSearch = useCallback(() => {
+    setHasSearched(true)
+    setPage(1)
+    setLoading(true)
+    api.getDataList({
+      page: 1,
+      page_size: PAGE_SIZE,
+      date_from: filter.date_from || undefined,
+      date_to: filter.date_to || undefined,
+      product_code: filter.product_code || undefined,
+      indicator_code: filter.indicator_code || undefined,
+    }).then(result => {
+      setData(result.data || [])
+      setTotal(result.total || 0)
+    }).catch(e => console.error('获取数据失败:', e))
+      .finally(() => setLoading(false))
+  }, [filter.product_code, filter.indicator_code, filter.date_from, filter.date_to])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const startIdx = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
@@ -168,6 +193,36 @@ export const DataPage: React.FC = () => {
     setFieldEdit(null)
   }
 
+  const handleVoid = async () => {
+    if (voidConfirmId === null) return
+    setSaving(true)
+    try {
+      const result = await api.voidDataRecord(voidConfirmId)
+      if (result?.success) {
+        setData(prev => prev.map(row => row.id === voidConfirmId ? { ...row, is_voided: 1 } : row))
+      }
+      setVoidConfirmId(null)
+    } catch (e) {
+      console.error('作废失败:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleUnvoid = async (recordId: number) => {
+    setSaving(true)
+    try {
+      const result = await api.unvoidDataRecord(recordId)
+      if (result?.success) {
+        setData(prev => prev.map(row => row.id === recordId ? { ...row, is_voided: 0 } : row))
+      }
+    } catch (e) {
+      console.error('恢复失败:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const renderPageButtons = () => {
     const buttons: React.ReactNode[] = []
     const maxVisible = 5
@@ -263,7 +318,12 @@ export const DataPage: React.FC = () => {
               <option value="">全部指标</option>
               {indicators.map(i => <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>)}
             </select>
-            <input className={styles.dateInput} type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} aria-label="筛选日期" />
+            <input className={styles.dateInput} type="date" value={filter.date_from} onChange={e => setFilter(f => ({ ...f, date_from: e.target.value }))} aria-label="开始日期" />
+            <span className={styles.dateSep}>—</span>
+            <input className={styles.dateInput} type="date" value={filter.date_to} onChange={e => setFilter(f => ({ ...f, date_to: e.target.value }))} aria-label="结束日期" />
+            <button className={styles.btnSearch} onClick={handleSearch} disabled={loading}>
+              {loading ? '查询中...' : '查询'}
+            </button>
             <button className={styles.btnGhost} onClick={() => handleExport('csv')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
               导出CSV
@@ -292,6 +352,8 @@ export const DataPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr><td colSpan={12} className={styles.loadingRow}>加载中...</td></tr>
+              ) : !hasSearched ? (
+                <tr><td colSpan={12} className={styles.emptyRow}>请设置筛选条件后点击查询</td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={12} className={styles.emptyRow}>暂无数据</td></tr>
               ) : data.map((row, idx) => {
@@ -301,7 +363,7 @@ export const DataPage: React.FC = () => {
                 const isCorrectionEditing = correctionEdit?.recordId === row.id
                 const isFieldEditing = fieldEdit?.recordId === row.id
                 return (
-                  <tr key={row.id}>
+                  <tr key={row.id} className={row.is_voided ? styles.rowVoided : ''}>
                     <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                     <td>{new Date(row.sample_time).toLocaleString('zh-CN')}</td>
                     <td><span className={styles.tagBlue}>{displayProduct(row.product_code)}</span></td>
@@ -331,9 +393,13 @@ export const DataPage: React.FC = () => {
                         <td>{lsl != null ? lsl.toFixed(4) : '-'}</td>
                       </>
                     )}
-                    <td><span className={row.is_qualified ? styles.tagGreen : styles.tagRed}>{row.is_qualified ? '正常' : '越限'}</span></td>
+                    <td><span className={row.is_voided ? styles.tagGray : row.is_qualified ? styles.tagGreen : styles.tagRed}>{row.is_voided ? '已作废' : row.is_qualified ? '正常' : '越限'}</span></td>
                     <td>
-                      {isCorrectionEditing ? (
+                      {row.is_voided ? (
+                        <div className={styles.actionBtns}>
+                          <button className={styles.btnUnvoidSmall} onClick={() => handleUnvoid(row.id)} title="恢复此条记录">复</button>
+                        </div>
+                      ) : isCorrectionEditing ? (
                         <div className={styles.actionBtns}>
                           <button className={styles.btnSave} onClick={handleSaveCorrection} disabled={saving}>{saving ? '...' : '✓'}</button>
                           <button className={styles.btnCancel} onClick={handleCancelEdit}>✕</button>
@@ -347,6 +413,7 @@ export const DataPage: React.FC = () => {
                         <div className={styles.actionBtns}>
                           <button className={styles.btnEditSmall} onClick={() => handleEditCorrection(row)} title="修改修正值">修</button>
                           <button className={styles.btnEditSmall} onClick={() => handleEditFields(row)} title="修改单位和规格限">规</button>
+                          <button className={styles.btnVoidSmall} onClick={() => setVoidConfirmId(row.id)} title="作废此条记录">废</button>
                         </div>
                       )}
                     </td>
@@ -368,6 +435,22 @@ export const DataPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ---- 作废确认弹窗 ---- */}
+      {voidConfirmId !== null && (
+        <div className={styles.modalOverlay} onClick={() => setVoidConfirmId(null)}>
+          <div className={styles.modalBox} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="作废数据">
+            <div className={styles.modalTitle}>作废数据</div>
+            <div className={styles.modalBody}>
+              <p>确认将此条记录标记为作废？作废后该数据不参与SPC计算和统计分析。</p>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalCancel} onClick={() => setVoidConfirmId(null)}>取消</button>
+              <button className={styles.modalConfirm} onClick={handleVoid} disabled={saving}>{saving ? '处理中...' : '确认作废'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
