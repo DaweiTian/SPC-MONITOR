@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
-import { LineChart, BarChart, GaugeChart, PieChart, ScatterChart, BoxplotChart } from 'echarts/charts'
+import { LineChart, BarChart, GaugeChart, PieChart, ScatterChart, BoxplotChart, HeatmapChart } from 'echarts/charts'
 import {
   TooltipComponent,
   GridComponent,
@@ -22,6 +22,7 @@ echarts.use([
   PieChart,
   ScatterChart,
   BoxplotChart,
+  HeatmapChart,
   TooltipComponent,
   GridComponent,
   LegendComponent,
@@ -35,54 +36,80 @@ echarts.use([
 
 /**
  * Custom hook that manages ECharts lifecycle:
- * - Initializes chart on mount
+ * - Initializes chart when container becomes available and option is provided
  * - Disposes chart on unmount (prevents memory leaks)
- * - Handles window resize with debounce
+ * - Handles window resize
  * - Updates options when they change
  */
 export function useChart(option: EChartsOption | null) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
 
-  // Initialize chart on mount, dispose on unmount
+  // Combined effect: initialize chart when ready, update option when it changes
   useEffect(() => {
-    if (!containerRef.current) return
+    const el = containerRef.current
+    if (!el) return
 
-    const chart = echarts.init(containerRef.current)
-    chartRef.current = chart
+    let resizeObserver: ResizeObserver | null = null
 
-    // Apply base theme
-    chart.setOption(chartTheme)
+    // Lazy-init: create chart instance if not yet created
+    if (!chartRef.current) {
+      if (el.clientWidth > 0 && el.clientHeight > 0) {
+        chartRef.current = echarts.init(el)
+        chartRef.current.setOption(chartTheme)
+      } else {
+        // Container not visible yet — wait for dimensions
+        let disposed = false
+        const waitObserver = new ResizeObserver((entries) => {
+          const entry = entries[0]
+          if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            waitObserver.disconnect()
+            if (!disposed) {
+              chartRef.current = echarts.init(el)
+              chartRef.current.setOption(chartTheme)
+              if (option) chartRef.current.setOption(option, true)
+            }
+          }
+        })
+        waitObserver.observe(el)
+        return () => {
+          disposed = true
+          waitObserver.disconnect()
+        }
+      }
+    }
 
-    // Handle resize
-    const resizeObserver = new ResizeObserver(() => {
-      chart.resize()
+    // Apply option
+    if (!option) {
+      chartRef.current!.clear()
+    } else {
+      chartRef.current!.setOption(option, true)
+    }
+
+    // Resize observer
+    resizeObserver = new ResizeObserver(() => {
+      chartRef.current?.resize()
     })
-    resizeObserver.observe(containerRef.current)
+    resizeObserver.observe(el)
 
-    // Also listen to window resize as a fallback
     const handleWindowResize = () => {
-      chart.resize()
+      chartRef.current?.resize()
     }
     window.addEventListener('resize', handleWindowResize)
 
     return () => {
       window.removeEventListener('resize', handleWindowResize)
-      resizeObserver.disconnect()
-      chart.dispose()
+      resizeObserver?.disconnect()
+    }
+  }, [option])
+
+  // Dispose chart on unmount
+  useEffect(() => {
+    return () => {
+      chartRef.current?.dispose()
       chartRef.current = null
     }
   }, [])
-
-  // Update options when they change
-  useEffect(() => {
-    if (!chartRef.current) return
-    if (!option) {
-      chartRef.current.clear()
-      return
-    }
-    chartRef.current.setOption(option, true)
-  }, [option])
 
   return { containerRef, chartRef }
 }

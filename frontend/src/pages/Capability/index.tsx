@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { EChartsOption, DefaultLabelFormatterCallbackParams } from 'echarts'
 import { api } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
@@ -103,7 +103,7 @@ const CAP_CARDS: CapCardInfo[] = [
 export const CapabilityPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { aliases, productStatus, specLimits: allSpecLimits, getIndicatorName } = useAppMetadata()
+  const { productStatus, specLimits: allSpecLimits, getIndicatorName } = useAppMetadata()
   const [capabilityData, setCapabilityData] = useState<CapabilityData | null>(null)
   const [rawValues, setRawValues] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
@@ -116,6 +116,9 @@ export const CapabilityPage: React.FC = () => {
     date_to: '',
     remark: '',
   })
+
+  // AbortController ref for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
 
   // Products with spec limits (at least one indicator has USL or LSL)
   const capableProducts = useMemo(() => {
@@ -172,23 +175,27 @@ export const CapabilityPage: React.FC = () => {
   // Auto-fetch when filter changes (after initialization)
   const hasDateOrRemarkFilter = filter.date_from || filter.date_to || filter.remark
 
-  const fetchData = async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }) => {
+  const fetchData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }) => {
     if (!productCode || !indicatorCode) return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
     setLoading(true)
     try {
       const [capData, recent] = await Promise.all([
-        api.getCapabilityData(productCode, indicatorCode, window, filters),
-        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window, ...filters }),
+        api.getCapabilityData(productCode, indicatorCode, window, filters, { signal }),
+        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: window, ...filters }, { signal }),
       ])
       setCapabilityData(capData)
       const values = (recent.data || recent).map((d: MonitorData) => d.value as number)
       setRawValues(values)
-    } catch (e) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return
       console.error('获取过程能力数据失败:', e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (initialized && filter.product_code && filter.indicator_code) {
@@ -197,7 +204,8 @@ export const CapabilityPage: React.FC = () => {
         : undefined
       fetchData(filter.product_code, filter.indicator_code, filter.window, filters)
     }
-  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark])
+    return () => { abortRef.current?.abort() }
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, fetchData])
 
   // getIndicatorName provided by useAppMetadata hook
 
@@ -208,7 +216,7 @@ export const CapabilityPage: React.FC = () => {
     const { spec_limits } = capabilityData
     if (spec_limits.usl == null && spec_limits.lsl == null) return null
 
-    const { barData, normalCurve, binWidth, lo, hi } = buildHistogramBins(
+    const { barData, normalCurve, binWidth: _binWidth, lo, hi } = buildHistogramBins(
       rawValues, spec_limits.lsl, spec_limits.usl
     )
 
@@ -301,6 +309,7 @@ export const CapabilityPage: React.FC = () => {
         {
           type: 'gauge',
           radius: '90%',
+          center: ['50%', '60%'],
           startAngle: 200,
           endAngle: -20,
           min: 0,
@@ -337,13 +346,7 @@ export const CapabilityPage: React.FC = () => {
             distance: -28,
             fontSize: 10,
           },
-          detail: {
-            valueAnimation: true,
-            formatter: '{value}\u03C3',
-            color: '#10b981',
-            fontSize: 20,
-            offsetCenter: [0, '30%'],
-          },
+          detail: { show: false },
           data: [{ value: sigmaVal }],
         },
       ],
@@ -585,12 +588,7 @@ export const CapabilityPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.panelBody}>
-          <div ref={cpkTrendRef} style={{ height: 280, width: '100%', display: cpkTrendOption ? 'block' : 'none' }} />
-          {!cpkTrendOption && (
-            <div style={{ height: 280, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b95a7', fontSize: 14 }}>
-              暂无历史 Cpk 数据
-            </div>
-          )}
+          <div ref={cpkTrendRef} style={{ height: 280, width: '100%' }} />
         </div>
       </div>
     </div>
