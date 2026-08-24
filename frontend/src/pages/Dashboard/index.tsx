@@ -6,9 +6,10 @@ import type { EChartsParam } from '../../types'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { useToast } from '../../components/Toast'
-import { handleAlertNotification } from '../../services/notifications'
+import { handleAlertNotification, type AlertPayload } from '../../services/notifications'
 import { useAppContext } from '../../contexts/AppContext'
 import { useAppMetadata } from '../../hooks'
+import { RULE_TYPE_CN } from '../../constants/alertRules'
 import type { DashboardData, SchedulerStatus, Product, Indicator, MonitorData, CapabilityData } from '../../types'
 import styles from './Dashboard.module.css'
 
@@ -45,32 +46,21 @@ const severityLabel: Record<string, string> = {
   WARNING: '警告',
   INFO: '信息',
 }
-const ruleTypeLabel: Record<string, string> = {
-  spc_violation: 'SPC失控',
-  out_of_spec: '超规格限',
-  trend_detected: '趋势异常',
-  mean_shift: '均值偏移',
-  high_variation: '变异过大',
-  low_cpk: '能力不足',
-  cpk_below_target: 'CPK预警',
-  cpk_low: 'CPK预警',
-  spec_limit_breach: '规格越限',
-  above_usl: '规格越限',
-  below_lsl: '规格越限',
-  nelson_1: 'Nelson规则1',
-  nelson_2: 'Nelson规则2',
-  nelson_3: 'Nelson规则3',
-  nelson_4: 'Nelson规则4',
-  nelson_5: 'Nelson规则5',
-  nelson_6: 'Nelson规则6',
-  nelson_7: 'Nelson规则7',
-  nelson_8: 'Nelson规则8',
-}
+const ruleTypeLabel = RULE_TYPE_CN
 
 /* ────────── 时间格式化 ────────── */
 function fmtTime(iso?: string): string {
   if (!iso) return '-'
   return new Date(iso).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+/* ────────── Simple debounce utility ────────── */
+function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
+  let timer: ReturnType<typeof setTimeout>
+  return ((...args: unknown[]) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), ms)
+  }) as T
 }
 
 /* ================================================================
@@ -328,6 +318,18 @@ export const Dashboard: React.FC = () => {
   const fetchTrendRef = useRef(fetchTrend)
   fetchTrendRef.current = fetchTrend
 
+  const fetchDashboardRef = useRef(fetchDashboard)
+  fetchDashboardRef.current = fetchDashboard
+
+  const debouncedFetchDashboard = useMemo(
+    () => debounce(() => fetchDashboardRef.current?.(), 500),
+    []
+  )
+  const debouncedFetchTrend = useMemo(
+    () => debounce(() => fetchTrendRef.current?.(), 500),
+    []
+  )
+
   useEffect(() => {
     fetchDashboard()
     fetchMeta()
@@ -340,15 +342,13 @@ export const Dashboard: React.FC = () => {
     }).catch(e => console.warn('获取通知配置失败:', e))
     websocketService.connect()
 
-    const onData = () => { fetchDashboard(); fetchTrendRef.current() }
-    const onAlert = (data: Record<string, unknown>) => {
-      fetchDashboard()
-      handleAlertNotification(
-        data as any,
-        notifConfigRef.current,
-        addToast,
-        () => navigate('/alerts'),
-      )
+    const onData = () => { debouncedFetchDashboard(); debouncedFetchTrend() }
+    const onAlert = (msg: Record<string, unknown>) => {
+      debouncedFetchDashboard()
+      const payload = msg.data as { alerts: Array<{ severity: string; product_code?: string; indicator_code?: string; rule_desc?: string; message?: string }> }
+      if (payload && payload.alerts) {
+        handleAlertNotification(payload as AlertPayload, notifConfigRef.current, addToast, () => navigate('/alerts'))
+      }
     }
     websocketService.on('data_update', onData)
     websocketService.on('new_alert', onAlert)
@@ -904,7 +904,7 @@ export const Dashboard: React.FC = () => {
               </span>
               最新预警
             </div>
-            <button className={styles.btnGhost} onClick={() => window.location.href = '/alerts'}>
+            <button className={styles.btnGhost} onClick={() => navigate('/alerts')}>
               查看全部 →
             </button>
           </div>

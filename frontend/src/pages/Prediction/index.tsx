@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import * as echarts from 'echarts/core'
+import type { EChartsOption } from 'echarts'
 import { HeatmapChart } from 'echarts/charts'
 import { VisualMapComponent, TooltipComponent, GridComponent } from 'echarts/components'
+import * as echarts from 'echarts/core'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { api } from '../../services'
 import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
@@ -149,6 +150,15 @@ const CAPABILITY_LABELS: Record<string, string> = {
   incapable: '不足',
 }
 
+// ====== Model labels (constant, moved outside component) ======
+const MODEL_LABELS: Record<string, string> = {
+  auto: '自动选择',
+  ets: '指数平滑 (ETS)',
+  arima: 'ARIMA',
+  arima_d0: 'ARIMA (d=0)',
+  arima_d1: 'ARIMA (d=1)',
+}
+
 // ====== Component ======
 export const PredictionPage: React.FC = () => {
   const { products } = useProducts()
@@ -171,10 +181,15 @@ export const PredictionPage: React.FC = () => {
 
   // Task 12: Correlation & feature importance state
   const [corrData, setCorrData] = useState<CorrData | null>(null)
+  const [corrError, setCorrError] = useState<string | null>(null)
   const [featData, setFeatData] = useState<FeatData | null>(null)
+  const [featError, setFeatError] = useState<string | null>(null)
 
   // Task 8: Model comparison state
   const [modelCompareData, setModelCompareData] = useState<ModelCompareData | null>(null)
+
+  // AbortController ref for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
 
   // Reset critical alert on filter change
   useEffect(() => {
@@ -182,7 +197,9 @@ export const PredictionPage: React.FC = () => {
     setCpkData(null)
     setDriftData(null)
     setCorrData(null)
+    setCorrError(null)
     setFeatData(null)
+    setFeatError(null)
     setModelCompareData(null)
   }, [product, indicator])
 
@@ -235,12 +252,15 @@ export const PredictionPage: React.FC = () => {
   // Auto-fetch predictions on filter change
   const fetchPrediction = useCallback(async (productCode: string, indicatorCode: string, modelType: string, horizonKey: string) => {
     if (!productCode || !indicatorCode) return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
     setLoading(true)
     try {
       const horizonSteps = HORIZON_MAP[horizonKey] || 12
       const [predRes, histData] = await Promise.all([
-        api.getPrediction(productCode, indicatorCode, modelType, horizonSteps),
-        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: 60 }),
+        api.getPrediction(productCode, indicatorCode, modelType, horizonSteps, { signal }),
+        api.getRecentData({ indicator_code: indicatorCode, product_code: productCode, limit: 60 }, { signal }),
       ])
       if (predRes.success) {
         const raw = Array.isArray(histData) ? histData : histData?.data || []
@@ -274,12 +294,25 @@ export const PredictionPage: React.FC = () => {
         ]).then(([cpkRes, driftRes, corrRes, featRes, compareRes]) => {
           if (cpkRes.status === 'fulfilled' && cpkRes.value?.success) setCpkData(cpkRes.value.data)
           if (driftRes.status === 'fulfilled' && driftRes.value?.success) setDriftData(driftRes.value.data)
-          if (corrRes.status === 'fulfilled' && corrRes.value?.success) setCorrData(corrRes.value.data)
-          if (featRes.status === 'fulfilled' && featRes.value?.success) setFeatData(featRes.value.data)
+          if (corrRes.status === 'fulfilled' && corrRes.value?.success) {
+            setCorrData(corrRes.value.data)
+          } else if (corrRes.status === 'fulfilled') {
+            setCorrError(corrRes.value?.message || '数据不足')
+          } else {
+            setCorrError('请求失败')
+          }
+          if (featRes.status === 'fulfilled' && featRes.value?.success) {
+            setFeatData(featRes.value.data)
+          } else if (featRes.status === 'fulfilled') {
+            setFeatError(featRes.value?.message || '数据不足')
+          } else {
+            setFeatError('请求失败')
+          }
           if (compareRes.status === 'fulfilled' && compareRes.value?.success) setModelCompareData(compareRes.value.data)
         })
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return
       console.error('Prediction failed:', e)
     } finally {
       setLoading(false)
@@ -290,6 +323,7 @@ export const PredictionPage: React.FC = () => {
     if (initialized && product && indicator) {
       fetchPrediction(product, indicator, model, horizon)
     }
+    return () => { abortRef.current?.abort() }
   }, [initialized, product, indicator, model, horizon, fetchPrediction])
 
   // ====== Prediction Trend Chart ======
@@ -445,18 +479,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [modelCompareData])
 
-  const modelCompareChartRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!modelCompareChartRef.current || !modelCompareOption) return
-    const chart = echarts.init(modelCompareChartRef.current)
-    chart.setOption(modelCompareOption)
-    const handleResize = () => chart.resize()
-    window.addEventListener('resize', handleResize)
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.dispose()
-    }
-  }, [modelCompareOption])
+  const { containerRef: modelCompareChartRef } = useChart(modelCompareOption as EChartsOption | null)
 
   // ====== Task 12: Correlation Heatmap ======
   const correlationOption = useMemo(() => {
@@ -489,15 +512,15 @@ export const PredictionPage: React.FC = () => {
       xAxis: {
         type: 'category' as const,
         data: shortNames,
-        ...chartTheme.xAxis,
-        axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 45, fontSize: 10 },
+        ...(chartTheme.xAxis as object),
+        axisLabel: { ...((chartTheme.xAxis as Record<string, Record<string, unknown>>)?.axisLabel), rotate: 45, fontSize: 10 },
         splitArea: { show: true, areaStyle: { color: ['rgba(64,159,255,0.02)', 'rgba(64,159,255,0.04)'] } },
       },
       yAxis: {
         type: 'category' as const,
         data: shortNames,
-        ...chartTheme.yAxis,
-        axisLabel: { ...chartTheme.yAxis.axisLabel, fontSize: 10 },
+        ...(chartTheme.yAxis as object),
+        axisLabel: { ...((chartTheme.yAxis as Record<string, Record<string, unknown>>)?.axisLabel), fontSize: 10 },
       },
       visualMap: {
         min: -1,
@@ -519,18 +542,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [corrData, aliases])
 
-  const correlationChartRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!correlationChartRef.current || !correlationOption) return
-    const chart = echarts.init(correlationChartRef.current)
-    chart.setOption(correlationOption)
-    const handleResize = () => chart.resize()
-    window.addEventListener('resize', handleResize)
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.dispose()
-    }
-  }, [correlationOption])
+  const { containerRef: correlationChartRef } = useChart(correlationOption as EChartsOption | null)
 
   // ====== Task 12: Feature Importance Chart ======
   const featureOption = useMemo(() => {
@@ -553,8 +565,8 @@ export const PredictionPage: React.FC = () => {
           const displayName = aliases.indicators[f.name] || f.name
           return displayName.length > 15 ? displayName.slice(0, 15) + '…' : displayName
         }),
-        ...chartTheme.yAxis,
-        axisLabel: { ...chartTheme.yAxis.axisLabel, fontSize: 11 },
+        ...(chartTheme.yAxis as object),
+        axisLabel: { ...((chartTheme.yAxis as Record<string, Record<string, unknown>>)?.axisLabel), fontSize: 11 },
       },
       series: [{
         type: 'bar' as const,
@@ -577,18 +589,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [featData, aliases])
 
-  const featureChartRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!featureChartRef.current || !featureOption) return
-    const chart = echarts.init(featureChartRef.current)
-    chart.setOption(featureOption)
-    const handleResize = () => chart.resize()
-    window.addEventListener('resize', handleResize)
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.dispose()
-    }
-  }, [featureOption])
+  const { containerRef: featureChartRef } = useChart(featureOption as EChartsOption | null)
 
   // ====== Task 4: Dynamic risk assessment using backend risk data ======
   const riskAssessment = useMemo(() => {
@@ -615,26 +616,22 @@ export const PredictionPage: React.FC = () => {
   }, [result, hookSpecLimits, product, indicator])
 
   // ====== Task 2 & 4: Updated Model evaluation data ======
-  const modelLabels: Record<string, string> = {
-    auto: '自动选择',
-    ets: '指数平滑 (ETS)',
-    arima: 'ARIMA',
-    arima_d0: 'ARIMA (d=0)',
-    arima_d1: 'ARIMA (d=1)',
-  }
-  const modelEvalRows: { label: string; value: string; color?: string; tag?: string }[] | null = result ? [
-    { label: '预测模型', value: modelLabels[result.model] || result.model },
-    { label: 'MASE (平均绝对比例误差)', value: result.accuracy.mase != null ? result.accuracy.mase.toFixed(3) : 'N/A', color: result.accuracy.mase != null && result.accuracy.mase < 1 ? 'green' : 'cyan' },
-    { label: '方向准确率', value: result.accuracy.direction_acc != null ? `${result.accuracy.direction_acc.toFixed(1)}%` : 'N/A', color: result.accuracy.direction_acc != null && result.accuracy.direction_acc > 70 ? 'green' : 'cyan' },
-    { label: 'MAPE (仅供参考)', value: result.accuracy.mape != null ? `${result.accuracy.mape.toFixed(2)}%` : 'N/A', color: undefined },
-    { label: 'RMSE', value: result.accuracy.rmse.toFixed(4), color: 'cyan' },
-    { label: 'MAE', value: result.accuracy.mae.toFixed(4), color: 'cyan' },
-    { label: '预测步长', value: `${result.horizon} 步` },
-    { label: '历史窗口', value: `${result.historical.length} 个数据点` },
-    riskAssessment,
-    ...(result.auto_selected ? [{ label: '自动选择', value: '已启用', color: 'green' as const }] : []),
-    ...(result.select_reason ? [{ label: '选择原因', value: result.select_reason }] : []),
-  ] : null
+  const modelEvalRows: { label: string; value: string; color?: string; tag?: string }[] | null = useMemo(() => {
+    if (!result) return null
+    return [
+      { label: '预测模型', value: MODEL_LABELS[result.model] || result.model },
+      { label: 'MASE (平均绝对比例误差)', value: result.accuracy.mase != null ? result.accuracy.mase.toFixed(3) : 'N/A', color: result.accuracy.mase != null && result.accuracy.mase < 1 ? 'green' : 'cyan' },
+      { label: '方向准确率', value: result.accuracy.direction_acc != null ? `${result.accuracy.direction_acc.toFixed(1)}%` : 'N/A', color: result.accuracy.direction_acc != null && result.accuracy.direction_acc > 70 ? 'green' : 'cyan' },
+      { label: 'MAPE (仅供参考)', value: result.accuracy.mape != null ? `${result.accuracy.mape.toFixed(2)}%` : 'N/A', color: undefined },
+      { label: 'RMSE', value: result.accuracy.rmse.toFixed(4), color: 'cyan' },
+      { label: 'MAE', value: result.accuracy.mae.toFixed(4), color: 'cyan' },
+      { label: '预测步长', value: `${result.horizon} 步` },
+      { label: '历史窗口', value: `${result.historical.length} 个数据点` },
+      riskAssessment,
+      ...(result.auto_selected ? [{ label: '自动选择', value: '已启用', color: 'green' as const }] : []),
+      ...(result.select_reason ? [{ label: '选择原因', value: result.select_reason }] : []),
+    ]
+  }, [result, riskAssessment])
 
   // ====== Task 4: Risk breach KPI helpers ======
   const riskLevelColor = result?.risk ? (RISK_COLORS[result.risk.risk_level] || '#10b981') : '#10b981'
@@ -902,7 +899,7 @@ export const PredictionPage: React.FC = () => {
               {cpkData?.cpk_current?.toFixed(2) ?? '--'}
             </div>
             <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
-              {cpkData ? (cpkData.cpk_trend != null ? `趋势: ${cpkData.cpk_trend > 0 ? '+' : ''}${cpkData.cpk_trend}` : '数据窗口不足') : '加载中...'}
+              {cpkData ? (cpkData.cpk_trend != null ? `趋势: ${Number(cpkData.cpk_trend) > 0 ? '+' : ''}${cpkData.cpk_trend}` : '数据窗口不足') : '加载中...'}
             </div>
           </div>
           <div className={styles.riskCard}>
@@ -954,6 +951,8 @@ export const PredictionPage: React.FC = () => {
                 className={styles.chartContainer}
                 style={{ height: 320 }}
               />
+            ) : corrError ? (
+              <div className={styles.loadingText}>{corrError}</div>
             ) : (
               <div className={styles.loadingText}>加载相关性数据...</div>
             )}
@@ -978,6 +977,8 @@ export const PredictionPage: React.FC = () => {
                 className={styles.chartContainer}
                 style={{ height: 320 }}
               />
+            ) : featError ? (
+              <div className={styles.loadingText}>{featError}</div>
             ) : (
               <div className={styles.loadingText}>加载特征重要性...</div>
             )}

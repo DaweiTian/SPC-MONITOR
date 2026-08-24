@@ -44,6 +44,7 @@ export interface DashboardData {
   today_collect_attempts: number
   today_collect_success: number
   today_unqualified_count: number
+  collecting?: boolean
   pending_alerts: {
     CRITICAL: number
     WARNING: number
@@ -174,24 +175,27 @@ export interface FieldMapping {
 
 export interface PredictionData {
   historical: { time: string; value: number }[]
-  predicted: { time: string; value: number }[]
-  confidence_upper: number[]
-  confidence_lower: number[]
-  metrics: {
-    mape: number
+  predictions: number[]
+  upper_band: number[]
+  lower_band: number[]
+  accuracy: {
+    mape: number | null
     rmse: number
     mae: number
-    r_squared: number
+    mase: number | null
+    direction_acc: number | null
   }
   model: string
   horizon: number
-  risk: string
+  auto_selected?: boolean
+  select_reason?: string
+  risk?: Record<string, unknown>
 }
 
 export interface DataSourceConfig {
   source: 'mock' | 'sqlserver'
   connected: boolean
-  last_switch: string
+  last_switch?: string
 }
 
 export interface MDBConfig {

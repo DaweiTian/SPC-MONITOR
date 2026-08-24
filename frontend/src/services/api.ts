@@ -20,7 +20,7 @@ const http = axios.create({
   timeout: 120000,
 })
 
-// API key authentication – read from localStorage with fallback to default key
+// API key authentication – read from Tauri launcher, localStorage, or default
 const DEFAULT_API_KEY = 'ft1-monitor-default-key'
 let apiKey: string
 try {
@@ -30,14 +30,30 @@ try {
 }
 http.defaults.headers.common['X-API-Key'] = apiKey
 
+/** Initialize API key from Tauri launcher (call once at app startup) */
+export async function initApiKey(): Promise<void> {
+  if (!isTauri) return
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const key = await invoke<string>('get_api_key')
+    if (key && key !== apiKey) {
+      apiKey = key
+      localStorage.setItem('ft1_api_key', key)
+      http.defaults.headers.common['X-API-Key'] = key
+    }
+  } catch {
+    // Tauri not available or command not found — keep current key
+  }
+}
+
 export const api = {
   getDashboard: () => http.get<DashboardData>('/monitor/dashboard').then(r => r.data),
   getStatus: () => http.get<SchedulerStatus>('/monitor/status').then(r => r.data),
   manualCollect: () => http.post('/monitor/collect/manual').then(r => r.data),
   getProducts: () => http.get<{ products: Product[] }>('/monitor/products').then(r => r.data),
   getIndicators: () => http.get<{ indicators: Indicator[] }>('/monitor/indicators').then(r => r.data),
-  getRecentData: (params: { indicator_code: string; product_code: string; limit?: number; date_from?: string; date_to?: string; remark?: string }) =>
-    http.get('/monitor/data/recent', { params }).then(r => r.data),
+  getRecentData: (params: { indicator_code: string; product_code: string; limit?: number; date_from?: string; date_to?: string; remark?: string }, options?: { signal?: AbortSignal }) =>
+    http.get('/monitor/data/recent', { params, signal: options?.signal }).then(r => r.data),
   getProductIndicatorCount: (productCode: string) =>
     http.get<{ count: number }>(`/monitor/products/${productCode}/indicator-count`).then(r => r.data),
   getProductIndicatorCodes: (productCode: string) =>
@@ -48,10 +64,10 @@ export const api = {
     http.get<Record<string, string[]>>('/monitor/products/saved-indicators').then(r => r.data),
   updateSavedIndicators: (productCode: string, codes: string[]) =>
     http.put(`/monitor/products/saved-indicators/${productCode}`, { codes }).then(r => r.data),
-  getSPCData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string) =>
-    http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window, ...filters, mode } }).then(r => r.data),
-  getCapabilityData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }) =>
-    http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window, ...filters } }).then(r => r.data),
+  getSPCData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string, options?: { signal?: AbortSignal }) =>
+    http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window, ...filters, mode }, signal: options?.signal }).then(r => r.data),
+  getCapabilityData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }, options?: { signal?: AbortSignal }) =>
+    http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window, ...filters }, signal: options?.signal }).then(r => r.data),
   getAlerts: (params?: { severity?: string; status?: string; product_code?: string; search?: string; page?: number; page_size?: number }) =>
     http.get<{ alerts: Alert[]; total: number; page: number; page_size: number }>('/alerts', { params }).then(r => r.data),
   getAlertCount: () =>
@@ -71,16 +87,23 @@ export const api = {
   getTableColumns: (tableName: string) => http.get(`/config/db/table/${tableName}/columns`).then(r => r.data),
   updateFieldMapping: (mapping: FieldMapping) => http.put('/config/db/mapping', mapping).then(r => r.data),
   getFieldMapping: () => http.get<FieldMapping>('/config/db/mapping').then(r => r.data),
-  getPrediction: (product: string, indicator: string, model: string, horizon: number) =>
-    http.get(`/predict/forecast`, { params: { product, indicator, model, horizon } }).then(r => r.data),
+  getPrediction: (product: string, indicator: string, model: string, horizon: number, options?: { signal?: AbortSignal }) =>
+    http.get(`/predict/forecast`, { params: { product, indicator, model, horizon }, signal: options?.signal }).then(r => r.data),
   switchDataSource: (source: 'mock' | 'sqlserver') =>
     http.post(`/config/source/switch`, { source }).then(r => r.data),
   getDataSourceStatus: () =>
     http.get(`/config/source/status`).then(r => r.data),
-  getDataList: (params: { page?: number; page_size?: number; date?: string; product_code?: string; indicator_code?: string; date_from?: string; date_to?: string }) =>
-    http.get('/data/list', { params }).then(r => r.data),
-  exportData: (params: { format: string; product?: string; indicator?: string }) =>
-    http.get(`/data/export`, { params, responseType: 'blob' }).then(r => r.data),
+  getDataList: (params: { page?: number; page_size?: number; date?: string; product_code?: string; indicator_code?: string; date_from?: string; date_to?: string }, options?: { signal?: AbortSignal }) =>
+    http.get('/data/list', { params, signal: options?.signal }).then(r => r.data),
+  exportData: async (params: { format: string; product?: string; indicator?: string }) => {
+    const response = await http.get(`/data/export`, { params, responseType: 'blob' })
+    if (response.data instanceof Blob && response.data.type === 'application/json') {
+      const text = await response.data.text()
+      const json = JSON.parse(text)
+      if (!json.success) throw new Error(json.message || '导出失败')
+    }
+    return response.data
+  },
   updateDataCorrection: (recordId: number, correction: number) =>
     http.put(`/data/correction/${recordId}`, { correction }).then(r => r.data),
   updateDataRecord: (recordId: number, fields: { unit?: string; upper_limit?: number; lower_limit?: number }) =>

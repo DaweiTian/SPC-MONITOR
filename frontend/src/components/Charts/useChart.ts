@@ -35,81 +35,44 @@ echarts.use([
 ])
 
 /**
- * Custom hook that manages ECharts lifecycle:
- * - Initializes chart when container becomes available and option is provided
- * - Disposes chart on unmount (prevents memory leaks)
- * - Handles window resize
- * - Updates options when they change
+ * ECharts hook: creates chart when container+option are both ready,
+ * updates option on change, disposes on unmount.
  */
 export function useChart(option: EChartsOption | null) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
 
-  // Combined effect: initialize chart when ready, update option when it changes
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
-    let resizeObserver: ResizeObserver | null = null
-
-    // Lazy-init: create chart instance if not yet created
-    if (!chartRef.current) {
-      if (el.clientWidth > 0 && el.clientHeight > 0) {
-        chartRef.current = echarts.init(el)
-        chartRef.current.setOption(chartTheme)
-      } else {
-        // Container not visible yet — wait for dimensions
-        let disposed = false
-        const waitObserver = new ResizeObserver((entries) => {
-          const entry = entries[0]
-          if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-            waitObserver.disconnect()
-            if (!disposed) {
-              chartRef.current = echarts.init(el)
-              chartRef.current.setOption(chartTheme)
-              if (option) chartRef.current.setOption(option, true)
-            }
-          }
-        })
-        waitObserver.observe(el)
-        return () => {
-          disposed = true
-          waitObserver.disconnect()
-        }
-      }
+    // Create chart (or recreate if container DOM element changed)
+    if (!chartRef.current || chartRef.current.getDom() !== el) {
+      chartRef.current?.dispose()
+      chartRef.current = echarts.init(el)
+      chartRef.current.setOption(chartTheme)
     }
 
     // Apply option
-    if (!option) {
-      chartRef.current!.clear()
+    if (option) {
+      chartRef.current.setOption(option, true)
     } else {
-      chartRef.current!.setOption(option, true)
+      chartRef.current.clear()
     }
 
-    // Resize observer
-    resizeObserver = new ResizeObserver(() => {
-      chartRef.current?.resize()
-    })
-    resizeObserver.observe(el)
-
-    const handleWindowResize = () => {
-      chartRef.current?.resize()
-    }
-    window.addEventListener('resize', handleWindowResize)
+    // Resize handling
+    const ro = new ResizeObserver(() => chartRef.current?.resize())
+    ro.observe(el)
+    const onResize = () => chartRef.current?.resize()
+    window.addEventListener('resize', onResize)
 
     return () => {
-      window.removeEventListener('resize', handleWindowResize)
-      resizeObserver?.disconnect()
-    }
-  }, [option])
-
-  // Dispose chart on unmount
-  useEffect(() => {
-    return () => {
+      window.removeEventListener('resize', onResize)
+      ro.disconnect()
       chartRef.current?.dispose()
       chartRef.current = null
     }
-  }, [])
+  }, [option])
 
   return { containerRef, chartRef }
 }

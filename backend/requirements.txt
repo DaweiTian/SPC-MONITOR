@@ -16,4 +16,5 @@ apscheduler>=3.10.0,<4.0.0
 pyodbc>=5.0.0
 pymssql>=2.2.0
 access-parser>=0.0.6
+pefile>=2.0.0
 

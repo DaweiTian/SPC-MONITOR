@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { EChartsOption, DefaultLabelFormatterCallbackParams, MarkLineComponentOption } from 'echarts'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
@@ -12,7 +12,7 @@ export const SPCPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { aliases, productStatus, getIndicatorName } = useAppMetadata()
+  const { productStatus, getIndicatorName } = useAppMetadata()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -28,6 +28,9 @@ export const SPCPage: React.FC = () => {
     remark: '',
   })
   const [analysisMode, setAnalysisMode] = useState<'process' | 'stability'>('process')
+
+  // AbortController ref for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
 
   // Load saved indicators per product
   useEffect(() => {
@@ -83,18 +86,22 @@ export const SPCPage: React.FC = () => {
   }, [enabledProducts, productStatus, indicators, initialized, searchParams])
 
   // Auto-fetch when product or indicator changes (only after initialization)
-  const fetchSPCData = async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string) => {
+  const fetchSPCData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string) => {
     if (!productCode || !indicatorCode) return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
     setLoading(true)
     try {
-      const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode)
+      const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode, { signal })
       setSPCData(data)
-    } catch (e) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return
       console.error('获取SPC数据失败:', e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   const hasDateOrRemarkFilter = filter.date_from || filter.date_to || filter.remark
 
@@ -105,7 +112,8 @@ export const SPCPage: React.FC = () => {
         : undefined
       fetchSPCData(filter.product_code, filter.indicator_code, filter.window, filters, analysisMode)
     }
-  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, analysisMode])
+    return () => { abortRef.current?.abort() }
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, analysisMode, fetchSPCData])
 
   // getIndicatorName provided by useAppMetadata hook
 

@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AppException(HTTPException):
-    def __init__(self, status_code: int, error: str, detail: str = None):
+    def __init__(self, status_code: int, error: str, detail: str | None = None):
         super().__init__(status_code=status_code, detail=error)
         self.error = error
         self.detail = detail

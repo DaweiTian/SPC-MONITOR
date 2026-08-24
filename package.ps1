@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$PROJECT_DIR = "D:\OpenCode-workspace\LAB\FT1-MONITOR"
+$PROJECT_DIR = Split-Path -Parent $PSScriptRoot
 $LAUNCHER_DIR = Join-Path $PROJECT_DIR "launcher"
 $BACKEND_DIST = Join-Path $LAUNCHER_DIR "ft1-backend"
 $OUTPUT_DIR = Join-Path $PROJECT_DIR "dist"

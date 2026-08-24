@@ -6,7 +6,7 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   过程SPC监控平台 v1.5.4 - 一键构建
+echo   过程SPC监控平台 v1.6.0 - 一键构建
 echo ==========================================
 
 echo [0/5] 清理旧构建产物...
@@ -25,7 +25,7 @@ REM 复制前端 dist 到 data/frontend（供浏览器访问）
 if exist "%PROJECT_DIR%data\frontend" rmdir /s /q "%PROJECT_DIR%data\frontend"
 xcopy /E /I /Q /Y "%PROJECT_DIR%frontend\dist" "%PROJECT_DIR%data\frontend" >nul 2>nul
 cd /d "%PROJECT_DIR%"
-python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=scipy --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=python_multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-package=numpy --include-data-dir=data=data --noinclude-pytest-mode=nofollow --noinclude-setuptools-mode=nofollow backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
+python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=scipy --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-package=numpy --include-package=sklearn --include-package=pandas --include-package=starlette --include-module=ctypes --include-data-dir=data=data --noinclude-pytest-mode=nofollow --noinclude-setuptools-mode=nofollow --nofollow-import-to=scipy.io,scipy.weave,scipy.spatial,scipy.cluster --nofollow-import-to=numpy.distutils,numpy.f2py,numpy.tests --nofollow-import-to=sklearn.datasets,sklearn.tests backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
 
 echo [3/5] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
@@ -37,7 +37,7 @@ python -c "import pefile; pe=pefile.PE('ft1-backend-dist/run.dist/ft1-backend.ex
 xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul || (echo 后端复制失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
 REM 复制配置文件
-for %%f in ("%PROJECT_DIR%*.json") do copy /Y "%%f" "%BACKEND_DIST%\" >nul 2>nul
+for %%f in (instrument_config.json prediction_config.json db_mapping.json product_categories.json product_indicators.json product_status.json excluded_remarks.json alias_config.json alert_rules.json fta_config.json) do copy /Y "%%PROJECT_DIR%%%f" "%BACKEND_DIST%\" >nul 2>nul
 
 echo [4/5] 构建 Tauri...
 cd /d "%LAUNCHER_DIR%"

@@ -9,10 +9,15 @@ class MonitorDataResponse(BaseModel):
     product_code: str
     product_name: Optional[str]
     value: float
+    raw_value: Optional[float] = None
+    correction: Optional[float] = None
     unit: Optional[str]
     upper_limit: Optional[float]
     lower_limit: Optional[float]
     is_qualified: int
+    is_voided: Optional[bool] = None
+    sample_id: Optional[str] = None
+    remark: Optional[str] = None
     sample_time: str
     created_at: datetime
 

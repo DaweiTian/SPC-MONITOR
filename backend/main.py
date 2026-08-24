@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import threading
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Security
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -44,7 +45,16 @@ from backend.app.engine.alert.engine import AlertEngine
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="液奶过程监控系统", version="1.6.0")
+# Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
+_main_loop: asyncio.AbstractEventLoop | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _main_loop
+    _main_loop = asyncio.get_running_loop()
+    yield
+
+app = FastAPI(title="液奶过程监控系统", version="1.6.0", lifespan=lifespan)
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
@@ -66,28 +76,22 @@ if _frontend_dist.exists():
     @app.get("/api/docs/{filename}", include_in_schema=False)
     async def serve_doc(filename: str):
         """直接返回 docs 目录下的 HTML 手册文件，绕过 SPA 兜底"""
-        doc_path = _frontend_dist / "docs" / filename
+        doc_path = (_frontend_dist / "docs" / filename).resolve()
+        if not doc_path.is_relative_to((_frontend_dist / "docs").resolve()):
+            return HTMLResponse("<h1>Forbidden</h1>", status_code=403)
         if doc_path.exists() and doc_path.suffix == '.html':
             return HTMLResponse(doc_path.read_text(encoding='utf-8'))
         return HTMLResponse("<h1>文件未找到</h1>", status_code=404)
 
-# Capture the event loop at startup for cross-thread use (Python 3.12+ safe)
-_main_loop: asyncio.AbstractEventLoop | None = None
-
-@app.on_event("startup")
-async def _capture_loop():
-    global _main_loop
-    _main_loop = asyncio.get_running_loop()
-
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "*").split(",")
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:18080").split(",")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
@@ -104,7 +108,8 @@ try:
             storage.set_excluded_remarks(json.load(f))
     else:
         storage.set_excluded_remarks(["基准样"])
-except Exception:
+except Exception as e:
+    logger.warning(f"Failed to load excluded remarks: {e}")
     storage.set_excluded_remarks(["基准样"])
 
 # 初始化采集器
@@ -203,8 +208,8 @@ def collect_with_alert():
         product_status = _load_json_config("product_status.json", {})
         disabled = {code for code, status in product_status.items() if status == "disabled"}
         storage.set_disabled_products(disabled)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to load disabled products: {e}")
 
     with _collector_lock:
         current_collector = collector
@@ -442,12 +447,6 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
 
         # Update all module-level references
         _update_all_references(source, is_connected, instrument_id)
-
-        # Stop old scheduler before creating new one
-        try:
-            scheduler.stop()
-        except Exception:
-            pass
 
         # Create and start new scheduler
         scheduler = AdaptiveScheduler(collect_func=collect_with_alert)

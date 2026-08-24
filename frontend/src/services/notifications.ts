@@ -1,6 +1,6 @@
 import type { ToastItem } from '../components/Toast'
 
-interface AlertPayload {
+export interface AlertPayload {
   alerts: Array<{
     severity: string
     product_code?: string

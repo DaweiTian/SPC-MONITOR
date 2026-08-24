@@ -85,6 +85,15 @@ class AlertEngine:
         # Nelson 规则检测
         violations = self.nelson_rules.check_all(values_arr, cl, sigma)
         
+        # Fetch pending alerts ONCE for duplicate detection (avoids N+1 queries)
+        existing_pending = self.storage.get_alerts(status='pending', limit=500)
+        pending_alerts = existing_pending.get('alerts', []) if isinstance(existing_pending, dict) else existing_pending
+        cutoff = datetime.now() - timedelta(hours=24)
+        pending_keys: set[tuple] = set()
+        for a in pending_alerts:
+            if datetime.fromisoformat(a['created_at']) > cutoff:
+                pending_keys.add((a.get('product_code'), a.get('indicator_code'), a.get('rule_type')))
+        
         # 生成 Nelson 规则预警
         for violation in violations:
             for point_idx in violation.violation_points:
@@ -102,9 +111,10 @@ class AlertEngine:
                     'data_time_range': f'{timestamps[0]} - {timestamps[-1]}',
                 }
                 
-                if not self._is_duplicate(alert):
+                if not self._is_duplicate_cached(alert, pending_keys):
                     self.storage.save_alert(alert)
                     new_alerts.append(alert)
+                    pending_keys.add((product_code, indicator_code, alert['rule_type']))
         
         # Cpk 检查
         if spec_limits and len(values_arr) >= 5:
@@ -137,9 +147,10 @@ class AlertEngine:
                     'data_time_range': None,
                 }
                 
-                if not self._is_duplicate(alert):
+                if not self._is_duplicate_cached(alert, pending_keys):
                     self.storage.save_alert(alert)
                     new_alerts.append(alert)
+                    pending_keys.add((product_code, indicator_code, 'cpk_low'))
         
         # 超出规格限检查
         if spec_limits and len(values_arr) > 0:
@@ -159,9 +170,10 @@ class AlertEngine:
                     'generated_at': datetime.now(),
                     'data_time_range': None,
                 }
-                if not self._is_duplicate(alert):
+                if not self._is_duplicate_cached(alert, pending_keys):
                     self.storage.save_alert(alert)
                     new_alerts.append(alert)
+                    pending_keys.add((product_code, indicator_code, 'above_usl'))
             
             if spec_limits.get('lsl') and latest_value < spec_limits['lsl']:
                 alert = {
@@ -177,25 +189,17 @@ class AlertEngine:
                     'generated_at': datetime.now(),
                     'data_time_range': None,
                 }
-                if not self._is_duplicate(alert):
+                if not self._is_duplicate_cached(alert, pending_keys):
                     self.storage.save_alert(alert)
                     new_alerts.append(alert)
+                    pending_keys.add((product_code, indicator_code, 'below_lsl'))
         
         return new_alerts
     
     def _gen_alert_id(self) -> str:
         return f"OM-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
     
-    def _is_duplicate(self, alert: Dict[str, Any]) -> bool:
-        result = self.storage.get_alerts(status='pending', limit=100)
-        existing = result.get('alerts', []) if isinstance(result, dict) else result
-        cutoff = datetime.now() - timedelta(hours=24)
-
-        for e in existing:
-            if (e['product_code'] == alert['product_code'] and
-                e['indicator_code'] == alert['indicator_code'] and
-                e['rule_type'] == alert['rule_type'] and
-                datetime.fromisoformat(e['created_at']) > cutoff):
-                return True
-
-        return False
+    def _is_duplicate_cached(self, alert: Dict[str, Any], pending_keys: set[tuple]) -> bool:
+        """Check duplicate against pre-fetched pending keys set (O(1) lookup)."""
+        key = (alert.get('product_code'), alert.get('indicator_code'), alert.get('rule_type'))
+        return key in pending_keys

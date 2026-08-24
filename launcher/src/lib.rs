@@ -12,6 +12,8 @@ use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tray::TrayMenuItems;
 
+struct ApiKeyState(String);
+
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
     if let Ok(log_file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
@@ -27,6 +29,7 @@ pub fn run() {
     init_logging();
 
     let config = AppConfig::load();
+    let api_key = config.api_key.clone();
     let service_manager = Arc::new(ServiceManager::new(&config));
 
     if config.auto_start {
@@ -136,6 +139,7 @@ pub fn run() {
         })
         .manage(service_manager)
         .manage(shutdown_flag)
+        .manage(ApiKeyState(api_key))
         .invoke_handler(tauri::generate_handler![
             start_server,
             stop_server,
@@ -144,6 +148,7 @@ pub fn run() {
             set_window_opacity,
             get_widget_data,
             toggle_widget,
+            get_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -193,10 +198,11 @@ fn set_window_opacity(opacity: f64) -> Result<(), String> {
 #[tauri::command(async)]
 async fn get_widget_data(
     service: tauri::State<'_, Arc<ServiceManager>>,
+    api_key_state: tauri::State<'_, ApiKeyState>,
 ) -> Result<serde_json::Value, String> {
     let port = service.server_port();
     let base = format!("http://127.0.0.1:{}", port);
-    let key = std::env::var("FT1_API_KEY").unwrap_or_else(|_| "ft1-monitor-default-key".to_string());
+    let key = api_key_state.0.clone();
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -269,6 +275,11 @@ async fn get_widget_data(
     }
 
     Ok(data)
+}
+
+#[tauri::command]
+fn get_api_key(state: tauri::State<ApiKeyState>) -> String {
+    state.0.clone()
 }
 
 #[tauri::command]

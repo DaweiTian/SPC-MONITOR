@@ -86,6 +86,8 @@ const navGroups: NavGroup[] = [
   },
 ]
 
+const APP_VERSION = 'v1.6.0'
+
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
   '/spc': { cn: 'SPC控制图', en: 'SPC Control Chart' },
@@ -257,11 +259,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </nav>
         <div className={styles.sidebarFooter}>
           <span className={styles.footerVersionBadge}>
-            v1.6.0
+            {APP_VERSION}
             <div className={styles.versionTooltip}>
               <div className={styles.versionTooltipTitle}>
                 <span className={styles.versionTooltipTitleDot} />
-                v1.6.0 更新日志
+                {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
                 <li className={styles.versionTooltipItem}>预测模块全面升级：MASE/方向准确率/越限概率</li>

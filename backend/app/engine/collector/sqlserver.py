@@ -373,13 +373,15 @@ class SQLServerCollector(BaseCollector):
             records = []
             if self._use_pymssql:
                 conn = self._build_pymssql_connection(self._db_config)
-                cursor = conn.cursor()
-                if params:
-                    cursor.execute(sql, params)
-                else:
-                    cursor.execute(sql)
-                rows = cursor.fetchall()
-                conn.close()
+                try:
+                    cursor = conn.cursor()
+                    if params:
+                        cursor.execute(sql, params)
+                    else:
+                        cursor.execute(sql)
+                    rows = cursor.fetchall()
+                finally:
+                    conn.close()
             else:
                 from sqlalchemy import text
                 with self.engine.connect() as conn:
@@ -469,10 +471,12 @@ class SQLServerCollector(BaseCollector):
         try:
             if self._use_pymssql:
                 conn = self._build_pymssql_connection(self._db_config)
-                cursor = conn.cursor()
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-                conn.close()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(sql)
+                    rows = cursor.fetchall()
+                finally:
+                    conn.close()
             else:
                 from sqlalchemy import text
                 with self.engine.connect() as conn:
@@ -493,10 +497,12 @@ class SQLServerCollector(BaseCollector):
         try:
             if self._use_pymssql:
                 conn = self._build_pymssql_connection(self._db_config)
-                cursor = conn.cursor()
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-                conn.close()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(sql)
+                    rows = cursor.fetchall()
+                finally:
+                    conn.close()
             else:
                 from sqlalchemy import text
                 with self.engine.connect() as conn:

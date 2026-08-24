@@ -3,8 +3,9 @@ import numpy as np
 import json
 import asyncio
 import logging
-import time
 from pathlib import Path
+
+from backend.app.core.cache import TTLCache
 
 logger = logging.getLogger(__name__)
 
@@ -37,25 +38,7 @@ def _sanitize(obj):
     return obj
 
 
-class _TTLCache:
-    def __init__(self, ttl: int = 300):
-        self._store: dict[str, tuple[float, object]] = {}
-        self._ttl = ttl
-
-    def get(self, key: str):
-        entry = self._store.get(key)
-        if entry and time.time() - entry[0] < self._ttl:
-            return entry[1]
-        self._store.pop(key, None)
-        return None
-
-    def set(self, key: str, value):
-        if len(self._store) > 200:
-            now = time.time()
-            self._store = {k: v for k, v in self._store.items() if now - v[0] < self._ttl}
-        self._store[key] = (time.time(), value)
-
-_cache = _TTLCache(ttl=300)
+_cache = TTLCache(ttl=300)
 
 
 def _get_data(indicator: str, product: str, limit: int = 200):
@@ -499,8 +482,8 @@ def _persist_prediction(product: str, indicator: str, model: str,
     """Write prediction to prediction_results table."""
     if storage is None:
         return
+    conn = storage._connect()
     try:
-        conn = storage._connect()
         conn.execute(
             """INSERT INTO prediction_results
                (product_code, indicator_code, model, horizon, predictions_json, risk_json, created_at)
@@ -509,9 +492,10 @@ def _persist_prediction(product: str, indicator: str, model: str,
              json.dumps(risk)),
         )
         conn.commit()
-        conn.close()
     except Exception as e:
         logger.warning(f"Failed to persist prediction: {e}")
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -598,7 +582,7 @@ def forecast(
     if risk_level == "CRITICAL":
         try:
             from backend.app.api.websocket import broadcast_typed
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop and loop.is_running():
                 asyncio.ensure_future(broadcast_typed('risk_alert', {
                     'product': product,
@@ -874,6 +858,7 @@ def correlation(
     n = len(indicators_list)
     corr_matrix = [[0.0] * n for _ in range(n)]
     p_matrix = [[0.0] * n for _ in range(n)]
+    import math
     from scipy.stats import pearsonr as _pearsonr
     cols = [df[c].values for c in indicators_list]
     for i in range(n):
@@ -882,10 +867,12 @@ def correlation(
                 corr_matrix[i][j] = 1.0
             elif j > i:
                 r, p = _pearsonr(cols[i], cols[j])
-                corr_matrix[i][j] = round(float(r), 4)
-                corr_matrix[j][i] = round(float(r), 4)
-                p_matrix[i][j] = round(float(p), 6)
-                p_matrix[j][i] = round(float(p), 6)
+                r = 0.0 if math.isnan(r) else round(float(r), 4)
+                p = 1.0 if math.isnan(p) else round(float(p), 6)
+                corr_matrix[i][j] = r
+                corr_matrix[j][i] = r
+                p_matrix[i][j] = p
+                p_matrix[j][i] = p
 
     result = {
         "success": True,

@@ -138,7 +138,7 @@ const SpecLimitRow: React.FC<SpecLimitRowProps> = ({ indicator, alias, limits, s
   useEffect(() => {
     setLsl(limits.lsl?.toString() ?? '')
     setUsl(limits.usl?.toString() ?? '')
-  }, [limits])
+  }, [limits.lsl, limits.usl])
 
   const hasLimits = limits.lsl !== undefined || limits.usl !== undefined
 

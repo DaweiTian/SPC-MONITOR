@@ -5,6 +5,7 @@ import { tooltipStyle } from '../../components/Charts/theme'
 import { api } from '../../services'
 import { escapeHtml } from '../../utils/html'
 import { useAppMetadata } from '../../hooks'
+import { RULE_TYPE_CN } from '../../constants/alertRules'
 import type { Alert, EChartsParam } from '../../types'
 import type { EChartsOption, DefaultLabelFormatterCallbackParams } from 'echarts'
 import styles from './Alerts.module.css'
@@ -25,28 +26,6 @@ function dayKey(date: Date): string {
 }
 
 const SEVERITY_CN: Record<string, string> = { CRITICAL: '严重警告', WARNING: '警告', INFO: '提示' }
-// 默认映射（当未配置 alert_rules.json 时使用）
-const RULE_TYPE_CN: Record<string, string> = {
-  spc_violation: 'SPC失控',
-  out_of_spec: '超规格限',
-  trend_detected: '趋势异常',
-  mean_shift: '均值偏移',
-  high_variation: '变异过大',
-  low_cpk: '能力不足',
-  cpk_below_target: 'CPK预警',
-  cpk_low: 'CPK预警',
-  spec_limit_breach: '规格越限',
-  above_usl: '规格越限',
-  below_lsl: '规格越限',
-  nelson_1: 'Nelson规则1',
-  nelson_2: 'Nelson规则2',
-  nelson_3: 'Nelson规则3',
-  nelson_4: 'Nelson规则4',
-  nelson_5: 'Nelson规则5',
-  nelson_6: 'Nelson规则6',
-  nelson_7: 'Nelson规则7',
-  nelson_8: 'Nelson规则8',
-}
 
 interface AlertRule {
   id: number
@@ -92,7 +71,7 @@ const IconLink = () => (
 
 /* ---------- 图表子组件 ---------- */
 
-function TrendChart({ alerts }: { alerts: Alert[] }) {
+const TrendChart = React.memo(function TrendChart({ alerts }: { alerts: Alert[] }) {
   const days = getLast7Days()
 
   const { critical, warning, info } = useMemo(() => {
@@ -137,9 +116,9 @@ function TrendChart({ alerts }: { alerts: Alert[] }) {
       <div ref={containerRef} className={styles.chartContainer} />
     </div>
   )
-}
+})
 
-function PieChart({ alerts, ruleMap }: { alerts: Alert[]; ruleMap: Record<string, AlertRule> }) {
+const PieChart = React.memo(function PieChart({ alerts, ruleMap }: { alerts: Alert[]; ruleMap: Record<string, AlertRule> }) {
   const distribution = useMemo(() => {
     const map: Record<string, number> = {}
     alerts.forEach((a) => {
@@ -190,7 +169,7 @@ function PieChart({ alerts, ruleMap }: { alerts: Alert[]; ruleMap: Record<string
       <div ref={containerRef} className={styles.chartContainer} />
     </div>
   )
-}
+})
 
 /* ---------- 主组件 ---------- */
 

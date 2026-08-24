@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react'
 
 interface AppState {
   currentProduct: string
@@ -33,14 +33,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem('app_collection_frequency', freq)
   }, [])
 
+  const value = useMemo(() => ({
+    currentProduct,
+    currentProductCode,
+    collectionFrequency,
+    setCurrentProduct,
+    setCollectionFrequency,
+  }), [currentProduct, currentProductCode, collectionFrequency, setCurrentProduct, setCollectionFrequency])
+
   return (
-    <AppContext.Provider value={{
-      currentProduct,
-      currentProductCode,
-      collectionFrequency,
-      setCurrentProduct,
-      setCollectionFrequency,
-    }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   )

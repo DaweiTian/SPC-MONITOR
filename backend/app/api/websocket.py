@@ -26,8 +26,9 @@ async def broadcast_typed(msg_type: str, data: dict):
     await broadcast_data({"type": msg_type, "data": data, "timestamp": datetime.now().isoformat()})
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, api_key: str = None):
-    # Accept api_key from query param: ws://host/api/ws?api_key=xxx
+async def websocket_endpoint(websocket: WebSocket):
+    # Accept api_key from header (preferred) or query param (backward compat)
+    api_key = websocket.headers.get("x-api-key", websocket.query_params.get("api_key"))
     if api_key != FT1_API_KEY:
         await websocket.close(code=4001, reason="Invalid API key")
         return

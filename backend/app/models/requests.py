@@ -27,7 +27,7 @@ class MDBConfigRequest(BaseModel):
     component_ref_column: str = "CompRef"
     component_name_column: str = "Name"
     value_column: str = "Value"
-    indicators: Dict[str, Any] = {}
+    indicators: Dict[str, str] = {}
 
 
 class FTAConfigRequest(BaseModel):
@@ -74,3 +74,11 @@ class ProductStatusRequest(BaseModel):
 
 class ProductCategoryRequest(BaseModel):
     category: str
+
+
+class FieldMappingRequest(BaseModel):
+    table_name: str = ""
+    time_column: str = ""
+    product_column: str = ""
+    sample_column: str = ""
+    indicators: Dict[str, Any] = {}

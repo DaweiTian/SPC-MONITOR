@@ -38,4 +38,9 @@ def validate_mdb_path(path: str) -> str:
     if not abs_path.lower().endswith('.mdb'):
         raise ValueError(f"File must be a .mdb file: {path}")
 
+    # Restrict to data directory or explicit allowed paths
+    allowed_dirs = [os.path.abspath("./data"), os.path.abspath(".")]
+    if not any(abs_path.startswith(d) for d in allowed_dirs):
+        raise ValueError(f"MDB path must be within allowed directories: {path}")
+
     return abs_path

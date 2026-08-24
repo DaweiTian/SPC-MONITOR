@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { api } from '../../services'
 import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import type { MonitorData } from '../../types'
 import styles from './Data.module.css'
 
 const PAGE_SIZE = 20
+
+function formatCorrection(correction?: number): string {
+  if (!correction) return '0'
+  return `${correction > 0 ? '+' : ''}${correction.toFixed(4)}`
+}
 
 interface CorrectionEdit {
   recordId: number
@@ -34,6 +39,9 @@ export const DataPage: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [voidConfirmId, setVoidConfirmId] = useState<number | null>(null)
 
+  // AbortController ref for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
+
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: '',
@@ -41,9 +49,15 @@ export const DataPage: React.FC = () => {
     date_to: '',
   })
 
-  const enabledProducts = products.filter(p => productStatus[p.code] !== 'disabled')
+  const enabledProducts = useMemo(
+    () => products.filter(p => productStatus[p.code] !== 'disabled'),
+    [products, productStatus]
+  )
 
   const fetchData = useCallback(async () => {
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
     setLoading(true)
     try {
       const result = await api.getDataList({
@@ -53,10 +67,11 @@ export const DataPage: React.FC = () => {
         date_to: filter.date_to || undefined,
         product_code: filter.product_code || undefined,
         indicator_code: filter.indicator_code || undefined,
-      })
+      }, { signal })
       setData(result.data || [])
       setTotal(result.total || 0)
-    } catch (e) {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return
       console.error('获取数据失败:', e)
     } finally {
       setLoading(false)
@@ -92,7 +107,7 @@ export const DataPage: React.FC = () => {
   const startIdx = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const endIdx = Math.min(page * PAGE_SIZE, total)
 
-  const handleExport = async (format: 'csv' | 'excel') => {
+  const handleExport = useCallback(async (format: 'csv' | 'excel') => {
     try {
       const blob = await api.exportData({
         format,
@@ -110,7 +125,7 @@ export const DataPage: React.FC = () => {
     } catch (e) {
       console.error('导出失败:', e)
     }
-  }
+  }, [filter.product_code, filter.indicator_code])
 
   // Correction editing
   const handleEditCorrection = (row: MonitorData) => {
@@ -188,10 +203,10 @@ export const DataPage: React.FC = () => {
     }
   }
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setCorrectionEdit(null)
     setFieldEdit(null)
-  }
+  }, [])
 
   const handleVoid = async () => {
     if (voidConfirmId === null) return
@@ -245,65 +260,16 @@ export const DataPage: React.FC = () => {
     return productLimits?.[indicatorCode] ?? null
   }
 
-  const formatCorrection = (correction?: number): string => {
-    if (!correction) return '0'
-    return `${correction > 0 ? '+' : ''}${correction.toFixed(4)}`
-  }
-
-  const handleToggleSign = () => {
+  const handleToggleSign = useCallback(() => {
     setCorrectionEdit(prev => prev ? { ...prev, sign: prev.sign === '+' ? '-' : '+' } : null)
-  }
+  }, [])
 
-  const handleCorrectionValueChange = (value: string) => {
+  const handleCorrectionValueChange = useCallback((value: string) => {
     const sanitized = value.replace(/[^0-9.]/g, '')
     const parts = sanitized.split('.')
     const cleanValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : sanitized
     setCorrectionEdit(prev => prev ? { ...prev, value: cleanValue } : null)
-  }
-
-  const renderValueCell = (row: MonitorData) => {
-    const isFieldEditing = fieldEdit?.recordId === row.id
-    if (!isFieldEditing) return null
-
-    return (
-      <div className={styles.fieldEditGroup}>
-        <div className={styles.fieldEditRow}>
-          <label className={styles.fieldLabel}>单位</label>
-          <input
-            className={styles.fieldInput}
-            value={fieldEdit.unit}
-            onChange={e => setFieldEdit(prev => prev ? { ...prev, unit: e.target.value } : null)}
-          />
-        </div>
-        <div className={styles.fieldEditRow}>
-          <label className={styles.fieldLabel}>上限</label>
-          <input
-            className={styles.fieldInput}
-            type="text"
-            inputMode="decimal"
-            value={fieldEdit.upper_limit}
-            onChange={e => {
-              const v = e.target.value.replace(/[^0-9.\-]/g, '')
-              setFieldEdit(prev => prev ? { ...prev, upper_limit: v } : null)
-            }}
-          />
-        </div>
-        <div className={styles.fieldEditRow}>
-          <label className={styles.fieldLabel}>下限</label>
-          <input
-            className={styles.fieldInput}
-            type="text"
-            inputMode="decimal"
-            value={fieldEdit.lower_limit}
-            onChange={e => {
-              const v = e.target.value.replace(/[^0-9.\-]/g, '')
-              setFieldEdit(prev => prev ? { ...prev, lower_limit: v } : null)
-            }}
-          />
-        </div>
-      </div>
-    )
-  }
+  }, [])
 
   return (
     <div className={styles.page}>

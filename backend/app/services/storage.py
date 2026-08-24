@@ -1,5 +1,7 @@
 import logging
 import sqlite3
+import threading
+from contextlib import contextmanager
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,7 @@ class OnlineStorage:
         self.db_path = db_path
         self._disabled_products: set[str] = set()
         self._excluded_remarks: list[str] = []
+        self._local = threading.local()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     def set_disabled_products(self, product_codes: set[str]) -> None:
@@ -27,10 +30,25 @@ class OnlineStorage:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """Get or create a thread-local connection."""
+        if not hasattr(self._local, 'conn') or self._local.conn is None:
+            self._local.conn = self._connect()
+        return self._local.conn
+
+    @contextmanager
+    def _connection(self):
+        """Context manager yielding a thread-local connection (no close on exit)."""
+        conn = self._get_conn()
+        try:
+            yield conn
+        except Exception:
+            conn.rollback()
+            raise
     
     def init_db(self) -> None:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS monitor_data (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,12 +173,9 @@ class OnlineStorage:
             if 'is_predicted' not in columns:
                 conn.execute("ALTER TABLE monitor_data ADD COLUMN is_predicted INTEGER DEFAULT 0")
             conn.commit()
-        finally:
-            conn.close()
 
     def save_data(self, records: list[dict[str, Any]]) -> int:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             count = 0
             for record in records:
                 product_code = record.get("product_code")
@@ -192,22 +207,19 @@ class OnlineStorage:
                     )
                     count += 1
                 except sqlite3.IntegrityError:
-                    pass
+                    logger.debug(f"Duplicate skipped: {record.get('indicator_code')}/{record.get('product_code')}")
             conn.commit()
             return count
-        finally:
-            conn.close()
 
     def save_predicted_data(self, records: list[dict[str, Any]]) -> int:
         """保存预测数据，自动标记is_predicted=1。不覆盖已有的真实数据。"""
         if not records:
             return 0
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             saved = 0
             for r in records:
                 try:
-                    conn.execute(
+                    cursor = conn.execute(
                         """INSERT INTO monitor_data
                            (indicator_code, indicator_name, product_code, product_name,
                             value, unit, sample_time, is_predicted)
@@ -229,18 +241,16 @@ class OnlineStorage:
                             r.get("sample_time"),
                         ),
                     )
-                    saved += 1
+                    if cursor.rowcount > 0:
+                        saved += 1
                 except Exception as e:
                     logger.warning(f"保存预测记录失败: {e}")
                     continue
             conn.commit()
             return saved
-        finally:
-            conn.close()
 
     def save_alert(self, alert: dict[str, Any]) -> int:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO alerts
                    (alert_id, alert_type, severity, indicator_code, product_code,
@@ -263,15 +273,12 @@ class OnlineStorage:
             )
             conn.commit()
             return cursor.lastrowid
-        finally:
-            conn.close()
     
     def get_recent_data(
         self, indicator_code: str, product_code: str, limit: int = 20,
         exclude_remarks: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conditions = ["indicator_code = ?", "product_code = ?", "(is_voided = 0 OR is_voided IS NULL)"]
             params: list[Any] = [indicator_code, product_code]
             for kw in (exclude_remarks or []):
@@ -284,8 +291,6 @@ class OnlineStorage:
                 params,
             )
             return [dict(row) for row in cursor.fetchall()]
-        finally:
-            conn.close()
 
     def get_filtered_data(
         self,
@@ -297,8 +302,7 @@ class OnlineStorage:
         limit: int = 500,
         exclude_remarks: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conditions = ["indicator_code = ?", "product_code = ?", "(is_voided = 0 OR is_voided IS NULL)"]
             params: list[Any] = [indicator_code, product_code]
             if date_from:
@@ -320,8 +324,6 @@ class OnlineStorage:
                 params,
             )
             return [dict(row) for row in cursor.fetchall()]
-        finally:
-            conn.close()
 
     def get_all_data(
         self,
@@ -333,8 +335,7 @@ class OnlineStorage:
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> dict[str, Any]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conditions: list[str] = []
             params: list[Any] = []
             if date_from:
@@ -362,34 +363,25 @@ class OnlineStorage:
                 params,
             )
             return {"data": [dict(row) for row in cursor.fetchall()], "total": total, "page": page, "page_size": page_size}
-        finally:
-            conn.close()
 
     def get_product_indicator_count(self, product_code: str) -> int:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT COUNT(DISTINCT indicator_code) FROM monitor_data WHERE product_code = ?",
                 (product_code,),
             )
             return cursor.fetchone()[0]
-        finally:
-            conn.close()
 
     def get_product_indicator_codes(self, product_code: str) -> list[str]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT DISTINCT indicator_code FROM monitor_data WHERE product_code = ?",
                 (product_code,),
             )
             return [row["indicator_code"] for row in cursor.fetchall()]
-        finally:
-            conn.close()
 
     def get_all_product_indicator_codes(self) -> dict[str, list[str]]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT DISTINCT product_code, indicator_code FROM monitor_data ORDER BY product_code"
             )
@@ -400,8 +392,6 @@ class OnlineStorage:
                     result[pc] = []
                 result[pc].append(row["indicator_code"])
             return result
-        finally:
-            conn.close()
 
     def get_alerts(
         self,
@@ -412,8 +402,7 @@ class OnlineStorage:
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, Any]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conditions: list[str] = []
             params: list[Any] = []
             if severity is not None:
@@ -446,12 +435,9 @@ class OnlineStorage:
                 params,
             )
             return {"alerts": [dict(row) for row in cursor.fetchall()], "total": total}
-        finally:
-            conn.close()
     
     def resolve_alert(self, alert_id: str, resolved_by: str, note: str = "") -> bool:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 """UPDATE alerts
                    SET status = 'resolved',
@@ -463,12 +449,9 @@ class OnlineStorage:
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()
 
     def resolve_alert_and_void(self, alert_id: str, resolved_by: str, note: str = "") -> bool:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT indicator_code, product_code, test_value FROM alerts WHERE alert_id = ? AND status = 'pending'",
                 (alert_id,),
@@ -508,21 +491,15 @@ class OnlineStorage:
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()
 
     def clear_pending_alerts(self) -> int:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute("DELETE FROM alerts WHERE status = 'pending'")
             conn.commit()
             return cursor.rowcount
-        finally:
-            conn.close()
 
     def count_pending_alerts(self) -> dict[str, Any]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT severity, COUNT(*) as cnt FROM alerts WHERE status = 'pending' GROUP BY severity"
             )
@@ -534,22 +511,16 @@ class OnlineStorage:
                     counts[sev] = cnt
                 counts["total"] += cnt
             return counts
-        finally:
-            conn.close()
 
     def get_distinct_alert_products(self) -> list[str]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT DISTINCT product_code FROM alerts WHERE product_code IS NOT NULL AND product_code != '' ORDER BY product_code"
             )
             return [row["product_code"] for row in cursor.fetchall()]
-        finally:
-            conn.close()
 
     def get_today_stats(self) -> dict[str, Any]:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             today = date.today().isoformat()
             
             cursor = conn.execute(
@@ -605,13 +576,10 @@ class OnlineStorage:
                 "collect_attempts": collect_attempts,
                 "collect_success": collect_success,
             }
-        finally:
-            conn.close()
     
     def get_products_with_data(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get products that have data in the database."""
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 """SELECT product_code, product_name, COUNT(*) as data_count
                    FROM monitor_data
@@ -621,13 +589,10 @@ class OnlineStorage:
                 (limit,),
             )
             return [dict(row) for row in cursor.fetchall()]
-        finally:
-            conn.close()
 
     def get_recent_collection_counts(self, days: int = 10) -> dict[str, dict[str, int]]:
         """Get collection counts per product_code and indicator_code for the last N days."""
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             # Per-product counts
             cursor = conn.execute(
                 """SELECT product_code, COUNT(*) as cnt
@@ -649,26 +614,20 @@ class OnlineStorage:
             indicator_counts = {row["indicator_code"]: row["cnt"] for row in cursor.fetchall()}
 
             return {"products": product_counts, "indicators": indicator_counts}
-        finally:
-            conn.close()
     
-    def log_collection(self, status: str, records_count: int = 0, error_message: str = None) -> None:
+    def log_collection(self, status: str, records_count: int = 0, error_message: str | None = None) -> None:
         """Log a collection attempt to sync_log."""
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             conn.execute(
                 """INSERT INTO sync_log (source, sync_type, status, records_count, error_message, started_at)
                    VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))""",
                 ("collector", "data", status, records_count, error_message),
             )
             conn.commit()
-        finally:
-            conn.close()
 
     def update_correction(self, record_id: int, correction: float) -> bool:
         """Update correction value for a specific record and recalculate value."""
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "SELECT value, raw_value FROM monitor_data WHERE id = ?",
                 (record_id,)
@@ -687,8 +646,6 @@ class OnlineStorage:
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()
 
     def update_record_fields(self, record_id: int, fields: dict[str, Any]) -> bool:
         """Update specific fields for a record (unit, upper_limit, lower_limit)."""
@@ -696,8 +653,7 @@ class OnlineStorage:
         updates = {k: v for k, v in fields.items() if k in allowed_fields}
         if not updates:
             return False
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             set_clause = ", ".join(f"{k} = ?" for k in updates)
             values = list(updates.values())
             values.append(record_id)
@@ -707,29 +663,21 @@ class OnlineStorage:
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()
 
     def void_record(self, record_id: int) -> bool:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "UPDATE monitor_data SET is_voided = 1 WHERE id = ?",
                 (record_id,),
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()
 
     def unvoid_record(self, record_id: int) -> bool:
-        conn = self._connect()
-        try:
+        with self._connection() as conn:
             cursor = conn.execute(
                 "UPDATE monitor_data SET is_voided = 0 WHERE id = ?",
                 (record_id,),
             )
             conn.commit()
             return cursor.rowcount > 0
-        finally:
-            conn.close()

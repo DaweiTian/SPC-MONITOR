@@ -21,6 +21,7 @@ pub struct ServiceManager {
     server_port: u16,
     python_path: String,
     backend_exe: Option<PathBuf>,
+    api_key: String,
 }
 
 impl Drop for ServiceManager {
@@ -52,6 +53,7 @@ impl ServiceManager {
             server_port: config.server_port,
             python_path: config.python_path.clone(),
             backend_exe,
+            api_key: config.api_key.clone(),
         }
     }
 
@@ -129,6 +131,9 @@ impl ServiceManager {
             use std::os::windows::process::CommandExt;
             cmd.creation_flags(0x08000000);
         }
+
+        // 传递 API 密钥给后端
+        cmd.env("FT1_API_KEY", &self.api_key);
 
         // 设置工作目录为 exe 所在目录（NSIS 启动时 CWD 不确定）
         let exe_dir = std::env::current_exe()

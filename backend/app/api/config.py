@@ -3,7 +3,9 @@ from typing import Optional, Callable
 from datetime import datetime
 import json
 import logging
+import copy
 import os
+import threading
 
 from backend.app.core.validation import validate_identifier, validate_mdb_path
 from backend.app.engine.collector.utils import build_connection_string
@@ -16,6 +18,7 @@ from backend.app.models.requests import (
     AliasRequest,
     ProductStatusRequest,
     ProductCategoryRequest,
+    FieldMappingRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,14 +109,14 @@ _default_instrument_config = {
     }
 }
 
-def _load_json_config(filepath: str, default: dict) -> dict:
+def _load_json_config(filepath: str, default=None):
     if os.path.exists(filepath):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, PermissionError, FileNotFoundError) as e:
             logger.warning(f"加载配置失败: {e}")
-    return default
+    return copy.deepcopy(default) if default is not None else {}
 
 def _save_json_config(filepath: str, data: dict) -> bool:
     try:
@@ -124,26 +127,40 @@ def _save_json_config(filepath: str, data: dict) -> bool:
         logger.error(f"保存配置失败: {e}")
         return False
 
+_MAX_BODY_CHARS = 100_000
+
+
+def _check_body_size(body, max_chars: int = _MAX_BODY_CHARS):
+    """Return error response if serialized body exceeds *max_chars*, else ``None``."""
+    if len(str(body)) > max_chars:
+        return {"success": False, "message": "请求体过大"}
+    return None
+
+
 def _load_runtime_config() -> dict:
     return _load_json_config(CONFIG_FILE, _default_config.copy())
 
 _config = _load_runtime_config()
+_config_lock = threading.Lock()
 
 @router.get("")
 def get_config():
-    return _config
+    with _config_lock:
+        return dict(_config)
 
 @router.put("")
 def update_config(config: UpdateConfigRequest):
-    _config.update(config.model_dump(exclude_none=True))
-    _save_json_config(CONFIG_FILE, _config)
-    return {"status": "updated", "config": _config}
+    with _config_lock:
+        _config.update(config.model_dump(exclude_none=True))
+        _save_json_config(CONFIG_FILE, _config)
+        return {"status": "updated", "config": dict(_config)}
 
 @router.get("/db")
 def get_db_config():
     config = _load_json_config(DB_CONFIG_FILE, _default_db_config)
     if config.get("password"):
         config["password_saved"] = True
+        config["password"] = ""
     return config
 
 @router.put("/db")
@@ -154,25 +171,27 @@ def update_db_config(config: DBConfigRequest):
     return {"success": False, "message": "保存失败"}
 
 @router.post("/db/test")
-def test_db_connection(config: dict):
-    driver = config.get("driver", "")
+def test_db_connection(config: DBConfigRequest):
+    cfg = config.model_dump()
+    driver = cfg.get("driver", "")
 
     # pymssql 模式：不依赖 ODBC
     if driver == "pymssql":
         try:
             from backend.app.engine.collector.sqlserver import SQLServerCollector
-            conn = SQLServerCollector._build_pymssql_connection(config)
+            conn = SQLServerCollector._build_pymssql_connection(cfg)
             cursor = conn.cursor()
             cursor.execute("SELECT 1")
             cursor.fetchone()
             conn.close()
             return {"success": True, "message": "连接成功！(pymssql)"}
         except Exception as e:
-            return {"success": False, "message": f"连接失败: {e}"}
+            logger.error(f"pymssql连接失败: {e}", exc_info=True)
+            return {"success": False, "message": "连接失败，请检查数据库配置"}
 
     # ODBC 模式
     try:
-        conn_str = _build_connection_string(config)
+        conn_str = _build_connection_string(cfg)
 
         try:
             from sqlalchemy import create_engine, text
@@ -182,7 +201,7 @@ def test_db_connection(config: dict):
                 "message": "缺少依赖包，请安装: pip install sqlalchemy pyodbc"
             }
 
-        engine = create_engine(conn_str, connect_args={"timeout": config.get("timeout", 30)})
+        engine = create_engine(conn_str, connect_args={"timeout": cfg.get("timeout", 30)})
 
         with engine.connect() as conn:
             result = conn.execute(text("SELECT 1"))
@@ -200,12 +219,14 @@ def test_db_connection(config: dict):
         elif "driver" in error_msg.lower():
             error_msg = "ODBC 驱动未安装，请安装对应的驱动"
 
-        return {"success": False, "message": f"连接失败: {error_msg}"}
+        logger.error(f"ODBC连接失败: {error_msg}", exc_info=True)
+        return {"success": False, "message": "连接失败，请检查数据库配置"}
 
 @router.post("/db/explore")
-def explore_db_structure(config: dict):
+def explore_db_structure(config: DBConfigRequest):
     try:
-        conn_str = _build_connection_string(config)
+        cfg = config.model_dump()
+        conn_str = _build_connection_string(cfg)
 
         try:
             from sqlalchemy import create_engine, inspect, text
@@ -242,7 +263,8 @@ def explore_db_structure(config: dict):
 
         return {"success": True, "tables": tables}
     except Exception as e:
-        return {"success": False, "message": f"探查失败: {str(e)}"}
+        logger.error(f"探查数据库结构失败: {e}", exc_info=True)
+        return {"success": False, "message": "探查失败，请检查数据库配置"}
 
 
 @router.post("/db/test-relational")
@@ -287,7 +309,8 @@ def test_relational_connection(config: dict):
             "indicators": [i["name"] for i in indicators[:5]],
         }
     except Exception as e:
-        return {"success": False, "message": f"测试失败: {str(e)}", "step": "error"}
+        logger.error(f"四表关联测试失败: {e}", exc_info=True)
+        return {"success": False, "message": "测试失败，请检查配置", "step": "error"}
 
 @router.get("/db/table/{table_name}/columns")
 def get_table_columns(table_name: str):
@@ -331,11 +354,12 @@ def get_table_columns(table_name: str):
         
         return {"success": True, "columns": columns}
     except Exception as e:
-        return {"success": False, "message": f"获取表结构失败: {str(e)}"}
+        logger.error(f"获取表结构失败: {e}", exc_info=True)
+        return {"success": False, "message": "获取表结构失败，请检查数据库配置"}
 
 @router.put("/db/mapping")
-def update_field_mapping(mapping: dict):
-    success = _save_json_config(DB_MAPPING_FILE, mapping)
+def update_field_mapping(mapping: FieldMappingRequest):
+    success = _save_json_config(DB_MAPPING_FILE, mapping.model_dump())
     if success:
         return {"success": True, "message": "字段映射已保存"}
     return {"success": False, "message": "保存失败"}
@@ -357,7 +381,8 @@ def switch_source(body: dict):
         result = _switch_collector_func(source)
         return result
     except Exception as e:
-        return {"success": False, "message": f"切换失败: {str(e)}"}
+        logger.error(f"切换数据源失败: {e}", exc_info=True)
+        return {"success": False, "message": "切换失败，请检查配置"}
 
 @router.get("/source/status")
 def get_source_status():
@@ -395,6 +420,9 @@ def get_instrument_config():
 @router.put("/instrument")
 def update_instrument_config(config: dict):
     """更新仪器配置"""
+    err = _check_body_size(config)
+    if err:
+        return err
     success = _save_json_config(INSTRUMENT_CONFIG_FILE, config)
     if success:
         return {"success": True, "message": "仪器配置已保存"}
@@ -429,7 +457,8 @@ def switch_instrument(body: InstrumentSwitchRequest):
         
         return result
     except Exception as e:
-        return {"success": False, "message": f"切换失败: {str(e)}"}
+        logger.error(f"切换仪器失败: {e}", exc_info=True)
+        return {"success": False, "message": "切换失败，请检查配置"}
 
 # ========== MDB Configuration ==========
 
@@ -449,11 +478,15 @@ def update_mdb_config(config: MDBConfigRequest):
 @router.post("/mdb/test")
 def test_mdb_connection(config: dict):
     """测试 MDB 文件连接"""
+    err = _check_body_size(config)
+    if err:
+        return err
     mdb_path = config.get("mdb_path", "")
     try:
         mdb_path = validate_mdb_path(mdb_path)
     except ValueError as e:
-        return {"success": False, "message": str(e)}
+        logger.error(f"MDB path validation failed: {e}", exc_info=True)
+        return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": f"文件不存在: {mdb_path}"}
@@ -473,16 +506,21 @@ def test_mdb_connection(config: dict):
             "message": "缺少依赖包，请安装: pip install access-parser"
         }
     except Exception as e:
-        return {"success": False, "message": f"连接失败: {str(e)}"}
+        logger.error(f"MDB连接失败: {e}", exc_info=True)
+        return {"success": False, "message": "连接失败，请检查MDB文件配置"}
 
 @router.post("/mdb/explore")
 def explore_mdb_structure(config: dict):
     """探索 MDB 文件结构"""
+    err = _check_body_size(config)
+    if err:
+        return err
     mdb_path = config.get("mdb_path", "")
     try:
         mdb_path = validate_mdb_path(mdb_path)
     except ValueError as e:
-        return {"success": False, "message": str(e)}
+        logger.error(f"MDB path validation failed: {e}", exc_info=True)
+        return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": f"文件不存在: {mdb_path}"}
@@ -498,7 +536,7 @@ def explore_mdb_structure(config: dict):
             
             try:
                 raw_data = db.parse_table(table_name)
-                row_count = len(raw_data[list(raw_data.keys())[0]]) if raw_data and raw_data.keys() else 0
+                row_count = len(next(iter(raw_data.values()))) if raw_data else 0
             except Exception as e:
                 logger.warning(f"查询MDB表行数失败: {e}")
                 row_count = 0
@@ -517,7 +555,8 @@ def explore_mdb_structure(config: dict):
             "message": "缺少依赖包，请安装: pip install access-parser"
         }
     except Exception as e:
-        return {"success": False, "message": f"探查失败: {str(e)}"}
+        logger.error(f"MDB探查失败: {e}", exc_info=True)
+        return {"success": False, "message": "探查失败，请检查MDB文件配置"}
 
 @router.get("/mdb/table/{table_name}/columns")
 def get_mdb_table_columns(table_name: str):
@@ -528,7 +567,8 @@ def get_mdb_table_columns(table_name: str):
     try:
         mdb_path = validate_mdb_path(mdb_path)
     except ValueError as e:
-        return {"success": False, "message": str(e)}
+        logger.error(f"MDB path validation failed: {e}", exc_info=True)
+        return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": "MDB 文件未配置或不存在"}
@@ -556,7 +596,8 @@ def get_mdb_table_columns(table_name: str):
         
         return {"success": True, "columns": columns}
     except Exception as e:
-        return {"success": False, "message": f"获取表结构失败: {str(e)}"}
+        logger.error(f"MDB获取表结构失败: {e}", exc_info=True)
+        return {"success": False, "message": "获取表结构失败，请检查MDB文件配置"}
 
 @router.get("/mdb/init-status")
 def get_mdb_init_status():
@@ -567,7 +608,8 @@ def get_mdb_init_status():
     try:
         mdb_path = validate_mdb_path(mdb_path)
     except ValueError as e:
-        return {"success": False, "message": str(e)}
+        logger.error(f"MDB path validation failed: {e}", exc_info=True)
+        return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
         return {"success": False, "message": "MDB 文件未配置或不存在"}
@@ -657,7 +699,8 @@ def get_mdb_init_status():
             "total_indicators": total_indicators
         }
     except Exception as e:
-        return {"success": False, "message": f"获取初始化状态失败: {str(e)}"}
+        logger.error(f"获取MDB初始化状态失败: {e}", exc_info=True)
+        return {"success": False, "message": "获取初始化状态失败，请检查MDB文件配置"}
 
 def _build_connection_string(config: dict) -> str:
     return build_connection_string(config)
@@ -682,6 +725,7 @@ def get_fta_config():
     config = _load_json_config(FTA_CONFIG_FILE, _default_fta_config)
     if config.get("password"):
         config["password_saved"] = True
+        config["password"] = ""
     return config
 
 @router.put("/fta")
@@ -695,6 +739,9 @@ def update_fta_config(config: FTAConfigRequest):
 @router.post("/fta/test")
 def test_fta_connection(config: dict):
     """测试 FTA 数据库连接"""
+    err = _check_body_size(config)
+    if err:
+        return err
     try:
         from backend.app.engine.collector.fta import FTACollector
         collector = FTACollector.from_config(db_config=config)
@@ -723,7 +770,8 @@ def test_fta_connection(config: dict):
             "indicators": [i["name"] for i in indicators[:5]],
         }
     except Exception as e:
-        return {"success": False, "message": f"测试失败: {str(e)}"}
+        logger.error(f"FTA测试失败: {e}", exc_info=True)
+        return {"success": False, "message": "测试失败，请检查FTA数据库配置"}
 
 
 # ========== FT1 / FTA Init Status (data preview before import) ==========
@@ -765,6 +813,8 @@ def get_db_init_status():
             value_col = mapping.get("value_column", "Value")
             sample_table = mapping.get("sample_table", "Sample")
             prediction_table = mapping.get("prediction_table", "Prediction")
+            for name in [time_col, prod_ref_col, comp_ref_col, value_col, sample_table, prediction_table]:
+                validate_identifier(name)
             cursor.execute(f"""
                 SELECT TOP 10
                     s.[{time_col}], s.[{prod_ref_col}],
@@ -800,7 +850,8 @@ def get_db_init_status():
             "total_indicators": len(indicators),
         }
     except Exception as e:
-        return {"success": False, "message": f"获取数据源状态失败: {str(e)}"}
+        logger.error(f"获取FT1数据源状态失败: {e}", exc_info=True)
+        return {"success": False, "message": "获取数据源状态失败，请检查数据库配置"}
 
 
 @router.get("/fta/init-status")
@@ -866,7 +917,8 @@ def get_fta_init_status():
             "total_indicators": len(indicators),
         }
     except Exception as e:
-        return {"success": False, "message": f"获取 FTA 数据源状态失败: {str(e)}"}
+        logger.error(f"获取FTA数据源状态失败: {e}", exc_info=True)
+        return {"success": False, "message": "获取FTA数据源状态失败，请检查数据库配置"}
 
 
 # ========== Alias Configuration ==========
@@ -975,6 +1027,9 @@ def get_excluded_remarks():
 
 @router.put("/excluded-remarks")
 def update_excluded_remarks(body: dict):
+    err = _check_body_size(body)
+    if err:
+        return err
     keywords = body.get("keywords", [])
     if not isinstance(keywords, list):
         return {"success": False, "message": "keywords 必须是数组"}
@@ -986,7 +1041,7 @@ def update_excluded_remarks(body: dict):
 
 
 @router.get("/recent-counts")
-def get_recent_counts(days: int = 10):
+def get_recent_counts(days: int = Query(10, ge=1, le=365)):
     """获取最近N天每个品项/指标的采集数量（用于排序）"""
     try:
         return storage.get_recent_collection_counts(days)
@@ -1023,6 +1078,9 @@ def get_spec_limits(product_code: str = Query(None)):
 @router.put("/spec-limits")
 def update_spec_limits(config: dict):
     """更新规格限配置"""
+    err = _check_body_size(config)
+    if err:
+        return err
     success = _save_json_config(SPEC_LIMITS_FILE, config)
     if success:
         return {"success": True, "message": "规格限配置已保存"}
@@ -1105,6 +1163,9 @@ def get_alert_rules():
 @router.put("/alert-rules")
 def update_alert_rules(config: dict):
     """更新预警规则配置"""
+    err = _check_body_size(config)
+    if err:
+        return err
     success = _save_json_config(ALERT_RULES_FILE, config)
     if success:
         return {"success": True, "message": "预警规则已保存"}
@@ -1125,13 +1186,15 @@ def get_correction_values(product_code: str = Query(None)):
         if product_code and p_code != product_code:
             continue
         corrections = {}
+        last_updated_at = None
         for i_code, limits in indicators.items():
             if isinstance(limits, dict) and "correction" in limits:
                 corrections[i_code] = limits["correction"]
+                last_updated_at = limits.get("correction_updated_at")
         if corrections:
             result[p_code] = {
                 "values": corrections,
-                "updated_at": limits.get("correction_updated_at")
+                "updated_at": last_updated_at
             }
     return result
 

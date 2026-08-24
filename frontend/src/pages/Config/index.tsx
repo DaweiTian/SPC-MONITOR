@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../../services'
 import { AliasConfig } from '../../components/AliasConfig'
+import { useToast } from '../../components/Toast'
 import type { Product } from '../../types'
 import styles from './Config.module.css'
 
@@ -72,12 +73,6 @@ const INSTRUMENTS: InstrumentInfo[] = [
   { id: 'ft1', name: 'FT1 乳品分析仪', type: 'sqlserver' },
   { id: 'ft120', name: 'FT120 乳品分析仪', type: 'mdb' },
   { id: 'fta', name: 'FTA 乳品分析仪', type: 'fta' },
-]
-
-const INITIAL_PRODUCTS: ProductItem[] = [
-  { id: '1', name: 'FT1-标准型', code: 'FT1-STD', indicatorCount: 8, status: 'enabled' },
-  { id: '2', name: 'FT1-高精度型', code: 'FT1-HP', indicatorCount: 6, status: 'enabled' },
-  { id: '3', name: 'FT1-经济型', code: 'FT1-ECO', indicatorCount: 5, status: 'disabled' },
 ]
 
 const INITIAL_SPECS: SpecLimit[] = [
@@ -172,10 +167,10 @@ interface IndicatorSpec {
 
 export const ConfigPage: React.FC = () => {
   const [products, setProducts] = useState<ProductItem[]>([])
-  const [specs, setSpecs] = useState<SpecLimit[]>(INITIAL_SPECS)
+  const [_specs, setSpecs] = useState<SpecLimit[]>(INITIAL_SPECS)
   const [nelsonRules, setNelsonRules] = useState<NelsonRule[]>([])
   const [currentInstrument, setCurrentInstrument] = useState<string>('mock')
-  const [sourceLoading, setSourceLoading] = useState(false)
+  const [sourceLoading, _setSourceLoading] = useState(false)
   const [dbConfig, setDbConfig] = useState<DBConfig>(DEFAULT_DB_CONFIG)
   const [mdbConfig, setMdbConfig] = useState<MDBConfig>(DEFAULT_MDB_CONFIG)
   const [ftaConfig, setFtaConfig] = useState<FTAConfig>(DEFAULT_FTA_CONFIG)
@@ -207,6 +202,8 @@ export const ConfigPage: React.FC = () => {
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
   const [productSearch, setProductSearch] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; productId: string }>({ show: false, productId: '' })
+  const { addToast } = useToast()
   const [frequencyStatus, setFrequencyStatus] = useState<{
     current_level: number
     current_interval_minutes: number
@@ -363,24 +360,6 @@ export const ConfigPage: React.FC = () => {
     setCurrentInstrument(instrumentId)
     setTestResult(null)
     setSaveResult(null)
-  }, [])
-
-  const handleActivateInstrument = useCallback(async (instrumentId: string) => {
-    setSourceLoading(true)
-    setTestResult(null)
-    setSaveResult(null)
-    try {
-      const result = await api.switchInstrument(instrumentId)
-      if (result?.success) {
-        setTestResult({ success: true, message: result.message || '激活成功' })
-      } else {
-        setTestResult({ success: false, message: result?.message || '激活失败' })
-      }
-    } catch {
-      setTestResult({ success: false, message: '激活请求失败' })
-    } finally {
-      setSourceLoading(false)
-    }
   }, [])
 
   const handleDbConfigChange = (field: keyof DBConfig, value: string | number | boolean) => {
@@ -556,29 +535,6 @@ export const ConfigPage: React.FC = () => {
     setInitLimit(100)
   }
 
-  const handleAddProduct = () => {
-    setEditingProduct(null)
-    setNewProduct({ name: '', code: '', status: 'enabled' })
-
-    // New product starts with empty limits
-    setIndicatorSpecs(availableIndicators.map(ind => ({
-      indicator_code: ind.code,
-      indicator_name: ind.name,
-      enabled: true,
-      usl: '',
-      lsl: '',
-      target: '',
-      unit: ''
-    })))
-
-    // Reset prediction-related state for new product
-    setSelectedCategory('')
-    setPredictSaturatedFat(false)
-    setPredCoefficient('')
-
-    setShowProductDialog(true)
-  }
-
   const handleEditProduct = async (product: ProductItem) => {
     setEditingProduct(product)
     setNewProduct({ name: product.name, code: product.code, status: product.status })
@@ -629,7 +585,7 @@ export const ConfigPage: React.FC = () => {
 
   const handleSaveProduct = async () => {
     if (!newProduct.name || !newProduct.code) {
-      alert('请填写品项名称和编码')
+      addToast({ title: '提示', message: '请填写品项名称和编码', severity: 'WARNING' })
       return
     }
 
@@ -693,22 +649,27 @@ export const ConfigPage: React.FC = () => {
 
     // Persist spec limits to backend
     const enabledSpecs = indicatorSpecs
-      .filter(s => s.enabled && (s.usl || s.lsl))
+      .filter(s => s.enabled && (s.usl != null && s.usl !== '' || s.lsl != null && s.lsl !== ''))
       .map(s => ({
         id: `${newProduct.code}-${s.indicator_code}`,
         product: newProduct.code,
         indicator: s.indicator_name,
         indicator_code: s.indicator_code,
-        usl: parseFloat(s.usl as string) || 0,
-        lsl: parseFloat(s.lsl as string) || 0,
-        target: parseFloat(s.target as string) || 0,
+        usl: s.usl != null && s.usl !== '' ? parseFloat(s.usl as string) : undefined,
+        lsl: s.lsl != null && s.lsl !== '' ? parseFloat(s.lsl as string) : undefined,
+        target: s.target != null && s.target !== '' ? parseFloat(s.target as string) : undefined,
         unit: s.unit
       }))
 
     // Update local specs state
     setSpecs(prev => [
       ...prev.filter(s => s.product !== newProduct.code),
-      ...enabledSpecs
+      ...enabledSpecs.map(s => ({
+        ...s,
+        usl: s.usl ?? 0,
+        lsl: s.lsl ?? 0,
+        target: s.target ?? 0,
+      }))
     ])
 
     // Save each indicator's spec limits to backend (per-product)
@@ -716,9 +677,9 @@ export const ConfigPage: React.FC = () => {
     for (const spec of enabledSpecs) {
       try {
         const limits: { lsl?: number; usl?: number; target?: number; product_code: string } = { product_code: newProduct.code }
-        if (spec.lsl) limits.lsl = spec.lsl
-        if (spec.usl) limits.usl = spec.usl
-        if (spec.target) limits.target = spec.target
+        if (spec.lsl != null) limits.lsl = spec.lsl
+        if (spec.usl != null) limits.usl = spec.usl
+        if (spec.target != null) limits.target = spec.target
         await api.updateSingleSpecLimit(spec.indicator_code, limits)
         productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
       } catch (e) {
@@ -754,10 +715,9 @@ export const ConfigPage: React.FC = () => {
     setShowProductDialog(false)
   }
 
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm('确定要删除这个品项吗？')) {
-      setProducts(prev => prev.filter(p => p.id !== productId))
-    }
+  const confirmDeleteProduct = () => {
+    setProducts(prev => prev.filter(p => p.id !== deleteConfirm.productId))
+    setDeleteConfirm({ show: false, productId: '' })
   }
 
   const handleAddExcludedRemark = async () => {
@@ -1722,7 +1682,7 @@ export const ConfigPage: React.FC = () => {
                         <tr key={index}>
                           <td>{record.product_name}</td>
                           <td>{record.indicator_name}</td>
-                          <td>{record.value.toFixed(4)}</td>
+                          <td>{Number(record.value).toFixed(4)}</td>
                           <td>{record.sample_time}</td>
                         </tr>
                       ))}
@@ -1789,6 +1749,36 @@ export const ConfigPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 12 }}>
               <span>已导入: {importProgress.current} / {importProgress.total}</span>
               <span>耗时: {importProgress.elapsed}s</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Dialog ── */}
+      {deleteConfirm.show && (
+        <div className={styles.confirmOverlay} onClick={() => setDeleteConfirm({ show: false, productId: '' })}>
+          <div className={styles.confirmDialog} style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="删除确认">
+            <div className={styles.confirmHeader}>
+              <h3>确认删除</h3>
+              <button className={styles.confirmClose} onClick={() => setDeleteConfirm({ show: false, productId: '' })}>×</button>
+            </div>
+            <div className={styles.confirmBody}>
+              <p style={{ color: '#e2e8f0' }}>确定要删除这个品项吗？</p>
+            </div>
+            <div className={styles.confirmFooter}>
+              <button
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                onClick={() => setDeleteConfirm({ show: false, productId: '' })}
+              >
+                取消
+              </button>
+              <button
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                style={{ background: '#ef4444' }}
+                onClick={confirmDeleteProduct}
+              >
+                确认删除
+              </button>
             </div>
           </div>
         </div>

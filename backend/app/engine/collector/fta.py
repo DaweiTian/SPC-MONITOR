@@ -129,39 +129,41 @@ class FTACollector(BaseCollector):
         now = datetime.now()
         try:
             conn = self._get_connection()
-            cursor = conn.cursor()
+            try:
+                cursor = conn.cursor()
 
-            # 查询新样本
-            where = ""
-            params = ()
-            if self._last_collect_time:
-                where = "WHERE ee.AnalysisStartTime > %s"
-                params = (self._last_collect_time,)
+                # 查询新样本
+                where = ""
+                params = ()
+                if self._last_collect_time:
+                    where = "WHERE ee.AnalysisStartTime > %s"
+                    params = (self._last_collect_time,)
 
-            top_n = self.init_limit if not self._last_collect_time else 200
-            sql = f"""
-                SELECT TOP {top_n}
-                    ee.EstimateEventID,
-                    ee.AnalysisStartTime,
-                    ee.ProductSpecProfileName,
-                    ee.SampleNumber,
-                    e.ParameterTypeName,
-                    e.PredictedResult,
-                    e.ReportedResult,
-                    e.UnitTypeName,
-                    ee.AnalysisComment
-                FROM EstimateEvent ee
-                INNER JOIN Estimate e ON ee.EstimateEventID = e.EstimateEventID
-                {where}
-                ORDER BY ee.AnalysisStartTime DESC
-            """
+                top_n = self.init_limit if not self._last_collect_time else 200
+                sql = f"""
+                    SELECT TOP {top_n}
+                        ee.EstimateEventID,
+                        ee.AnalysisStartTime,
+                        ee.ProductSpecProfileName,
+                        ee.SampleNumber,
+                        e.ParameterTypeName,
+                        e.PredictedResult,
+                        e.ReportedResult,
+                        e.UnitTypeName,
+                        ee.AnalysisComment
+                    FROM EstimateEvent ee
+                    INNER JOIN Estimate e ON ee.EstimateEventID = e.EstimateEventID
+                    {where}
+                    ORDER BY ee.AnalysisStartTime DESC
+                """
 
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-            rows = cursor.fetchall()
-            conn.close()
+                if params:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+                rows = cursor.fetchall()
+            finally:
+                conn.close()
 
             records = []
             for row in rows:
@@ -246,15 +248,17 @@ class FTACollector(BaseCollector):
             return self._products_cache
         try:
             conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT DISTINCT ProductSpecProfileName
-                FROM EstimateEvent
-                WHERE ProductSpecProfileName IS NOT NULL
-                ORDER BY ProductSpecProfileName
-            """)
-            rows = cursor.fetchall()
-            conn.close()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT DISTINCT ProductSpecProfileName
+                    FROM EstimateEvent
+                    WHERE ProductSpecProfileName IS NOT NULL
+                    ORDER BY ProductSpecProfileName
+                """)
+                rows = cursor.fetchall()
+            finally:
+                conn.close()
             self._products_cache = [
                 {'code': row[0].strip(), 'name': row[0]}
                 for row in rows if row[0]
@@ -269,15 +273,17 @@ class FTACollector(BaseCollector):
             return self._indicators_cache
         try:
             conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT DISTINCT ParameterTypeName, UnitTypeName
-                FROM Estimate
-                WHERE ParameterTypeName IS NOT NULL
-                ORDER BY ParameterTypeName
-            """)
-            rows = cursor.fetchall()
-            conn.close()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT DISTINCT ParameterTypeName, UnitTypeName
+                    FROM Estimate
+                    WHERE ParameterTypeName IS NOT NULL
+                    ORDER BY ParameterTypeName
+                """)
+                rows = cursor.fetchall()
+            finally:
+                conn.close()
             self._indicators_cache = [
                 {'code': row[0].lower(), 'name': row[0], 'unit': row[1] or ''}
                 for row in rows if row[0]

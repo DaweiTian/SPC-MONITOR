@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 
 export function useAppMetadata() {
@@ -20,7 +20,10 @@ export function useAppMetadata() {
       .finally(() => setLoading(false))
   }, [])
 
-  const getIndicatorName = (code: string) => aliases.indicators[code] || code
+  const getIndicatorName = useCallback(
+    (code: string) => aliases.indicators[code] || code,
+    [aliases.indicators]
+  )
 
   return { aliases, productStatus, specLimits, loading, getIndicatorName }
 }

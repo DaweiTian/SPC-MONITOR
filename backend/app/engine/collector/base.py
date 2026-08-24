@@ -15,12 +15,15 @@ class BaseCollector(ABC):
     def __init__(self, storage=None, init_limit: int = 100):
         self.storage = storage
         self.init_limit = init_limit
+        self._correction_cache: Dict[str, Dict[str, float]] | None = None
+        self._correction_mtime: float = 0
 
     def _load_correction_values(self) -> Dict[str, Dict[str, float]]:
-        """从 spec_limits.json 加载修正值配置"""
-        if not os.path.exists(SPEC_LIMITS_FILE):
-            return {}
+        """从 spec_limits.json 加载修正值配置（带 mtime 缓存）"""
         try:
+            mtime = os.path.getmtime(SPEC_LIMITS_FILE)
+            if self._correction_cache is not None and mtime == self._correction_mtime:
+                return self._correction_cache
             with open(SPEC_LIMITS_FILE, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
                 result = {}
@@ -33,8 +36,10 @@ class BaseCollector(ABC):
                             corrections[indicator_code] = limits["correction"]
                     if corrections:
                         result[product_code] = corrections
+                self._correction_cache = result
+                self._correction_mtime = mtime
                 return result
-        except (json.JSONDecodeError, PermissionError, FileNotFoundError) as e:
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
             logger.warning(f"加载修正值配置失败: {e}")
             return {}
 

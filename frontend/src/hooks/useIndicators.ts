@@ -1,17 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services'
 import type { Indicator } from '../types'
 
 export function useIndicators() {
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetch = useCallback(() => {
+    setLoading(true)
+    setError(null)
     api.getIndicators()
       .then(res => setIndicators(res.indicators || []))
-      .catch(console.error)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
 
-  return { indicators, loading }
+  useEffect(() => { fetch() }, [fetch])
+
+  return { indicators, loading, error, refetch: fetch }
 }

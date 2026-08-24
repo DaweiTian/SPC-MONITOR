@@ -455,30 +455,30 @@ const DMAICChart: React.FC = () => {
 }
 
 /* ════════════════════ MAIN COMPONENT ════════════════════ */
-export const ManualPage: React.FC = () => {
-  const tocItems = [
-    { id: 'stats', title: '统计学基础' },
-    { id: 'normal', title: '正态分布与3σ' },
-    { id: 'spc', title: 'SPC 统计过程控制' },
-    { id: 'imr', title: 'I-MR 控制图' },
-    { id: 'nelson', title: 'Nelson 8条规则' },
-    { id: 'cpk', title: 'Cpk / Cp / Ppk' },
-    { id: 'ppm', title: 'PPM 缺陷率' },
-    { id: 'spec-limits', title: '规格限' },
-    { id: 'zscore', title: 'Z-Score' },
-    { id: 'iqr', title: 'IQR 四分位距' },
-    { id: 'ewma', title: 'EWMA' },
-    { id: 'arima', title: 'ARIMA 模型' },
-    { id: 'mk', title: 'Mann-Kendall' },
-    { id: 'sixsigma', title: '六西格玛 DMAIC' },
-    { id: 'confidence', title: '置信区间' },
-    { id: 'sliding', title: '滑动窗口' },
-    { id: 'compliance', title: '3σ合规判定' },
-    { id: 'products', title: '液奶指标体系' },
-    { id: 'cross-predict', title: '交叉预测' },
-    { id: 'appendix', title: '术语速查表' },
-  ]
+const tocItems = [
+  { id: 'stats', title: '统计学基础' },
+  { id: 'normal', title: '正态分布与3σ' },
+  { id: 'spc', title: 'SPC 统计过程控制' },
+  { id: 'imr', title: 'I-MR 控制图' },
+  { id: 'nelson', title: 'Nelson 8条规则' },
+  { id: 'cpk', title: 'Cpk / Cp / Ppk' },
+  { id: 'ppm', title: 'PPM 缺陷率' },
+  { id: 'spec-limits', title: '规格限' },
+  { id: 'zscore', title: 'Z-Score' },
+  { id: 'iqr', title: 'IQR 四分位距' },
+  { id: 'ewma', title: 'EWMA' },
+  { id: 'arima', title: 'ARIMA 模型' },
+  { id: 'mk', title: 'Mann-Kendall' },
+  { id: 'sixsigma', title: '六西格玛 DMAIC' },
+  { id: 'confidence', title: '置信区间' },
+  { id: 'sliding', title: '滑动窗口' },
+  { id: 'compliance', title: '3σ合规判定' },
+  { id: 'products', title: '液奶指标体系' },
+  { id: 'cross-predict', title: '交叉预测' },
+  { id: 'appendix', title: '术语速查表' },
+]
 
+export const ManualPage: React.FC = () => {
   const [activeId, setActiveId] = useState('')
 
   // Track which section is currently visible

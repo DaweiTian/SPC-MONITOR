@@ -33,6 +33,10 @@ fi
 # 安装后端依赖
 echo -e "${YELLOW}[1/4] 安装后端依赖...${NC}"
 cd "$PROJECT_DIR/backend"
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
+fi
+source venv/bin/activate
 pip install -r requirements.txt -q 2>/dev/null || pip install -r requirements.txt
 
 # 安装前端依赖
@@ -51,6 +55,8 @@ mkdir -p "$LOG_DIR"
 echo ""
 echo -e "${GREEN}[3/4] 启动后端服务 (端口 18080)...${NC}"
 cd "$PROJECT_DIR"
+# 前端默认发送 'ft1-monitor-default-key'，本地开发需与之一致；生产环境请设置强随机密钥
+export FT1_API_KEY="${FT1_API_KEY:-ft1-monitor-default-key}"
 nohup python3 -m uvicorn backend.main:app \
     --host 127.0.0.1 \
     --port 18080 \

@@ -30,53 +30,34 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
     fetchAliases()
   }, [fetchAliases])
 
-  /* ── 更新品项别名 ── */
-  const handleUpdateProductAlias = async (productCode: string) => {
+  /* ── 通用更新别名 ── */
+  const handleUpdateAlias = useCallback(async (type: 'products' | 'indicators', code: string) => {
     setLoading(true)
     try {
-      await api.updateProductAlias(productCode, tempAlias)
+      if (type === 'products') {
+        await api.updateProductAlias(code, tempAlias)
+      } else {
+        await api.updateIndicatorAlias(code, tempAlias)
+      }
       setAliases(prev => {
-        const newProducts = { ...prev.products }
+        const newAliases = { ...prev[type] }
         if (tempAlias) {
-          newProducts[productCode] = tempAlias
+          newAliases[code] = tempAlias
         } else {
-          delete newProducts[productCode]
+          delete newAliases[code]
         }
-        return { ...prev, products: newProducts }
+        return { ...prev, [type]: newAliases }
       })
       setEditingProduct(null)
-      setTempAlias('')
-      onUpdate()
-    } catch (e) {
-      console.error('更新品项别名失败:', e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /* ── 更新指标别名 ── */
-  const handleUpdateIndicatorAlias = async (indicatorCode: string) => {
-    setLoading(true)
-    try {
-      await api.updateIndicatorAlias(indicatorCode, tempAlias)
-      setAliases(prev => {
-        const newIndicators = { ...prev.indicators }
-        if (tempAlias) {
-          newIndicators[indicatorCode] = tempAlias
-        } else {
-          delete newIndicators[indicatorCode]
-        }
-        return { ...prev, indicators: newIndicators }
-      })
       setEditingIndicator(null)
       setTempAlias('')
       onUpdate()
     } catch (e) {
-      console.error('更新指标别名失败:', e)
+      console.error(`更新${type === 'products' ? '品项' : '指标'}别名失败:`, e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [tempAlias, onUpdate])
 
   /* ── 开始编辑 ── */
   const startEditProduct = (code: string) => {
@@ -137,7 +118,7 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
                       <div className={styles.actions}>
                         <button
                           className={styles.btnPrimary}
-                          onClick={() => handleUpdateProductAlias(product.code)}
+                          onClick={() => handleUpdateAlias('products', product.code)}
                           disabled={loading}
                         >
                           保存
@@ -205,7 +186,7 @@ export const AliasConfig: React.FC<AliasConfigProps> = ({ products, indicators, 
                       <div className={styles.actions}>
                         <button
                           className={styles.btnPrimary}
-                          onClick={() => handleUpdateIndicatorAlias(indicator.code)}
+                          onClick={() => handleUpdateAlias('indicators', indicator.code)}
                           disabled={loading}
                         >
                           保存

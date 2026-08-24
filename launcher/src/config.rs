@@ -1,12 +1,21 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+fn generate_api_key() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    // Simple random-ish key: timestamp + process id, hex-encoded
+    format!("ft1-{:x}-{:x}", ts, std::process::id())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub server_port: u16,
     pub auto_start: bool,
     pub log_level: String,
     pub python_path: String,
+    #[serde(default = "generate_api_key")]
+    pub api_key: String,
 }
 
 impl Default for AppConfig {
@@ -16,6 +25,7 @@ impl Default for AppConfig {
             auto_start: true,
             log_level: "info".to_string(),
             python_path: "python".to_string(),
+            api_key: generate_api_key(),
         }
     }
 }

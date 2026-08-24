@@ -121,6 +121,7 @@ class WebSocketService {
       this.ws = null
     }
     this._connected = false
+    this.handlers.clear()
   }
 
   on(event: string, handler: MessageHandler) {

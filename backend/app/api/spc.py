@@ -2,11 +2,11 @@ from dataclasses import asdict
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 import numpy as np
-import time
 from backend.app.engine.spc.control_charts import IMRControlChart
 from backend.app.engine.spc.rules import NelsonRules
 from backend.app.engine.spc.capability import ProcessCapability
 from backend.app.api.config import _get_merged_spec_limits
+from backend.app.core.cache import TTLCache
 
 router = APIRouter(tags=["SPC"])
 
@@ -14,25 +14,7 @@ storage = None
 collector = None
 
 
-class _TTLCache:
-    def __init__(self, ttl: int = 300):
-        self._store: dict[str, tuple[float, object]] = {}
-        self._ttl = ttl
-
-    def get(self, key: str):
-        entry = self._store.get(key)
-        if entry and time.time() - entry[0] < self._ttl:
-            return entry[1]
-        self._store.pop(key, None)
-        return None
-
-    def set(self, key: str, value):
-        if len(self._store) > 100:
-            now = time.time()
-            self._store = {k: v for k, v in self._store.items() if now - v[0] < self._ttl}
-        self._store[key] = (time.time(), value)
-
-_cache = _TTLCache(ttl=300)
+_cache = TTLCache(ttl=300)
 
 @router.get("/spc/{product_code}/{indicator_code}")
 def get_spc_data(

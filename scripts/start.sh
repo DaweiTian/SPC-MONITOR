@@ -27,6 +27,10 @@ fi
 # 安装后端依赖
 echo -e "${YELLOW}[1/3] 安装后端依赖...${NC}"
 cd "$PROJECT_DIR/backend"
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
+fi
+source venv/bin/activate
 pip install -r requirements.txt -q 2>/dev/null || pip install -r requirements.txt
 
 # 构建前端

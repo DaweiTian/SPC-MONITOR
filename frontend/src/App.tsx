@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppLayout } from './components/Layout'
 import { ToastProvider } from './components/Toast'
+import { initApiKey } from './services/api'
 
 const Dashboard = React.lazy(() => import('./pages/Dashboard'))
 const SPCPage = React.lazy(() => import('./pages/SPC'))
@@ -22,6 +23,7 @@ const isTauri = '__TAURI__' in window
 const basename = import.meta.env.DEV ? undefined : (isTauri ? undefined : '/app')
 
 const App: React.FC = () => {
+  useEffect(() => { initApiKey() }, [])
   return (
     <ErrorBoundary>
       <ToastProvider>
@@ -34,15 +36,15 @@ const App: React.FC = () => {
             <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>}>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/spc" element={<SPCPage />} />
-                <Route path="/capability" element={<CapabilityPage />} />
-                <Route path="/prediction" element={<PredictionPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-                <Route path="/config" element={<ConfigPage />} />
-                <Route path="/correction" element={<CorrectionPage />} />
-                <Route path="/data" element={<DataPage />} />
-                <Route path="/help" element={<HelpPage />} />
+                <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+                <Route path="/spc" element={<ErrorBoundary><SPCPage /></ErrorBoundary>} />
+                <Route path="/capability" element={<ErrorBoundary><CapabilityPage /></ErrorBoundary>} />
+                <Route path="/prediction" element={<ErrorBoundary><PredictionPage /></ErrorBoundary>} />
+                <Route path="/alerts" element={<ErrorBoundary><AlertsPage /></ErrorBoundary>} />
+                <Route path="/config" element={<ErrorBoundary><ConfigPage /></ErrorBoundary>} />
+                <Route path="/correction" element={<ErrorBoundary><CorrectionPage /></ErrorBoundary>} />
+                <Route path="/data" element={<ErrorBoundary><DataPage /></ErrorBoundary>} />
+                <Route path="/help" element={<ErrorBoundary><HelpPage /></ErrorBoundary>} />
               </Routes>
             </Suspense>
           </AppLayout>

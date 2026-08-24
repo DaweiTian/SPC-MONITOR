@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional
 
 class ErrorResponse(BaseModel):
     success: bool = False
@@ -9,4 +9,4 @@ class ErrorResponse(BaseModel):
 class SuccessResponse(BaseModel):
     success: bool = True
     message: Optional[str] = None
-    data: Optional[Any] = None
+    data: dict | list | None = None

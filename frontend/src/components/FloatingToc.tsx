@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import styles from './FloatingToc.module.css'
 
 interface TocItem {
   id: string
@@ -57,24 +58,21 @@ export const FloatingToc: React.FC<FloatingTocProps> = ({ items }) => {
   }, [items])
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <button
-        style={styles.toggle}
+        className={styles.toggle}
         onClick={() => setCollapsed(!collapsed)}
         title={collapsed ? '展开目录' : '收起目录'}
       >
         {collapsed ? '☰' : '✕'}
       </button>
       {!collapsed && (
-        <div style={styles.panel}>
-          <div style={styles.title}>目录</div>
+        <div className={styles.panel}>
+          <div className={styles.title}>目录</div>
           {items.map(item => (
             <button
               key={item.id}
-              style={{
-                ...styles.item,
-                ...(activeId === item.id ? styles.itemActive : {}),
-              }}
+              className={`${styles.item} ${activeId === item.id ? styles.itemActive : ''}`}
               onClick={() => handleClick(item.id)}
             >
               {item.title}
@@ -84,75 +82,6 @@ export const FloatingToc: React.FC<FloatingTocProps> = ({ items }) => {
       )}
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    position: 'fixed',
-    top: 110,
-    left: 236,
-    zIndex: 100,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  toggle: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: '1px solid var(--border-color, #1e293b)',
-    background: 'var(--bg-card, #141a2a)',
-    color: 'var(--text-secondary, #94a3b8)',
-    fontSize: 14,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  panel: {
-    width: 160,
-    maxHeight: 'calc(100vh - 140px)',
-    overflowY: 'auto',
-    background: 'var(--bg-card, #141a2a)',
-    border: '1px solid var(--border-color, #1e293b)',
-    borderRadius: 10,
-    padding: '8px 0',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-  },
-  title: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: 'var(--text-muted, #64748b)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    padding: '4px 14px 8px',
-    borderBottom: '1px solid var(--border-color, #1e293b)',
-    marginBottom: 4,
-  },
-  item: {
-    display: 'block',
-    width: '100%',
-    textAlign: 'left' as const,
-    padding: '6px 14px',
-    fontSize: 12,
-    color: 'var(--text-muted, #94a3b8)',
-    background: 'transparent',
-    border: 'none',
-    borderLeft: '3px solid transparent',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-    lineHeight: 1.4,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  itemActive: {
-    color: '#00d4ff',
-    borderLeftColor: '#00d4ff',
-    background: 'rgba(0,212,255,0.08)',
-    fontWeight: 600,
-  },
 }
 
 export default FloatingToc
