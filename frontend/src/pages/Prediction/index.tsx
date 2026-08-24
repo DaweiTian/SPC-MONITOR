@@ -902,7 +902,7 @@ export const PredictionPage: React.FC = () => {
               {cpkData?.cpk_current?.toFixed(2) ?? '--'}
             </div>
             <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
-              {cpkData ? (cpkData.cpk_trend != null ? `趋势: ${cpkData.cpk_trend}` : '数据窗口不足') : '加载中...'}
+              {cpkData ? (cpkData.cpk_trend != null ? `趋势: ${cpkData.cpk_trend > 0 ? '+' : ''}${cpkData.cpk_trend}` : '数据窗口不足') : '加载中...'}
             </div>
           </div>
           <div className={styles.riskCard}>

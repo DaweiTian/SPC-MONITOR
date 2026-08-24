@@ -376,39 +376,59 @@ def _run_forecast(model_name: str, values: np.ndarray, horizon: int):
 def _sliding_window_cpk(values: np.ndarray, usl: float, lsl: float, window: int = 100):
     """Sliding window Cpk analysis. Returns dict."""
     n = len(values)
-    if n < window:
-        window = n
-    if window < 10:
-        return {"cpk_current": None, "cpk_trend": None, "cpk_window": window, "cpk_values": []}
+    if n < 10:
+        return {"cpk_current": None, "cpk_trend": None, "capability": None, "alert": False, "window_size": window, "cpk_values": []}
+
+    # Adaptive window: shrink if needed to produce >= 6 windows for trend
+    actual_window = min(window, n)
+    n_windows = n // actual_window
+    if n_windows < 6 and n >= 60:
+        actual_window = n // 6
+    step = max(1, actual_window // 2)  # 50% overlap for smoothness
 
     cpk_values: list[float | None] = []
-    for start in range(0, n - window + 1, window):
-        w = values[start:start + window]
+    for start in range(0, n - actual_window + 1, step):
+        w = values[start:start + actual_window]
         mean = float(np.mean(w))
         sigma = float(np.std(w, ddof=1))
         if sigma == 0:
-            cpk_values.append(float('inf'))
+            cpk_values.append(None)
         else:
             cpk_u = (usl - mean) / (3 * sigma)
             cpk_l = (mean - lsl) / (3 * sigma)
             cpk_values.append(round(min(cpk_u, cpk_l), 4))
 
     if not cpk_values:
-        return {"cpk_current": None, "cpk_trend": None, "cpk_window": window, "cpk_values": []}
+        return {"cpk_current": None, "cpk_trend": None, "capability": None, "alert": False, "window_size": actual_window, "cpk_values": []}
 
     cpk_current = cpk_values[-1]
-    # Trend: last 3 windows vs first 3 windows
-    first_three = cpk_values[:3]
-    last_three = cpk_values[-3:]
-    if len(cpk_values) >= 6:
+    # Trend: last 3 windows vs first 3 windows (filter None)
+    valid = [v for v in cpk_values if v is not None]
+    first_three = valid[:3]
+    last_three = valid[-3:]
+    if len(valid) >= 2:
         trend = round(float(np.mean(last_three) - np.mean(first_three)), 4)
     else:
         trend = None
 
+    # Capability classification
+    if cpk_current is None:
+        capability = None
+    elif cpk_current >= 1.33:
+        capability = "excellent"
+    elif cpk_current >= 1.0:
+        capability = "sufficient"
+    elif cpk_current >= 0.5:
+        capability = "insufficient"
+    else:
+        capability = "severe_insufficient"
+
     return {
         "cpk_current": cpk_current,
         "cpk_trend": trend,
-        "cpk_window": window,
+        "capability": capability,
+        "alert": cpk_current is not None and cpk_current < 1.0,
+        "window_size": actual_window,
         "cpk_values": cpk_values,
     }
 
