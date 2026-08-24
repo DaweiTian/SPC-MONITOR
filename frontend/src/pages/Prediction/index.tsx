@@ -1,19 +1,71 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import * as echarts from 'echarts/core'
+import { HeatmapChart } from 'echarts/charts'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { api } from '../../services'
 import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
 import styles from './Prediction.module.css'
 
+echarts.use([HeatmapChart])
+
 const HORIZON_MAP: Record<string, number> = { '1h': 12, '2h': 24, 'shift': 60 }
+
+interface RiskData {
+  breach_prob: number
+  risk_level: string
+  breach_time: string
+  breach_direction: string
+  spec_limits: { lsl: number; usl: number }
+}
 
 interface PredictionResult {
   historical: { time: string; value: number }[]
   predictions: number[]
   upper_band: number[]
   lower_band: number[]
-  accuracy: { mape: number | null; rmse: number; mae: number; r_squared: number | null }
+  accuracy: {
+    mape: number | null
+    rmse: number
+    mae: number
+    mase: number | null
+    direction_acc: number | null
+  }
   model: string
   horizon: number
+  auto_selected?: boolean
+  select_reason?: string
+  risk?: RiskData
+}
+
+interface CpkData {
+  cpk_current: number
+  cpk_trend: string
+  capability: string
+  alert: boolean
+  window_size: number
+}
+
+interface DriftData {
+  current_segment_drift: number
+  drift_direction: string
+  alert: boolean
+  segments: number
+}
+
+interface CorrData {
+  indicators: string[]
+  correlation_matrix: number[][]
+}
+
+interface FeatData {
+  features: { name: string; importance: number }[]
+  model: string
+}
+
+interface ModelCompareData {
+  models: { model: string; mase: number; direction_acc: number; recommended: boolean }[]
+  recommended_model: string
+  recommendation_reason: string
 }
 
 // ====== SVG Icons ======
@@ -53,6 +105,44 @@ const IconClipboard = () => (
     <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
   </svg>
 )
+const IconShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+)
+const IconGrid = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+  </svg>
+)
+const IconAlertTriangle = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 48, height: 48 }}>
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+)
+
+// ====== Risk Level Helpers ======
+const RISK_COLORS: Record<string, string> = {
+  CRITICAL: '#ef4444',
+  HIGH: '#f97316',
+  MEDIUM: '#f59e0b',
+  LOW: '#10b981',
+}
+
+const RISK_LABELS: Record<string, string> = {
+  CRITICAL: '极高风险',
+  HIGH: '高风险',
+  MEDIUM: '中等风险',
+  LOW: '低风险',
+}
+
+const CAPABILITY_LABELS: Record<string, string> = {
+  capable: '过程能力充足',
+  marginal: '过程能力临界',
+  incapable: '过程能力不足',
+}
 
 // ====== Component ======
 export const PredictionPage: React.FC = () => {
@@ -64,10 +154,32 @@ export const PredictionPage: React.FC = () => {
   const [indicator, setIndicator] = useState('')
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [dataCounts, setDataCounts] = useState<{ products: Record<string, number>; indicators: Record<string, number> }>({ products: {}, indicators: {} })
-  const [model, setModel] = useState('ets')
+  const [model, setModel] = useState('auto')
   const [horizon, setHorizon] = useState('1h')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
+
+  // Task 10: Risk monitoring state
+  const [cpkData, setCpkData] = useState<CpkData | null>(null)
+  const [driftData, setDriftData] = useState<DriftData | null>(null)
+  const [criticalDismissed, setCriticalDismissed] = useState(false)
+
+  // Task 12: Correlation & feature importance state
+  const [corrData, setCorrData] = useState<CorrData | null>(null)
+  const [featData, setFeatData] = useState<FeatData | null>(null)
+
+  // Task 8: Model comparison state
+  const [modelCompareData, setModelCompareData] = useState<ModelCompareData | null>(null)
+
+  // Reset critical alert on filter change
+  useEffect(() => {
+    setCriticalDismissed(false)
+    setCpkData(null)
+    setDriftData(null)
+    setCorrData(null)
+    setFeatData(null)
+    setModelCompareData(null)
+  }, [product, indicator])
 
   // Load saved indicators and data counts
   useEffect(() => {
@@ -142,6 +254,24 @@ export const PredictionPage: React.FC = () => {
           accuracy: predRes.data.accuracy,
           model: predRes.data.model,
           horizon: predRes.data.horizon,
+          auto_selected: predRes.data.auto_selected,
+          select_reason: predRes.data.select_reason,
+          risk: predRes.data.risk,
+        })
+
+        // Task 10 & 12: Parallel fetches for risk, correlation, feature importance, model comparison
+        Promise.allSettled([
+          api.getRiskCpk(productCode, indicatorCode),
+          api.getRiskDrift(productCode, indicatorCode),
+          api.getCorrelation(productCode),
+          api.getFeatureImportance(productCode, indicatorCode),
+          api.getModelsCompare(productCode, indicatorCode, horizonSteps),
+        ]).then(([cpkRes, driftRes, corrRes, featRes, compareRes]) => {
+          if (cpkRes.status === 'fulfilled' && cpkRes.value?.success) setCpkData(cpkRes.value.data)
+          if (driftRes.status === 'fulfilled' && driftRes.value?.success) setDriftData(driftRes.value.data)
+          if (corrRes.status === 'fulfilled' && corrRes.value?.success) setCorrData(corrRes.value.data)
+          if (featRes.status === 'fulfilled' && featRes.value?.success) setFeatData(featRes.value.data)
+          if (compareRes.status === 'fulfilled' && compareRes.value?.success) setModelCompareData(compareRes.value.data)
         })
       }
     } catch (e) {
@@ -156,8 +286,6 @@ export const PredictionPage: React.FC = () => {
       fetchPrediction(product, indicator, model, horizon)
     }
   }, [initialized, product, indicator, model, horizon, fetchPrediction])
-
-  // getIndicatorName provided by useAppMetadata hook
 
   // ====== Prediction Trend Chart ======
   const predictionOption = useMemo(() => {
@@ -190,6 +318,14 @@ export const PredictionPage: React.FC = () => {
     // Connect point
     predData[histLen - 1] = histData[histLen - 1]
 
+    // Add spec limit lines if risk data is available
+    const markLineData: Record<string, unknown>[] = []
+    if (result.risk?.spec_limits) {
+      const { usl, lsl } = result.risk.spec_limits
+      if (usl != null) markLineData.push({ yAxis: usl, lineStyle: { color: '#ef4444', width: 1, type: 'dashed' as const }, label: { formatter: 'USL', position: 'end' as const } })
+      if (lsl != null) markLineData.push({ yAxis: lsl, lineStyle: { color: '#ef4444', width: 1, type: 'dashed' as const }, label: { formatter: 'LSL', position: 'end' as const } })
+    }
+
     return {
       ...chartTheme,
       tooltip: { trigger: 'axis' as const, ...tooltipStyle },
@@ -214,6 +350,7 @@ export const PredictionPage: React.FC = () => {
           name: '预测曲线', type: 'line' as const, smooth: true, symbol: 'circle', symbolSize: 5, data: predData,
           lineStyle: { color: '#10b981', width: 2, type: 'dashed' as const },
           itemStyle: { color: '#10b981' },
+          ...(markLineData.length > 0 ? { markLine: { symbol: 'none', silent: true, data: markLineData } } : {}),
         },
       ],
     }
@@ -248,9 +385,216 @@ export const PredictionPage: React.FC = () => {
 
   const { containerRef: residualChartRef } = useChart(residualOption)
 
-  // ====== Compute risk based on spec limits ======
+  // ====== Task 8: Model Comparison Chart ======
+  const modelCompareOption = useMemo(() => {
+    if (!modelCompareData?.models?.length) return null
+    const models = modelCompareData.models
+    return {
+      ...chartTheme,
+      tooltip: {
+        trigger: 'axis' as const,
+        ...tooltipStyle,
+        formatter: (params: { name: string; value: number; seriesName: string }[]) => {
+          if (!Array.isArray(params) || params.length === 0) return ''
+          return `<b>${params[0].name}</b><br/>MASE: ${params[0].value.toFixed(3)}`
+        },
+      },
+      grid: { left: 50, right: 20, top: 10, bottom: 30 },
+      xAxis: {
+        type: 'category' as const,
+        data: models.map(m => m.model.toUpperCase()),
+        ...chartTheme.xAxis,
+      },
+      yAxis: {
+        type: 'value' as const,
+        ...chartTheme.yAxis,
+        name: 'MASE',
+        scale: true,
+      },
+      series: [
+        {
+          type: 'bar' as const,
+          data: models.map(m => ({
+            value: m.mase,
+            itemStyle: {
+              color: m.recommended
+                ? '#10b981'
+                : m.mase < 1
+                  ? '#00d4ff'
+                  : '#ef4444',
+              borderRadius: [4, 4, 0, 0],
+            },
+          })),
+          barWidth: '50%',
+          markLine: {
+            symbol: 'none',
+            silent: true,
+            data: [{
+              yAxis: 1,
+              lineStyle: { color: '#f59e0b', width: 1.5, type: 'dashed' as const },
+              label: { formatter: '基准线 MASE=1', position: 'end' as const, color: '#f59e0b', fontSize: 11 },
+            }],
+          },
+        },
+      ],
+    }
+  }, [modelCompareData])
+
+  const modelCompareChartRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!modelCompareChartRef.current || !modelCompareOption) return
+    const chart = echarts.init(modelCompareChartRef.current)
+    chart.setOption(modelCompareOption)
+    const handleResize = () => chart.resize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.dispose()
+    }
+  }, [modelCompareOption])
+
+  // ====== Task 12: Correlation Heatmap ======
+  const correlationOption = useMemo(() => {
+    if (!corrData?.indicators?.length || !corrData?.correlation_matrix?.length) return null
+    const { indicators: indNames, correlation_matrix: matrix } = corrData
+    const len = indNames.length
+
+    // Prepare heatmap data: [x, y, value]
+    const heatData: [number, number, number][] = []
+    for (let i = 0; i < len; i++) {
+      for (let j = 0; j < len; j++) {
+        heatData.push([j, i, parseFloat(matrix[i][j].toFixed(3))])
+      }
+    }
+
+    // Shorten indicator names for display
+    const shortNames = indNames.map(n => n.length > 12 ? n.slice(0, 12) + '…' : n)
+
+    return {
+      ...chartTheme,
+      tooltip: {
+        ...tooltipStyle,
+        formatter: (p: { value: [number, number, number] }) => {
+          const [x, y, v] = p.value
+          return `${indNames[y]} × ${indNames[x]}<br/>相关系数: <b>${v.toFixed(3)}</b>`
+        },
+      },
+      grid: { left: 10, right: 10, top: 10, bottom: 10, containLabel: true },
+      xAxis: {
+        type: 'category' as const,
+        data: shortNames,
+        ...chartTheme.xAxis,
+        axisLabel: { ...chartTheme.xAxis.axisLabel, rotate: 45, fontSize: 10 },
+        splitArea: { show: true, areaStyle: { color: ['rgba(64,159,255,0.02)', 'rgba(64,159,255,0.04)'] } },
+      },
+      yAxis: {
+        type: 'category' as const,
+        data: shortNames,
+        ...chartTheme.yAxis,
+        axisLabel: { ...chartTheme.yAxis.axisLabel, fontSize: 10 },
+      },
+      visualMap: {
+        min: -1,
+        max: 1,
+        calculable: false,
+        orient: 'vertical' as const,
+        right: 0,
+        top: 'center',
+        itemHeight: 120,
+        textStyle: { color: '#8b95a7', fontSize: 10 },
+        inRange: { color: ['#ef4444', '#f59e0b', '#22d3ee', '#10b981'] },
+      },
+      series: [{
+        type: 'heatmap',
+        data: heatData,
+        label: { show: len <= 8, fontSize: 10, color: '#fff' },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } },
+      }],
+    }
+  }, [corrData])
+
+  const correlationChartRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!correlationChartRef.current || !correlationOption) return
+    const chart = echarts.init(correlationChartRef.current)
+    chart.setOption(correlationOption)
+    const handleResize = () => chart.resize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.dispose()
+    }
+  }, [correlationOption])
+
+  // ====== Task 12: Feature Importance Chart ======
+  const featureOption = useMemo(() => {
+    if (!featData?.features?.length) return null
+    const features = [...featData.features]
+      .sort((a, b) => a.importance - b.importance)
+      .slice(-10) // top 10
+    return {
+      ...chartTheme,
+      tooltip: { trigger: 'axis' as const, ...tooltipStyle },
+      grid: { left: 20, right: 20, top: 10, bottom: 30, containLabel: true },
+      xAxis: {
+        type: 'value' as const,
+        ...chartTheme.xAxis,
+        name: '重要度',
+      },
+      yAxis: {
+        type: 'category' as const,
+        data: features.map(f => f.name.length > 15 ? f.name.slice(0, 15) + '…' : f.name),
+        ...chartTheme.yAxis,
+        axisLabel: { ...chartTheme.yAxis.axisLabel, fontSize: 11 },
+      },
+      series: [{
+        type: 'bar' as const,
+        data: features.map((f, i) => ({
+          value: parseFloat(f.importance.toFixed(4)),
+          itemStyle: {
+            color: {
+              type: 'linear' as const, x: 0, y: 0, x2: 1, y2: 0,
+              colorStops: [
+                { offset: 0, color: `rgba(0, 212, 255, ${0.4 + (i / features.length) * 0.6})` },
+                { offset: 1, color: `rgba(139, 92, 246, ${0.4 + (i / features.length) * 0.6})` },
+              ],
+            },
+            borderRadius: [0, 4, 4, 0],
+          },
+        })),
+        barWidth: '60%',
+        label: { show: true, position: 'right' as const, color: '#8b95a7', fontSize: 11, formatter: '{c}' },
+      }],
+    }
+  }, [featData])
+
+  const featureChartRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!featureChartRef.current || !featureOption) return
+    const chart = echarts.init(featureChartRef.current)
+    chart.setOption(featureOption)
+    const handleResize = () => chart.resize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.dispose()
+    }
+  }, [featureOption])
+
+  // ====== Task 4: Dynamic risk assessment using backend risk data ======
   const riskAssessment = useMemo(() => {
-    if (!result || !result.predictions.length) return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
+    if (!result) return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
+    if (result.risk) {
+      const { risk_level } = result.risk
+      if (risk_level === 'CRITICAL' || risk_level === 'HIGH') {
+        return { label: '越限风险评估', value: RISK_LABELS[risk_level] || '高风险', tag: 'warning' as const }
+      }
+      if (risk_level === 'MEDIUM') {
+        return { label: '越限风险评估', value: RISK_LABELS[risk_level] || '中等风险', tag: 'warning' as const }
+      }
+      return { label: '越限风险评估', value: RISK_LABELS[risk_level] || '低风险', tag: 'success' as const }
+    }
+    // Fallback: compute from spec limits (original logic)
     const limits = hookSpecLimits[product]?.[indicator]
     if (limits) {
       const hasViolation = result.predictions.some(v =>
@@ -261,22 +605,43 @@ export const PredictionPage: React.FC = () => {
     return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
   }, [result, hookSpecLimits, product, indicator])
 
-  // ====== Model evaluation data ======
-  const modelLabels: Record<string, string> = { ets: '指数平滑 (ETS)', ma: '移动平均 (MA)', arima: 'ARIMA' }
+  // ====== Task 2 & 4: Updated Model evaluation data ======
+  const modelLabels: Record<string, string> = {
+    auto: '自动选择',
+    ets: '指数平滑 (ETS)',
+    arima: 'ARIMA',
+    arima_d0: 'ARIMA (d=0)',
+    arima_d1: 'ARIMA (d=1)',
+  }
   const modelEvalRows: { label: string; value: string; color?: string; tag?: string }[] | null = result ? [
     { label: '预测模型', value: modelLabels[result.model] || result.model },
-    { label: 'MAPE (平均绝对百分比误差)', value: result.accuracy.mape != null ? `${result.accuracy.mape.toFixed(2)}%` : 'N/A', color: 'green' },
-    { label: 'RMSE (均方根误差)', value: result.accuracy.rmse.toFixed(4), color: 'cyan' },
-    { label: 'MAE (平均绝对误差)', value: result.accuracy.mae.toFixed(4), color: 'cyan' },
-    { label: 'R² (决定系数)', value: result.accuracy.r_squared != null ? result.accuracy.r_squared.toFixed(4) : 'N/A', color: 'green' },
+    { label: 'MASE (平均绝对比例误差)', value: result.accuracy.mase != null ? result.accuracy.mase.toFixed(3) : 'N/A', color: result.accuracy.mase != null && result.accuracy.mase < 1 ? 'green' : 'cyan' },
+    { label: '方向准确率', value: result.accuracy.direction_acc != null ? `${result.accuracy.direction_acc.toFixed(1)}%` : 'N/A', color: result.accuracy.direction_acc != null && result.accuracy.direction_acc > 70 ? 'green' : 'cyan' },
+    { label: 'MAPE (仅供参考)', value: result.accuracy.mape != null ? `${result.accuracy.mape.toFixed(2)}%` : 'N/A', color: undefined },
+    { label: 'RMSE', value: result.accuracy.rmse.toFixed(4), color: 'cyan' },
+    { label: 'MAE', value: result.accuracy.mae.toFixed(4), color: 'cyan' },
     { label: '预测步长', value: `${result.horizon} 步` },
     { label: '历史窗口', value: `${result.historical.length} 个数据点` },
     riskAssessment,
+    ...(result.auto_selected ? [{ label: '自动选择', value: '已启用', color: 'green' as const }] : []),
+    ...(result.select_reason ? [{ label: '选择原因', value: result.select_reason }] : []),
   ] : null
+
+  // ====== Task 4: Risk breach KPI helpers ======
+  const riskLevelColor = result?.risk ? (RISK_COLORS[result.risk.risk_level] || '#10b981') : '#10b981'
+  const breachProbDisplay = result?.risk ? `${(result.risk.breach_prob * 100).toFixed(1)}%` : '--'
+  const breachTimeDisplay = result?.risk?.breach_time
+    ? result.risk.breach_time.slice(5, 16)
+    : '暂无越限'
+  const breachDirectionDisplay = result?.risk?.breach_direction === 'upper'
+    ? '上限越限'
+    : result?.risk?.breach_direction === 'lower'
+      ? '下限越限'
+      : ''
 
   return (
     <div>
-      {/* ====== Filter Bar (no title, consistent with SPC/Capability) ====== */}
+      {/* ====== Filter Bar ====== */}
       <div className={styles.filterBar}>
         <select
           className={styles.filterSelect}
@@ -297,8 +662,8 @@ export const PredictionPage: React.FC = () => {
           value={model}
           onChange={(e) => setModel(e.target.value)}
         >
+          <option value="auto">自动选择</option>
           <option value="ets">指数平滑 (ETS)</option>
-          <option value="ma">移动平均 (MA)</option>
           <option value="arima">ARIMA</option>
         </select>
         <select
@@ -313,56 +678,81 @@ export const PredictionPage: React.FC = () => {
         {loading && <span className={styles.filterStatus}>加载中...</span>}
       </div>
 
-      {/* ====== KPI Cards ====== */}
+      {/* ====== KPI Cards (Task 2 & 4) ====== */}
       <div className={styles.kpiGrid}>
+        {/* MASE Card (Task 2) */}
         <div className={`${styles.kpiCard} ${styles.kpiCardCyan}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>预测均值</span>
+            <span className={styles.kpiLabel}>MASE</span>
             <div className={styles.kpiIcon}><IconChart /></div>
           </div>
           <div className={styles.kpiValue}>
-            {result ? (result.predictions.reduce((a, b) => a + b, 0) / result.predictions.length).toFixed(2) : '--'}
-            <span className={styles.kpiUnit}>值</span>
+            {result?.accuracy.mase != null ? result.accuracy.mase.toFixed(3) : '--'}
           </div>
-          <div className={`${styles.kpiTrend} ${styles.kpiTrendUp}`}>
-            {result ? `基于${result.historical.length}个历史点` : '等待预测'}
+          <div className={`${styles.kpiTrend} ${result?.accuracy.mase != null && result.accuracy.mase < 1 ? styles.kpiTrendUp : styles.kpiTrendFlat}`}>
+            {result?.accuracy.mase != null
+              ? (result.accuracy.mase < 1 ? '优于基准' : '不如基准')
+              : '等待预测'}
           </div>
         </div>
+
+        {/* Direction Accuracy Card (Task 2) */}
+        <div className={`${styles.kpiCard}`} style={{ borderLeft: 'none' }}>
+          <div className={`${styles.kpiCard}`} style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+            background: result?.accuracy.direction_acc != null
+              ? (result.accuracy.direction_acc > 70 ? 'var(--gradient-green)' : result.accuracy.direction_acc > 60 ? 'var(--gradient-orange)' : '#ef4444')
+              : 'var(--gradient-purple)',
+          }} />
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>方向准确率</span>
+            <div className={styles.kpiIcon}><IconTarget /></div>
+          </div>
+          <div className={styles.kpiValue}>
+            {result?.accuracy.direction_acc != null ? result.accuracy.direction_acc.toFixed(1) : '--'}
+            <span className={styles.kpiUnit}>%</span>
+          </div>
+          <div className={`${styles.kpiTrend} ${
+            result?.accuracy.direction_acc != null
+              ? (result.accuracy.direction_acc > 70 ? styles.kpiTrendUp : styles.kpiTrendFlat)
+              : styles.kpiTrendFlat
+          }`}>
+            {result?.accuracy.direction_acc != null
+              ? (result.accuracy.direction_acc > 70 ? '优秀' : result.accuracy.direction_acc > 60 ? '可用' : '需改进')
+              : '等待预测'}
+          </div>
+        </div>
+
+        {/* Breach Time KPI Card (Task 4 - dynamic risk level) */}
         <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>预测越限时间</span>
+            <span className={styles.kpiLabel}>越限风险</span>
             <div className={styles.kpiIcon}><IconClock /></div>
           </div>
-          <div className={styles.kpiValue} style={{ fontSize: 24 }}>
-            暂无越限风险
+          <div className={styles.kpiValue} style={{ fontSize: 22, color: riskLevelColor }}>
+            {result?.risk
+              ? RISK_LABELS[result.risk.risk_level] || result.risk.risk_level
+              : '暂无越限风险'}
           </div>
-          <div className={`${styles.kpiTrend} ${styles.kpiTrendFlat}`}>
-            {result ? `${result.horizon}步内安全` : '等待预测'}
+          <div className={`${styles.kpiTrend}`} style={{ color: riskLevelColor, fontSize: 12 }}>
+            {result?.risk
+              ? `${breachProbDisplay} · ${breachTimeDisplay} ${breachDirectionDisplay}`
+              : result ? `${result.horizon}步内安全` : '等待预测'}
           </div>
         </div>
-        <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
+
+        {/* MAPE Card (Task 2 - secondary, grayed out) */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`} style={{ opacity: 0.7 }}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>MAPE</span>
-            <div className={styles.kpiIcon}><IconTarget /></div>
+            <span className={styles.kpiLabel}>MAPE <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>仅供参考</span></span>
+            <div className={styles.kpiIcon}><IconCheck /></div>
           </div>
           <div className={styles.kpiValue}>
             {result?.accuracy.mape != null ? result.accuracy.mape.toFixed(2) : '--'}
             <span className={styles.kpiUnit}>%</span>
           </div>
-          <div className={`${styles.kpiTrend} ${styles.kpiTrendUp}`}>
-            {result?.accuracy.mape != null && result.accuracy.mape < 5 ? '准确度良好' : '等待数据'}
-          </div>
-        </div>
-        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
-          <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>R² 决定系数</span>
-            <div className={styles.kpiIcon}><IconCheck /></div>
-          </div>
-          <div className={styles.kpiValue}>
-            {result?.accuracy.r_squared != null ? result.accuracy.r_squared.toFixed(2) : '--'}
-          </div>
           <div className={`${styles.kpiTrend} ${styles.kpiTrendFlat}`}>
-            {result?.accuracy.r_squared != null && result.accuracy.r_squared > 0.8 ? '拟合度良好' : '等待数据'}
+            {result?.accuracy.mape != null && result.accuracy.mape < 5 ? '参考值' : '等待数据'}
           </div>
         </div>
       </div>
@@ -458,6 +848,157 @@ export const PredictionPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ====== Task 8: Model Comparison Chart ====== */}
+      <div className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div className={styles.panelTitle}>
+            <span className={styles.panelTitleIcon}><IconBarChart /></span>
+            模型比较
+          </div>
+          {modelCompareData && (
+            <div className={styles.panelActions}>
+              <span className={`${styles.tag} ${styles.tagSuccess}`}>
+                推荐: {modelCompareData.recommended_model?.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className={styles.panelBody}>
+          <div
+            ref={modelCompareChartRef}
+            className={styles.chartContainer}
+            style={{ height: 250 }}
+          />
+          {modelCompareData?.recommendation_reason && (
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8, textAlign: 'center' }}>
+              {modelCompareData.recommendation_reason}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ====== Task 10: Risk Monitoring Panel ====== */}
+      <div className={styles.riskPanel}>
+        <div className={styles.panelHeader} style={{ padding: '0 0 12px 0', border: 'none' }}>
+          <div className={styles.panelTitle}>
+            <span className={styles.panelTitleIcon}><IconShield /></span>
+            风险监控面板
+          </div>
+        </div>
+        <div className={styles.riskGrid}>
+          <div className={styles.riskCard}>
+            <div className={styles.riskCardTitle}>过程能力 Cpk</div>
+            <div className={styles.riskCardValue} style={{ color: cpkData ? (cpkData.cpk_current >= 1.33 ? '#10b981' : cpkData.cpk_current >= 1.0 ? '#f59e0b' : '#ef4444') : 'var(--text-muted)' }}>
+              {cpkData?.cpk_current?.toFixed(2) ?? '--'}
+            </div>
+            <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
+              {cpkData ? `趋势: ${cpkData.cpk_trend}` : '加载中...'}
+            </div>
+          </div>
+          <div className={styles.riskCard}>
+            <div className={styles.riskCardTitle}>越限概率</div>
+            <div className={styles.riskCardValue} style={{ color: result?.risk ? riskLevelColor : 'var(--text-muted)' }}>
+              {result?.risk ? `${(result.risk.breach_prob * 100).toFixed(1)}%` : '--'}
+            </div>
+            <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
+              {result?.risk ? RISK_LABELS[result.risk.risk_level] || '' : '加载中...'}
+            </div>
+          </div>
+          <div className={styles.riskCard}>
+            <div className={styles.riskCardTitle}>漂移幅度</div>
+            <div className={styles.riskCardValue} style={{ color: driftData ? (driftData.alert ? '#ef4444' : '#10b981') : 'var(--text-muted)' }}>
+              {driftData ? `${(driftData.current_segment_drift * 100).toFixed(1)}%` : '--'}
+            </div>
+            <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
+              {driftData ? `方向: ${driftData.drift_direction === 'upward' ? '↑ 上升' : driftData.drift_direction === 'downward' ? '↓ 下降' : driftData.drift_direction}` : '加载中...'}
+            </div>
+          </div>
+          <div className={styles.riskCard}>
+            <div className={styles.riskCardTitle}>能力评估</div>
+            <div className={styles.riskCardValue} style={{
+              fontSize: 16,
+              color: cpkData?.capability === 'capable' ? '#10b981' : cpkData?.capability === 'marginal' ? '#f59e0b' : cpkData ? '#ef4444' : 'var(--text-muted)',
+            }}>
+              {cpkData ? CAPABILITY_LABELS[cpkData.capability] || cpkData.capability : '--'}
+            </div>
+            <div className={styles.riskCardTrend} style={{ color: 'var(--text-secondary)' }}>
+              {cpkData ? `窗口: ${cpkData.window_size} 个点` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ====== Task 12: Correlation Heatmap + Feature Importance ====== */}
+      <div className={styles.gridTwoCharts}>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div className={styles.panelTitle}>
+              <span className={styles.panelTitleIcon}><IconGrid /></span>
+              指标相关性热力图
+            </div>
+          </div>
+          <div className={styles.panelBody}>
+            {corrData ? (
+              <div
+                ref={correlationChartRef}
+                className={styles.chartContainer}
+                style={{ height: 320 }}
+              />
+            ) : (
+              <div className={styles.loadingText}>加载相关性数据...</div>
+            )}
+          </div>
+        </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div className={styles.panelTitle}>
+              <span className={styles.panelTitleIcon}><IconBarChart /></span>
+              特征重要性
+              {featData && (
+                <span className={`${styles.tag} ${styles.tagInfo}`} style={{ marginLeft: 4 }}>
+                  {featData.model?.toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className={styles.panelBody}>
+            {featData ? (
+              <div
+                ref={featureChartRef}
+                className={styles.chartContainer}
+                style={{ height: 320 }}
+              />
+            ) : (
+              <div className={styles.loadingText}>加载特征重要性...</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ====== Task 10: CRITICAL Alert Modal ====== */}
+      {result?.risk?.risk_level === 'CRITICAL' && !criticalDismissed && (
+        <div className={styles.criticalModal}>
+          <div className={styles.criticalModalContent}>
+            <div style={{ color: '#ef4444' }}>
+              <IconAlertTriangle />
+            </div>
+            <div className={styles.criticalModalTitle}>紧急越限预警</div>
+            <div className={styles.criticalModalText}>
+              检测到 <b>{getIndicatorName(indicator)}</b> 存在极高越限风险。<br />
+              越限概率: <b>{(result.risk.breach_prob * 100).toFixed(1)}%</b><br />
+              预计越限时间: {result.risk.breach_time || '未知'}<br />
+              越限方向: {result.risk.breach_direction === 'upper' ? '上限' : '下限'}
+            </div>
+            <button
+              className={styles.criticalModalDismiss}
+              onClick={() => setCriticalDismissed(true)}
+            >
+              我已知晓
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -36,7 +36,7 @@ export const api = {
   manualCollect: () => http.post('/monitor/collect/manual').then(r => r.data),
   getProducts: () => http.get<{ products: Product[] }>('/monitor/products').then(r => r.data),
   getIndicators: () => http.get<{ indicators: Indicator[] }>('/monitor/indicators').then(r => r.data),
-  getRecentData: (params: { indicator_code: string; product_code: string; limit?: number }) =>
+  getRecentData: (params: { indicator_code: string; product_code: string; limit?: number; date_from?: string; date_to?: string; remark?: string }) =>
     http.get('/monitor/data/recent', { params }).then(r => r.data),
   getProductIndicatorCount: (productCode: string) =>
     http.get<{ count: number }>(`/monitor/products/${productCode}/indicator-count`).then(r => r.data),
@@ -48,20 +48,20 @@ export const api = {
     http.get<Record<string, string[]>>('/monitor/products/saved-indicators').then(r => r.data),
   updateSavedIndicators: (productCode: string, codes: string[]) =>
     http.put(`/monitor/products/saved-indicators/${productCode}`, { codes }).then(r => r.data),
-  getSPCData: (productCode: string, indicatorCode: string, window?: number) =>
-    http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window } }).then(r => r.data),
-  getCapabilityData: (productCode: string, indicatorCode: string, window?: number) =>
-    http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window } }).then(r => r.data),
+  getSPCData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }) =>
+    http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window, ...filters } }).then(r => r.data),
+  getCapabilityData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }) =>
+    http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window, ...filters } }).then(r => r.data),
   getAlerts: (params?: { severity?: string; status?: string; product_code?: string; search?: string; page?: number; page_size?: number }) =>
     http.get<{ alerts: Alert[]; total: number; page: number; page_size: number }>('/alerts', { params }).then(r => r.data),
   getAlertCount: () =>
     http.get<{ CRITICAL: number; WARNING: number; INFO: number; total: number }>('/alerts/count').then(r => r.data),
   getAlertProducts: () =>
     http.get<{ products: string[] }>('/alerts/products').then(r => r.data),
-  resolveAlert: (alertId: string, resolvedBy?: string, note?: string) =>
-    http.post(`/alerts/${alertId}/resolve`, { resolved_by: resolvedBy, note }).then(r => r.data),
-  batchResolveAlerts: (alertIds: string[], resolvedBy?: string, note?: string) =>
-    http.post('/alerts/batch-resolve', { alert_ids: alertIds, resolved_by: resolvedBy, note }).then(r => r.data),
+  resolveAlert: (alertId: string, resolvedBy?: string, note?: string, action?: string) =>
+    http.post(`/alerts/${alertId}/resolve`, { resolved_by: resolvedBy, note, action }).then(r => r.data),
+  batchResolveAlerts: (alertIds: string[], resolvedBy?: string, note?: string, action?: string) =>
+    http.post('/alerts/batch-resolve', { alert_ids: alertIds, resolved_by: resolvedBy, note, action }).then(r => r.data),
   getConfig: () => http.get<Config>('/config').then(r => r.data),
   updateConfig: (config: Partial<Config>) => http.put('/config', config).then(r => r.data),
   getDBConfig: () => http.get<DBConfig>('/config/db').then(r => r.data),
@@ -85,6 +85,10 @@ export const api = {
     http.put(`/data/correction/${recordId}`, { correction }).then(r => r.data),
   updateDataRecord: (recordId: number, fields: { unit?: string; upper_limit?: number; lower_limit?: number }) =>
     http.put(`/data/record/${recordId}`, fields).then(r => r.data),
+  voidDataRecord: (recordId: number) =>
+    http.post(`/data/void/${recordId}`).then(r => r.data),
+  unvoidDataRecord: (recordId: number) =>
+    http.post(`/data/unvoid/${recordId}`).then(r => r.data),
   
   // Instrument configuration
   getInstrumentConfig: () => http.get<InstrumentConfig>('/config/instrument').then(r => r.data),
@@ -100,12 +104,17 @@ export const api = {
   getMDBTableColumns: (tableName: string) => http.get(`/config/mdb/table/${tableName}/columns`).then(r => r.data),
   getMDBInitStatus: () => http.get('/config/mdb/init-status').then(r => r.data),
 
+  // FT1 data preview (before import)
+  getDbInitStatus: () => http.get('/config/db/init-status').then(r => r.data),
+
   // FTA (Perten) configuration
   getFTAConfig: () => http.get('/config/fta').then(r => r.data),
   updateFTAConfig: (config: { server: string; database: string; auth_type: string; driver: string; username: string; password: string; timeout: number }) =>
     http.put('/config/fta', config).then(r => r.data),
   testFTAConnection: (config: { server: string; database: string; auth_type: string; driver: string; username: string; password: string; timeout: number }) =>
     http.post('/config/fta/test', config).then(r => r.data),
+  // FTA data preview (before import)
+  getFTAInitStatus: () => http.get('/config/fta/init-status').then(r => r.data),
 
   // SQL Server relational (4-table) test
   testRelationalConnection: (dbConfig: DBConfig, mappingConfig: FieldMapping) =>
@@ -127,7 +136,12 @@ export const api = {
     http.put('/config/product-status', config).then(r => r.data),
   updateSingleProductStatus: (productCode: string, status: string) =>
     http.put(`/config/product-status/${productCode}`, { status }).then(r => r.data),
-  
+
+  // Excluded remarks configuration
+  getExcludedRemarks: () => http.get<string[]>('/config/excluded-remarks').then(r => r.data),
+  updateExcludedRemarks: (keywords: string[]) =>
+    http.put('/config/excluded-remarks', { keywords }).then(r => r.data),
+
   // Spec limits configuration
   getSpecLimits: (productCode?: string) =>
     http.get<Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>>('/config/spec-limits', { params: productCode ? { product_code: productCode } : {} }).then(r => r.data),
@@ -147,4 +161,39 @@ export const api = {
     http.get<Record<string, { values: Record<string, number>; updated_at?: string }>>('/config/correction-values', { params: productCode ? { product_code: productCode } : {} }).then(r => r.data),
   updateCorrectionValues: (productCode: string, corrections: Record<string, number>) =>
     http.put(`/config/correction-values/${productCode}`, { corrections }).then(r => r.data),
+
+  // 产品类别配置
+  getProductCategories: () =>
+    http.get<Record<string, string>>('/config/product-categories').then(r => r.data),
+  updateProductCategory: (productCode: string, category: string) =>
+    http.put(`/config/product-categories/${productCode}`, { category }).then(r => r.data),
+  getPredictionCategories: () =>
+    http.get<Record<string, { name: string; k: number }>>('/config/prediction-categories').then(r => r.data),
+
+  // 交叉预测配置
+  getPredictionConfig: () =>
+    http.get<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>('/config/prediction-config').then(r => r.data),
+  updatePredictionConfig: (productCode: string, indicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>) =>
+    http.put(`/config/prediction-config/${productCode}`, indicators).then(r => r.data),
+
+  // 交叉预测结果
+  getCrossIndicatorPrediction: (product: string, target = 'saturated_fat', limit = 50) =>
+    http.get('/predict/cross-indicator', { params: { product, target, limit } }).then(r => r.data),
+
+  // 模型比较
+  getModelsCompare: (product: string, indicator: string, horizon: number) =>
+    http.get('/predict/models/compare', { params: { product, indicator, horizon } }).then(r => r.data),
+  // 风险评估
+  getRiskBreach: (product: string, indicator: string, horizon: number) =>
+    http.get('/predict/risk/breach', { params: { product, indicator, horizon } }).then(r => r.data),
+  getRiskCpk: (product: string, indicator: string) =>
+    http.get('/predict/risk/cpk', { params: { product, indicator } }).then(r => r.data),
+  getRiskDrift: (product: string, indicator: string) =>
+    http.get('/predict/risk/drift', { params: { product, indicator } }).then(r => r.data),
+  // 相关性分析
+  getCorrelation: (product: string) =>
+    http.get('/predict/correlation', { params: { product } }).then(r => r.data),
+  // 特征重要性
+  getFeatureImportance: (product: string, indicator: string) =>
+    http.get('/predict/feature/importance', { params: { product, indicator } }).then(r => r.data),
 }
