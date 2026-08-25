@@ -197,10 +197,12 @@ export const ConfigPage: React.FC = () => {
   const [newRemarkKeyword, setNewRemarkKeyword] = useState('')
   const [productCategories, setProductCategories] = useState<Record<string, string>>({})
   const [predictionCategories, setPredictionCategories] = useState<Record<string, { name: string; k: number }>>({})
-  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>>>({})
   const [selectedCategory, setSelectedCategory] = useState('')
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
+  const [alertEnabled, setAlertEnabled] = useState(false)
+  const [alertThreshold, setAlertThreshold] = useState('10')
   const [productSearch, setProductSearch] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; productId: string }>({ show: false, productId: '' })
   const { addToast } = useToast()
@@ -569,7 +571,7 @@ export const ConfigPage: React.FC = () => {
 
     // Load category and prediction config
     setSelectedCategory(productCategories[product.code] || '')
-    const prodPred = predictionConfig[product.code] || {} as Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>
+    const prodPred = predictionConfig[product.code] || {} as Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>
     const satFatCfg = prodPred.saturated_fat
     setPredictSaturatedFat(satFatCfg?.enabled || false)
     if (satFatCfg?.coefficient != null) {
@@ -579,6 +581,9 @@ export const ConfigPage: React.FC = () => {
     } else {
       setPredCoefficient('')
     }
+    // Load alert settings
+    setAlertEnabled(satFatCfg?.alert_enabled ?? false)
+    setAlertThreshold(satFatCfg?.alert_threshold != null ? (satFatCfg.alert_threshold * 100).toString() : '10')
 
     setShowProductDialog(true)
   }
@@ -697,12 +702,14 @@ export const ConfigPage: React.FC = () => {
     }
 
     // Save prediction config (source→target with user-configured coefficient)
-    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean }> = {}
+    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }> = {}
     if (predictSaturatedFat) {
       predIndicators.saturated_fat = {
         source_indicator: 'fat',
         coefficient: parseFloat(predCoefficient) || 0.6278,
         enabled: true,
+        alert_enabled: alertEnabled,
+        alert_threshold: parseFloat(alertThreshold) / 100 || 0.10,
       }
     }
     try {
@@ -2026,6 +2033,68 @@ export const ConfigPage: React.FC = () => {
                       </div>
                       <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
                         系数值可在帮助说明页面查阅参考
+                      </div>
+
+                      {/* USL/LSL Display */}
+                      {(() => {
+                        const satFatSpec = indicatorSpecs.find(s => s.indicator_code === 'saturated_fat')
+                        if (satFatSpec && (satFatSpec.usl || satFatSpec.lsl)) {
+                          return (
+                            <div style={{
+                              marginTop: '10px', padding: '8px 10px',
+                              background: 'var(--bg-primary)', borderRadius: '4px',
+                              border: '1px dashed var(--border-color)',
+                            }}>
+                              <div style={{ fontWeight: 500, marginBottom: '4px' }}>规格限 (Spec Limits)</div>
+                              <div style={{ display: 'flex', gap: '16px' }}>
+                                {satFatSpec.usl && (
+                                  <span>USL: <strong>{satFatSpec.usl}</strong> {satFatSpec.unit || 'g/100g'}</span>
+                                )}
+                                {satFatSpec.lsl && (
+                                  <span>LSL: <strong>{satFatSpec.lsl}</strong> {satFatSpec.unit || 'g/100g'}</span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Alert Configuration */}
+                      <div style={{
+                        marginTop: '10px', padding: '8px 10px',
+                        background: 'var(--bg-primary)', borderRadius: '4px',
+                        border: '1px dashed var(--border-color)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={alertEnabled}
+                              onChange={e => setAlertEnabled(e.target.checked)}
+                            />
+                            <span style={{ fontWeight: 500 }}>启用报警</span>
+                          </label>
+                        </div>
+                        {alertEnabled && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>报警阈值:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              className={styles.formInput}
+                              style={{ width: '80px', padding: '4px 8px' }}
+                              value={alertThreshold}
+                              onChange={e => setAlertThreshold(e.target.value)}
+                              placeholder="10"
+                            />
+                            <span>%</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              (预测值偏离规格限时触发报警)
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

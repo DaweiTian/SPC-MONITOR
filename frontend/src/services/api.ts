@@ -195,8 +195,8 @@ export const api = {
 
   // 交叉预测配置
   getPredictionConfig: () =>
-    http.get<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>('/config/prediction-config').then(r => r.data),
-  updatePredictionConfig: (productCode: string, indicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>) =>
+    http.get<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>>>('/config/prediction-config').then(r => r.data),
+  updatePredictionConfig: (productCode: string, indicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>) =>
     http.put(`/config/prediction-config/${productCode}`, indicators).then(r => r.data),
 
   // 交叉预测结果
