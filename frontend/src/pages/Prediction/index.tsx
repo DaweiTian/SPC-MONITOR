@@ -6,6 +6,7 @@ import * as echarts from 'echarts/core'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
 import { api } from '../../services'
 import { useProducts, useIndicators, useAppMetadata } from '../../hooks'
+import type { Alert } from '../../types'
 import styles from './Prediction.module.css'
 
 echarts.use([HeatmapChart, VisualMapComponent, TooltipComponent, GridComponent])
@@ -188,6 +189,13 @@ export const PredictionPage: React.FC = () => {
   // Task 8: Model comparison state
   const [modelCompareData, setModelCompareData] = useState<ModelCompareData | null>(null)
 
+  // Task 4: Cross-indicator prediction alert modal state
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>>>({})
+  const [crossAlert, setCrossAlert] = useState<(Alert & { usl?: number; lsl?: number; threshold?: number }) | null>(null)
+  const [alertModalVisible, setAlertModalVisible] = useState(false)
+  const [alertResolveNote, setAlertResolveNote] = useState('')
+  const [alertResolving, setAlertResolving] = useState(false)
+
   // AbortController ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null)
 
@@ -201,12 +209,16 @@ export const PredictionPage: React.FC = () => {
     setFeatData(null)
     setFeatError(null)
     setModelCompareData(null)
+    setCrossAlert(null)
+    setAlertModalVisible(false)
+    setAlertResolveNote('')
   }, [product, indicator])
 
-  // Load saved indicators and data counts
+  // Load saved indicators, data counts, and prediction config
   useEffect(() => {
     api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
     api.getRecentCounts(30).then(setDataCounts).catch(() => {})
+    api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
   }, [])
 
   // Filter out disabled products and products with insufficient data (< 20 points)
@@ -285,13 +297,26 @@ export const PredictionPage: React.FC = () => {
         })
 
         // Task 10 & 12: Parallel fetches for risk, correlation, feature importance, model comparison
+        // Task 4: Also fetch cross-indicator prediction to check for alerts
         Promise.allSettled([
           api.getRiskCpk(productCode, indicatorCode),
           api.getRiskDrift(productCode, indicatorCode),
           api.getCorrelation(productCode),
           api.getFeatureImportance(productCode, indicatorCode),
           api.getModelsCompare(productCode, indicatorCode, horizonSteps),
-        ]).then(([cpkRes, driftRes, corrRes, featRes, compareRes]) => {
+          // Cross-indicator prediction for alert checking
+          (async () => {
+            const prodPreds = predictionConfig[productCode] || {}
+            const matchingTarget = Object.entries(prodPreds).find(
+              ([, cfg]) => cfg.source_indicator === indicatorCode && cfg.enabled
+            )
+            if (matchingTarget) {
+              const [targetCode] = matchingTarget
+              return api.getCrossIndicatorPrediction(productCode, targetCode, 100)
+            }
+            return null
+          })(),
+        ]).then(([cpkRes, driftRes, corrRes, featRes, compareRes, crossRes]) => {
           if (cpkRes.status === 'fulfilled' && cpkRes.value?.success) setCpkData(cpkRes.value.data)
           if (driftRes.status === 'fulfilled' && driftRes.value?.success) setDriftData(driftRes.value.data)
           if (corrRes.status === 'fulfilled' && corrRes.value?.success) {
@@ -309,6 +334,18 @@ export const PredictionPage: React.FC = () => {
             setFeatError('请求失败')
           }
           if (compareRes.status === 'fulfilled' && compareRes.value?.success) setModelCompareData(compareRes.value.data)
+
+          // Task 4: Check cross-indicator prediction for alerts
+          if (crossRes.status === 'fulfilled' && crossRes.value?.alert) {
+            const alertData = crossRes.value.alert
+            setCrossAlert({
+              ...alertData,
+              usl: crossRes.value.alert.control_limit?.match(/USL=([\d.]+)/)?.[1] ? parseFloat(crossRes.value.alert.control_limit.match(/USL=([\d.]+)/)[1]) : undefined,
+              lsl: crossRes.value.alert.control_limit?.match(/LSL=([\d.]+)/)?.[1] ? parseFloat(crossRes.value.alert.control_limit.match(/LSL=([\d.]+)/)[1]) : undefined,
+              threshold: crossRes.value.alert.control_limit?.match(/阈值=([\d.]+)%/)?.[1] ? parseFloat(crossRes.value.alert.control_limit.match(/阈值=([\d.]+)%/)[1]) / 100 : undefined,
+            })
+            setAlertModalVisible(true)
+          }
         })
       }
     } catch (e: unknown) {
@@ -614,6 +651,23 @@ export const PredictionPage: React.FC = () => {
     }
     return { label: '越限风险评估', value: '低风险', tag: 'success' as const }
   }, [result, hookSpecLimits, product, indicator])
+
+  // ====== Task 4: Alert resolve handler ======
+  const handleAlertResolve = useCallback(async () => {
+    if (!crossAlert?.alert_id) return
+    setAlertResolving(true)
+    try {
+      await api.resolveAlert(crossAlert.alert_id, 'user', alertResolveNote)
+      setAlertModalVisible(false)
+      setCrossAlert(null)
+      setAlertResolveNote('')
+      window.dispatchEvent(new Event('alerts-updated'))
+    } catch (e) {
+      console.error('处理预测报警失败:', e)
+    } finally {
+      setAlertResolving(false)
+    }
+  }, [crossAlert, alertResolveNote])
 
   // ====== Task 2 & 4: Updated Model evaluation data ======
   const modelEvalRows: { label: string; value: string; color?: string; tag?: string }[] | null = useMemo(() => {
@@ -1006,6 +1060,70 @@ export const PredictionPage: React.FC = () => {
             >
               我已知晓
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Task 4: Cross-Indicator Prediction Alert Modal ====== */}
+      {alertModalVisible && crossAlert && (
+        <div className={styles.alertModalOverlay} onClick={() => { setAlertModalVisible(false); setCrossAlert(null); setAlertResolveNote('') }}>
+          <div className={styles.alertModalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="预测报警警告">
+            <div className={styles.alertModalIcon}>
+              <IconAlertTriangle />
+            </div>
+            <div className={styles.alertModalTitle}>预测报警警告</div>
+            <div className={styles.alertModalBody}>
+              <div className={styles.alertModalMessage}>{crossAlert.message || crossAlert.rule_desc}</div>
+              <div className={styles.alertModalDetails}>
+                {crossAlert.test_value != null && (
+                  <div className={styles.alertModalDetailRow}>
+                    <span className={styles.alertModalDetailLabel}>预测值</span>
+                    <span className={styles.alertModalDetailValue}>{crossAlert.test_value.toFixed(4)}</span>
+                  </div>
+                )}
+                {crossAlert.usl != null && (
+                  <div className={styles.alertModalDetailRow}>
+                    <span className={styles.alertModalDetailLabel}>规格上限 (USL)</span>
+                    <span className={styles.alertModalDetailValue}>{crossAlert.usl.toFixed(4)}</span>
+                  </div>
+                )}
+                {crossAlert.lsl != null && (
+                  <div className={styles.alertModalDetailRow}>
+                    <span className={styles.alertModalDetailLabel}>规格下限 (LSL)</span>
+                    <span className={styles.alertModalDetailValue}>{crossAlert.lsl.toFixed(4)}</span>
+                  </div>
+                )}
+                {crossAlert.threshold != null && (
+                  <div className={styles.alertModalDetailRow}>
+                    <span className={styles.alertModalDetailLabel}>报警阈值</span>
+                    <span className={styles.alertModalDetailValue}>{(crossAlert.threshold * 100).toFixed(0)}%</span>
+                  </div>
+                )}
+              </div>
+              <textarea
+                className={styles.alertModalNoteInput}
+                placeholder="请输入确认原因（可选）"
+                value={alertResolveNote}
+                onChange={(e) => setAlertResolveNote(e.target.value)}
+                rows={3}
+                aria-label="确认原因"
+              />
+            </div>
+            <div className={styles.alertModalActions}>
+              <button
+                className={styles.alertModalCancel}
+                onClick={() => { setAlertModalVisible(false); setCrossAlert(null); setAlertResolveNote('') }}
+              >
+                取消
+              </button>
+              <button
+                className={styles.alertModalConfirm}
+                onClick={handleAlertResolve}
+                disabled={alertResolving}
+              >
+                {alertResolving ? '处理中...' : '确认'}
+              </button>
+            </div>
           </div>
         </div>
       )}
