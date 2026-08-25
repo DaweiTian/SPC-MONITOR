@@ -329,6 +329,71 @@
   font-weight: 700;
 }
 
+/* ========== Chart Type Tabs ========== */
+.chartTypeBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  padding: 7px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.tabBtn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.tabBtnActive {
+  background: var(--gradient-cyan);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
+}
+
+.tabBtnActive:hover {
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.35);
+}
+
+.lambdaControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding: 4px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.lambdaSlider {
+  width: 120px;
+  accent-color: var(--accent-purple);
+  cursor: pointer;
+}
+
+.lambdaValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-purple);
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  min-width: 36px;
+  text-align: center;
+}
+
 /* ========== Chart Panels ========== */
 .chartPanel {
   background: var(--bg-card);

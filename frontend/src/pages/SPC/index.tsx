@@ -28,6 +28,8 @@ export const SPCPage: React.FC = () => {
     remark: '',
   })
   const [analysisMode, setAnalysisMode] = useState<'process' | 'stability'>('process')
+  const [chartType, setChartType] = useState<'imr' | 'ewma'>('imr')
+  const [ewmaLambda, setEwmaLambda] = useState(0.2)
 
   // AbortController ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null)
@@ -86,14 +88,14 @@ export const SPCPage: React.FC = () => {
   }, [enabledProducts, productStatus, indicators, initialized, searchParams])
 
   // Auto-fetch when product or indicator changes (only after initialization)
-  const fetchSPCData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string) => {
+  const fetchSPCData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string, chartTypeParam?: string, lambdaParam?: number) => {
     if (!productCode || !indicatorCode) return
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     const { signal } = abortRef.current
     setLoading(true)
     try {
-      const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode, { signal })
+      const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode, chartTypeParam, lambdaParam, { signal })
       setSPCData(data)
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') return
@@ -110,10 +112,10 @@ export const SPCPage: React.FC = () => {
       const filters = hasDateOrRemarkFilter
         ? { date_from: filter.date_from || undefined, date_to: filter.date_to || undefined, remark: filter.remark || undefined }
         : undefined
-      fetchSPCData(filter.product_code, filter.indicator_code, filter.window, filters, analysisMode)
+      fetchSPCData(filter.product_code, filter.indicator_code, filter.window, filters, analysisMode, chartType, ewmaLambda)
     }
     return () => { abortRef.current?.abort() }
-  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, analysisMode, fetchSPCData])
+  }, [initialized, filter.product_code, filter.indicator_code, filter.window, filter.date_from, filter.date_to, filter.remark, analysisMode, chartType, ewmaLambda, fetchSPCData])
 
   // getIndicatorName provided by useAppMetadata hook
 
@@ -343,8 +345,115 @@ export const SPCPage: React.FC = () => {
     }
   }, [spcData, mrData])
 
+  // EWMA Chart option
+  const ewmaChartOption = useMemo<EChartsOption | null>(() => {
+    if (!spcData || chartType !== 'ewma' || !spcData.ewma_chart) return null
+    const { ewma_chart, data_points, spec_limits } = spcData
+    const { values, ucl, lcl, cl, violations } = ewma_chart
+    const times = data_points.map(p => formatTime(p.time))
+    const { usl, lsl } = spec_limits
+
+    const markLineData: NonNullable<MarkLineComponentOption['data']> = [
+      {
+        yAxis: cl,
+        lineStyle: { color: '#94a3b8', type: 'solid', width: 1 },
+        label: { formatter: `CL=${cl.toFixed(3)}`, color: '#94a3b8', fontSize: 10, position: 'insideEndTop' },
+      },
+    ]
+
+    if (usl != null) {
+      markLineData.push({
+        yAxis: usl,
+        lineStyle: { color: '#ef4444', type: 'dotted', width: 1.5 },
+        label: { formatter: `USL=${usl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' },
+      })
+    }
+    if (lsl != null) {
+      markLineData.push({
+        yAxis: lsl,
+        lineStyle: { color: '#ef4444', type: 'dotted', width: 1.5 },
+        label: { formatter: `LSL=${lsl}`, color: '#ef4444', fontSize: 10, position: 'insideEndTop' },
+      })
+    }
+
+    const violationSet = new Set(violations)
+
+    return {
+      ...chartTheme,
+      tooltip: {
+        trigger: 'axis',
+        ...tooltipStyle,
+        formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterCallbackParams[]) => {
+          const p = (Array.isArray(params) ? params[0] : params) as unknown as EChartsParam
+          const idx = p.dataIndex
+          const pt = data_points[idx]
+          const sampleInfo = pt?.sample_id ? `<br/>样品编码: ${escapeHtml(pt.sample_id)}` : ''
+          const remarkInfo = pt?.remark ? `<br/>备注: ${escapeHtml(pt.remark)}` : ''
+          const isViolation = violationSet.has(idx)
+          const violation = isViolation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 越界点</span>' : ''
+          const uclVal = ucl[idx]?.toFixed(4) ?? '-'
+          const lclVal = lcl[idx]?.toFixed(4) ?? '-'
+          return `<b>${escapeHtml(pt?.time ?? '')}</b>${sampleInfo}${remarkInfo}<br/>EWMA: <b>${escapeHtml(String((p.value as number).toFixed(4)))}</b><br/>UCL: ${uclVal} / LCL: ${lclVal}${violation}`
+        },
+      },
+      grid: { left: 50, right: 80, top: 30, bottom: 30 },
+      xAxis: {
+        type: 'category',
+        data: times,
+        ...chartTheme.xAxis,
+        axisLabel: { ...(chartTheme.xAxis as { axisLabel?: Record<string, unknown> })?.axisLabel, rotate: times.length > 15 ? 30 : 0 },
+      },
+      yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
+      series: [
+        {
+          name: 'EWMA',
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          data: values.map((v, i) => ({
+            value: parseFloat(v.toFixed(4)),
+            itemStyle: violationSet.has(i)
+              ? { color: '#ef4444' }
+              : { color: '#8b5cf6' },
+          })),
+          lineStyle: { color: '#8b5cf6', width: 2 },
+          markLine: {
+            symbol: 'none',
+            silent: true,
+            data: markLineData,
+          },
+        },
+        {
+          name: 'UCL',
+          type: 'line',
+          symbol: 'none',
+          lineStyle: { color: '#f59e0b', type: 'dashed', width: 1.5 },
+          data: ucl.map(v => parseFloat(v.toFixed(4))),
+          z: 1,
+        },
+        {
+          name: 'LCL',
+          type: 'line',
+          symbol: 'none',
+          lineStyle: { color: '#f59e0b', type: 'dashed', width: 1.5 },
+          data: lcl.map(v => parseFloat(v.toFixed(4))),
+          z: 1,
+        },
+        {
+          name: '_ref',
+          type: 'scatter' as const,
+          symbolSize: 0,
+          data: [cl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
+          silent: true,
+        },
+      ],
+    }
+  }, [spcData, chartType])
+
   const { containerRef: iChartRef, chartClassName: iChartClassName } = useChart(iChartOption)
   const { containerRef: mrChartRef, chartClassName: mrChartClassName } = useChart(mrChartOption)
+  const { containerRef: ewmaChartRef, chartClassName: ewmaChartClassName } = useChart(ewmaChartOption)
 
   return (
     <div className={styles.page}>
@@ -506,7 +615,40 @@ export const SPCPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Chart Type Tab Switcher */}
+      <div className={styles.chartTypeBar}>
+        <button
+          className={`${styles.tabBtn} ${chartType === 'imr' ? styles.tabBtnActive : ''}`}
+          onClick={() => setChartType('imr')}
+        >
+          I-MR 图
+        </button>
+        <button
+          className={`${styles.tabBtn} ${chartType === 'ewma' ? styles.tabBtnActive : ''}`}
+          onClick={() => setChartType('ewma')}
+        >
+          EWMA 图
+        </button>
+        {chartType === 'ewma' && (
+          <div className={styles.lambdaControl}>
+            <span className={styles.filterLabel}>λ</span>
+            <input
+              type="range"
+              min={0.05}
+              max={0.5}
+              step={0.05}
+              value={ewmaLambda}
+              onChange={e => setEwmaLambda(parseFloat(e.target.value))}
+              className={styles.lambdaSlider}
+            />
+            <span className={styles.lambdaValue}>{ewmaLambda.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+
       {/* I Chart */}
+      {chartType === 'imr' && (
+      <>
       <div className={styles.chartPanel} aria-label="单值控制图">
         <div className={styles.chartPanelHeader}>
           <div className={styles.chartPanelTitle}>
@@ -559,6 +701,34 @@ export const SPCPage: React.FC = () => {
           <div ref={mrChartRef} className={mrChartClassName} style={{ height: 240 }} />
         </div>
       </div>
+      </>
+      )}
+
+      {/* EWMA Chart */}
+      {chartType === 'ewma' && spcData?.ewma_chart && (
+      <div className={styles.chartPanel} aria-label="EWMA控制图">
+        <div className={styles.chartPanelHeader}>
+          <div className={styles.chartPanelTitle}>
+            <span className={styles.chartPanelTitleIcon}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </span>
+            EWMA 控制图 (λ={spcData.ewma_chart.lambda})
+          </div>
+          <div className={styles.chartPanelActions}>
+            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData.ewma_chart.cl.toFixed(3)}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>λ: {spcData.ewma_chart.lambda}</span>
+            {spcData.ewma_chart.violations.length > 0 && (
+              <span className={`${styles.tag} ${styles.tagCritical}`}>越界: {spcData.ewma_chart.violations.length}</span>
+            )}
+          </div>
+        </div>
+        <div className={styles.chartPanelBody}>
+          <div ref={ewmaChartRef} className={ewmaChartClassName} style={{ height: 340 }} />
+        </div>
+      </div>
+      )}
 
       {/* Nelson Rules Violations */}
       {spcData?.violations && spcData.violations.length > 0 && (
