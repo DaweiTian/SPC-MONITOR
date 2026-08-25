@@ -43,14 +43,26 @@ class WebSocketService {
     this._doConnect()
   }
 
-  private _doConnect() {
+  private async _doConnect() {
     if (this.ws && this.ws.readyState < WebSocket.CLOSING) return
 
     // 开发模式走 vite 代理，生产模式用当前页面地址，Tauri 环境直连后端
     const isTauri = '__TAURI__' in window
     const wsHost = isTauri ? '127.0.0.1:18080' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
+
+    // 优先从 Tauri launcher 获取 key，确保时序正确
+    let apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
+    if (isTauri && !localStorage.getItem('ft1_api_key')) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const key = await invoke<string>('get_api_key')
+        if (key) {
+          apiKey = key
+          localStorage.setItem('ft1_api_key', key)
+        }
+      } catch { /* fallback to default */ }
+    }
     const wsUrl = `${protocol}//${wsHost}/api/ws?api_key=${apiKey}`
 
     const doConnect = () => {
