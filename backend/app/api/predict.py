@@ -1011,18 +1011,21 @@ def get_cross_indicator_prediction(
             alert["sample_id"] = latest_sample_id  # 样品编号
             alert["remark"] = latest_remark  # 备注
 
-            # 去重检查：如果已有相同产品+指标+规则类型的待处理报警，则跳过
-            if storage is not None:
+            # 去重检查：同一数据点（同一样品编号）不重复报警
+            if storage is not None and latest_sample_id:
                 try:
                     existing = storage.get_alerts(
                         status="pending",
                         product_code=product,
                         rule_type=alert["rule_type"],
-                        limit=1,
+                        limit=50,
                     )
-                    if existing.get("total", 0) > 0:
-                        logger.info(f"Skipping duplicate prediction alert for {product}/{target}")
-                        alert = None  # 跳过重复报警
+                    # 检查是否已有相同样品编号的报警
+                    for existing_alert in existing.get("alerts", []):
+                        if existing_alert.get("sample_id") == latest_sample_id:
+                            logger.info(f"Skipping duplicate alert for sample {latest_sample_id}")
+                            alert = None
+                            break
                 except Exception as e:
                     logger.warning(f"Failed to check duplicate alerts: {e}")
 
