@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { ManualPage } from './ManualPage'
+import { UserGuidePage } from './UserGuidePage'
 import styles from './Help.module.css'
 
 const modules = [
@@ -51,7 +52,7 @@ const nelsonRules = [
   { rule: '规则8', desc: '连续8点无1点在1σ内', type: '数据过度分散' },
 ]
 
-type TabKey = 'overview' | 'manual'
+type TabKey = 'overview' | 'manual' | 'guide'
 
 export const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
@@ -59,6 +60,7 @@ export const HelpPage: React.FC = () => {
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'overview', label: '系统说明' },
     { key: 'manual', label: '数据分析手册' },
+    { key: 'guide', label: '系统使用帮助' },
   ]
 
   return (
@@ -216,6 +218,7 @@ export const HelpPage: React.FC = () => {
       )}
 
       {activeTab === 'manual' && <ManualPage />}
+      {activeTab === 'guide' && <UserGuidePage />}
     </div>
   )
 }

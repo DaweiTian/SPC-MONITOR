@@ -1,0 +1,311 @@
+.page {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  line-height: 1.7;
+  font-size: 14px;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+/* ── Fixed Sidebar ── */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-card);
+  padding: 16px 0;
+  margin-top: 10px;
+  border-radius: 0 0 0 10px;
+}
+.sidebarTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 6px;
+}
+.sidebarItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebarItem:hover {
+  color: var(--text-secondary);
+  background: rgba(0,212,255,0.04);
+}
+.sidebarItemActive {
+  color: #00d4ff;
+  border-left-color: #00d4ff;
+  background: rgba(0,212,255,0.08);
+  font-weight: 600;
+}
+
+/* ── Main Content ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 60px 32px;
+}
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+.heroTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.heroSub {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.heroMeta {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
+}
+.heroMetaNum {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+.heroMetaLbl {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Section Card ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+.cardHeaderIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cardSubtitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cardTag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.tagBlue { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.tagCyan { background: rgba(0,212,255,0.12); color: #00d4ff; }
+.tagPurple { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.tagOrange { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.tagGreen { background: rgba(16,185,129,0.12); color: #10b981; }
+
+/* ── Tables ── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.table th {
+  background: rgba(26,34,52,0.8);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+.table tr:hover td {
+  background: rgba(26,34,52,0.5);
+}
+
+/* ── Sub headings ── */
+.h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 18px 0 10px;
+}
+
+/* ── Step block ── */
+.step {
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.12);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 14px 0;
+}
+.stepTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 10px;
+}
+.stepBody {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.stepBody p {
+  margin-bottom: 8px;
+}
+
+/* ── Ordered step list ── */
+.stepList {
+  counter-reset: step;
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.stepList li {
+  counter-increment: step;
+  position: relative;
+  padding: 6px 0 6px 36px;
+  border-left: 2px solid var(--border-color);
+  margin-left: 12px;
+}
+.stepList li::before {
+  content: counter(step);
+  position: absolute;
+  left: -13px;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+  background: var(--accent-cyan);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Bullet list ── */
+.bulletList {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.bulletList li {
+  padding: 3px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Tip / Note boxes ── */
+.tipBox {
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-left: 4px solid #10b981;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tipBox::before {
+  content: '💡 提示';
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 4px;
+}
+
+.noteBox {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-left: 4px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.noteBox::before {
+  content: '📝 注意';
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+/* ── Kbd ── */
+.kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 12px;
+  font-family: monospace;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 var(--border-color);
+  color: var(--text-secondary);
+}
+
+/* ── Paragraph inside cards ── */
+.card p {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+
+/* ── Code inline ── */
+.card code {
+  background: rgba(0,212,255,0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--accent-cyan);
+}
