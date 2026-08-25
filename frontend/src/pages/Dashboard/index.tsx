@@ -930,7 +930,7 @@ export const Dashboard: React.FC = () => {
                     return (
                       <tr key={alert.id}>
                         <td>{aliases.products[alert.product_code || ''] || alert.product_code || '-'}</td>
-                        <td>{aliases.indicators[alert.indicator_code || ''] || alert.indicator_code || '-'}</td>
+                        <td>{alert.indicator_name || aliases.indicators[alert.indicator_code || ''] || alert.indicator_code || '-'}</td>
                         <td>{alert.test_value != null ? Number(alert.test_value).toFixed(2) : '-'}</td>
                         <td>
                           <span className={`${styles.tag} ${severityTagClass[alert.severity] || ''}`}>
