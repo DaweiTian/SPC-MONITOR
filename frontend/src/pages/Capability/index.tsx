@@ -419,9 +419,9 @@ export const CapabilityPage: React.FC = () => {
   }, [capabilityData])
 
   /* ── Chart hooks ── */
-  const { containerRef: histRef } = useChart(histogramOption)
-  const { containerRef: gaugeRef } = useChart(gaugeOption)
-  const { containerRef: cpkTrendRef } = useChart(cpkTrendOption)
+  const { containerRef: histRef, chartClassName: histClassName } = useChart(histogramOption)
+  const { containerRef: gaugeRef, chartClassName: gaugeClassName } = useChart(gaugeOption)
+  const { containerRef: cpkTrendRef, chartClassName: cpkTrendClassName } = useChart(cpkTrendOption)
 
   /* ── Derived values ── */
   const result = capabilityData?.result
@@ -525,7 +525,7 @@ export const CapabilityPage: React.FC = () => {
             )}
           </div>
           <div className={styles.panelBodyCompact}>
-            <div ref={histRef} style={{ flex: 1, minHeight: 0 }} />
+            <div ref={histRef} className={histClassName} style={{ flex: 1, minHeight: 0 }} />
           </div>
         </div>
 
@@ -542,7 +542,7 @@ export const CapabilityPage: React.FC = () => {
             </div>
           </div>
           <div className={styles.panelBody}>
-            <div ref={gaugeRef} style={{ height: 220, width: '100%' }} />
+            <div ref={gaugeRef} className={gaugeClassName} style={{ height: 220, width: '100%' }} />
             <div className={styles.sigmaDisplay}>
               <div className={styles.sigmaValue}>
                 {result ? result.sigma_level.toFixed(2) : '0.00'} σ
@@ -588,7 +588,7 @@ export const CapabilityPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.panelBody}>
-          <div ref={cpkTrendRef} style={{ height: 280, width: '100%' }} />
+          <div ref={cpkTrendRef} className={cpkTrendClassName} style={{ height: 280, width: '100%' }} />
         </div>
       </div>
     </div>

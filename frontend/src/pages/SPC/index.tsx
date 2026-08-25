@@ -343,8 +343,8 @@ export const SPCPage: React.FC = () => {
     }
   }, [spcData, mrData])
 
-  const { containerRef: iChartRef } = useChart(iChartOption)
-  const { containerRef: mrChartRef } = useChart(mrChartOption)
+  const { containerRef: iChartRef, chartClassName: iChartClassName } = useChart(iChartOption)
+  const { containerRef: mrChartRef, chartClassName: mrChartClassName } = useChart(mrChartOption)
 
   return (
     <div className={styles.page}>
@@ -530,7 +530,7 @@ export const SPCPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.chartPanelBody}>
-          <div ref={iChartRef} style={{ height: 340 }} />
+          <div ref={iChartRef} className={iChartClassName} style={{ height: 340 }} />
           {spcData?.data_points.length === 0 && (
             <div className={styles.emptyChart}>暂无匹配数据，请调整筛选条件</div>
           )}
@@ -556,7 +556,7 @@ export const SPCPage: React.FC = () => {
           </div>
         </div>
         <div className={styles.chartPanelBody}>
-          <div ref={mrChartRef} style={{ height: 240 }} />
+          <div ref={mrChartRef} className={mrChartClassName} style={{ height: 240 }} />
         </div>
       </div>
 

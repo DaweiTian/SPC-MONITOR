@@ -1,0 +1,51 @@
+/* Chart wrapper with smooth fade-in animation */
+.chartWrapper {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.chartWrapper.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Loading skeleton shimmer effect */
+.chartWrapper.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.chartWrapper.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(64, 159, 255, 0.03) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Stagger animation for multiple charts */
+.chartWrapper:nth-child(1) { transition-delay: 0ms; }
+.chartWrapper:nth-child(2) { transition-delay: 100ms; }
+.chartWrapper:nth-child(3) { transition-delay: 200ms; }
+.chartWrapper:nth-child(4) { transition-delay: 300ms; }
+.chartWrapper:nth-child(5) { transition-delay: 400ms; }

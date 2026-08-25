@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FT1-MONITOR 液奶过程监控系统 - 功能汇报</title>
+<title>SPC-MONITOR 液奶过程监控系统 - 功能汇报</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" async></script>
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -341,12 +341,12 @@
 <header class="hero">
   <div class="container">
     <div class="badge">LIQUID MILK PROCESS MONITORING</div>
-    <h1>FT1-MONITOR<br>液奶过程监控系统</h1>
+    <h1>SPC-MONITOR<br>液奶过程监控系统</h1>
     <p class="subtitle">基于 SPC 统计过程控制与 AI 预测分析的乳制品全流程质量智能监控平台</p>
     <div class="meta-row">
-      <span><i class="dot"></i>版本 v1.5.4</span>
+      <span><i class="dot"></i>版本 v1.6.0</span>
       <span><i class="dot"></i>技术汇报</span>
-      <span><i class="dot"></i>质量管控中心</span>
+      <span><i class="dot"></i>中心实验室</span>
     </div>
   </div>
 </header>
@@ -358,7 +358,7 @@
   <div class="container">
     <div class="section-tag">Business Value</div>
     <h2 class="section-title">业务价值</h2>
-    <p class="section-desc">FT1-MONITOR 将液奶生产质量管控从"事后检验、人工巡检"升级为"实时监控、智能预警、主动预防"，全面提升质量管控效能，降低质量风险与运营成本。</p>
+    <p class="section-desc">SPC-MONITOR 将液奶生产质量管控从"事后检验、人工巡检"升级为"实时监控、智能预警、主动预防"，全面提升质量管控效能，降低质量风险与运营成本。</p>
 
     <!-- Big Numbers -->
     <div class="big-numbers">
@@ -390,12 +390,12 @@
             <div class="v-sub">从事后检验到过程控制</div>
           </div>
         </div>
-        <p>传统模式下，质量问题往往在产品下线后才被发现，此时已经造成了批量不合格。FT1-MONITOR 通过 SPC 统计过程控制技术，在生产过程中实时监控关键质量指标（脂肪、蛋白质、乳糖等），利用 Nelson 8 条判异规则自动识别过程异常，将质量管控节点从"成品检验"前移到"生产过程"。</p>
+        <p>传统模式下，质量问题往往在产品下线后才被发现，此时已经造成了批量不合格。SPC-MONITOR 通过 SPC 统计过程控制技术，在生产过程中实时监控关键质量指标（脂肪、蛋白质、乳糖等），利用 Nelson 8 条判异规则自动识别过程异常，将质量管控节点从"成品检验"前移到"生产过程"。</p>
         <div class="v-detail">
           <h4>具体效果</h4>
           <ul>
             <li>过程异常实时捕捉，问题发现时间从"班后分析"缩短到分钟级</li>
-            <li>控制图违规点自动高亮标注，操作员无需人工判图</li>
+            <li>控制图违规点自动高亮标注，检验人员无需人工判图</li>
             <li>过程能力指数 (Cpk) 实时评估，低于阈值自动预警</li>
             <li>趋势异常提前识别，在指标越限前发出风险提醒</li>
           </ul>
@@ -418,6 +418,7 @@
             <li>越限概率分为 LOW / MEDIUM / HIGH / CRITICAL 四级</li>
             <li>CUSUM 漂移检测可识别缓慢的工艺漂移趋势</li>
             <li>95% 置信区间量化预测不确定性，辅助决策</li>
+            <li>检验稳定性数据分析，出现异常时及时提醒</li>
           </ul>
         </div>
       </div>
@@ -491,11 +492,10 @@
       </div>
       <div class="compare-card after">
         <span class="cc-label">AFTER</span>
-        <h4>FT1-MONITOR 模式</h4>
+        <h4>SPC-MONITOR 模式</h4>
         <ul>
           <li>系统 7x24 自动采集数据，自适应频率调度，无需人工干预</li>
           <li>SPC 判异规则实时监控，异常 5 分钟内自动告警推送</li>
-          <li>三类仪器数据统一接入，一个平台查看所有质量数据</li>
           <li>I-MR 控制图 + Cpk 能力指数，过程质量一目了然</li>
           <li>ETS/ARIMA 预测模型自动选模，越限概率分级预警</li>
           <li>17+ 配置项运行时热更新，零停机调整参数</li>
@@ -512,7 +512,7 @@
           <tr>
             <th>维度</th>
             <th>传统模式</th>
-            <th>FT1-MONITOR</th>
+            <th>SPC-MONITOR</th>
             <th>提升效果</th>
           </tr>
         </thead>
@@ -548,12 +548,6 @@
             <td style="color:var(--success)">从无到有</td>
           </tr>
           <tr>
-            <td><strong style="color:#fff">数据整合</strong></td>
-            <td>各仪器数据分散</td>
-            <td>三类仪器统一平台</td>
-            <td style="color:var(--success)">消除数据孤岛</td>
-          </tr>
-          <tr>
             <td><strong style="color:#fff">配置灵活度</strong></td>
             <td>改数据库/代码</td>
             <td>17+ 项运行时热更新</td>
@@ -572,7 +566,7 @@
   <div class="container">
     <div class="section-tag">Pain Points</div>
     <h2 class="section-title">行业痛点</h2>
-    <p class="section-desc">传统液奶生产质量监控面临的六大核心挑战，FT1-MONITOR 逐一攻克。</p>
+    <p class="section-desc">传统液奶生产质量监控面临的六大核心挑战，SPC-MONITOR 逐一攻克。</p>
 
     <div class="pain-grid">
       <div class="pain-card">
@@ -1150,11 +1144,11 @@
 <!-- ===== Summary Footer ===== -->
 <footer class="summary-footer">
   <div class="container">
-    <h2>FT1-MONITOR</h2>
+    <h2>SPC-MONITOR</h2>
     <p style="font-size:18px; color: var(--text); font-weight: 600;">让液奶质量管控从经验驱动迈向数据智能</p>
     <p style="margin-top: 20px;">全面监控 &bull; 智能预测 &bull; 实时告警 &bull; 持续演进</p>
     <div class="footer-meta">
-      FT1-MONITOR v1.5.4 &nbsp;&bull;&nbsp; 质量管控中心 &nbsp;&bull;&nbsp; 技术汇报
+      SPC-MONITOR v1.5.4 &nbsp;&bull;&nbsp; 质量管控中心 &nbsp;&bull;&nbsp; 技术汇报
     </div>
   </div>
 </footer>

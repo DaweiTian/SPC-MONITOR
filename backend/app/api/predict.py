@@ -702,15 +702,7 @@ def risk_cpk(
     else:
         capability = "severe_insufficient"
 
-    # Format trend as string
-    trend = result.get("cpk_trend")
-    if trend is not None:
-        trend_str = f"{'+' if trend > 0 else ''}{trend}"
-    else:
-        trend_str = None
-
     result["capability"] = capability
-    result["cpk_trend"] = trend_str
     result["alert"] = cpk is not None and cpk < 1.0
     result["window_size"] = result.pop("cpk_window", window)
     result["usl"] = usl

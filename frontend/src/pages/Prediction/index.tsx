@@ -395,7 +395,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [result])
 
-  const { containerRef: predChartRef } = useChart(predictionOption)
+  const { containerRef: predChartRef, chartClassName: predChartClassName } = useChart(predictionOption)
 
   // ====== Residual Chart (uses actual model residuals) ======
   const residualOption = useMemo(() => {
@@ -422,7 +422,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [result])
 
-  const { containerRef: residualChartRef } = useChart(residualOption)
+  const { containerRef: residualChartRef, chartClassName: residualChartClassName } = useChart(residualOption)
 
   // ====== Task 8: Model Comparison Chart ======
   const modelCompareOption = useMemo(() => {
@@ -479,7 +479,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [modelCompareData])
 
-  const { containerRef: modelCompareChartRef } = useChart(modelCompareOption as EChartsOption | null)
+  const { containerRef: modelCompareChartRef, chartClassName: modelCompareChartClassName } = useChart(modelCompareOption as EChartsOption | null)
 
   // ====== Task 12: Correlation Heatmap ======
   const correlationOption = useMemo(() => {
@@ -542,7 +542,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [corrData, aliases])
 
-  const { containerRef: correlationChartRef } = useChart(correlationOption as EChartsOption | null)
+  const { containerRef: correlationChartRef, chartClassName: correlationChartClassName } = useChart(correlationOption as EChartsOption | null)
 
   // ====== Task 12: Feature Importance Chart ======
   const featureOption = useMemo(() => {
@@ -589,7 +589,7 @@ export const PredictionPage: React.FC = () => {
     }
   }, [featData, aliases])
 
-  const { containerRef: featureChartRef } = useChart(featureOption as EChartsOption | null)
+  const { containerRef: featureChartRef, chartClassName: featureChartClassName } = useChart(featureOption as EChartsOption | null)
 
   // ====== Task 4: Dynamic risk assessment using backend risk data ======
   const riskAssessment = useMemo(() => {
@@ -784,7 +784,7 @@ export const PredictionPage: React.FC = () => {
         <div className={styles.panelBody}>
           <div
             ref={predChartRef}
-            className={styles.chartContainer}
+            className={`${styles.chartContainer} ${predChartClassName}`}
             style={{ height: 400 }}
           />
         </div>
@@ -802,7 +802,7 @@ export const PredictionPage: React.FC = () => {
           <div className={styles.panelBody} style={{ paddingTop: 35 }}>
             <div
               ref={residualChartRef}
-              className={styles.chartContainer}
+              className={`${styles.chartContainer} ${residualChartClassName}`}
               style={{ height: 405 }}
             />
           </div>
@@ -873,7 +873,7 @@ export const PredictionPage: React.FC = () => {
         <div className={styles.panelBody}>
           <div
             ref={modelCompareChartRef}
-            className={styles.chartContainer}
+            className={`${styles.chartContainer} ${modelCompareChartClassName}`}
             style={{ height: 250 }}
           />
           {modelCompareData?.recommendation_reason && (
@@ -948,7 +948,7 @@ export const PredictionPage: React.FC = () => {
             {corrData ? (
               <div
                 ref={correlationChartRef}
-                className={styles.chartContainer}
+                className={`${styles.chartContainer} ${correlationChartClassName}`}
                 style={{ height: 320 }}
               />
             ) : corrError ? (
@@ -974,7 +974,7 @@ export const PredictionPage: React.FC = () => {
             {featData ? (
               <div
                 ref={featureChartRef}
-                className={styles.chartContainer}
+                className={`${styles.chartContainer} ${featureChartClassName}`}
                 style={{ height: 320 }}
               />
             ) : featError ? (

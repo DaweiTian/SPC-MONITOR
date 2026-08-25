@@ -565,7 +565,7 @@ export const Dashboard: React.FC = () => {
     }
   }, [recentData, currentIndicator, currentProduct, allSpecLimits, predData])
 
-  const { containerRef } = useChart(chartOption)
+  const { containerRef, chartClassName } = useChart(chartOption)
 
   /* ── product name lookup (with alias support) ── */
   const productNameMap = useMemo(() => {
@@ -755,7 +755,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className={styles.panelBody}>
-            <div ref={containerRef} className={styles.chartContainer} />
+            <div ref={containerRef} className={`${styles.chartContainer} ${chartClassName}`} />
             {/* 当前品项和指标信息 */}
             <div className={styles.productInfo}>
               {currentProduct && (

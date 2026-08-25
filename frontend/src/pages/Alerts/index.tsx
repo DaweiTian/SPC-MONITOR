@@ -105,7 +105,7 @@ const TrendChart = React.memo(function TrendChart({ alerts }: { alerts: Alert[] 
     [days, critical, warning, info],
   )
 
-  const { containerRef } = useChart(option)
+  const { containerRef, chartClassName } = useChart(option)
 
   return (
     <div className={styles.chartCard}>
@@ -113,7 +113,7 @@ const TrendChart = React.memo(function TrendChart({ alerts }: { alerts: Alert[] 
         <span className={styles.chartTitleIcon}><IconTrendUp /></span>
         预警趋势（近7天）
       </div>
-      <div ref={containerRef} className={styles.chartContainer} />
+      <div ref={containerRef} className={`${styles.chartContainer} ${chartClassName}`} />
     </div>
   )
 })
@@ -158,7 +158,7 @@ const PieChart = React.memo(function PieChart({ alerts, ruleMap }: { alerts: Ale
     [distribution],
   )
 
-  const { containerRef } = useChart(option)
+  const { containerRef, chartClassName } = useChart(option)
 
   return (
     <div className={styles.chartCard}>
@@ -166,7 +166,7 @@ const PieChart = React.memo(function PieChart({ alerts, ruleMap }: { alerts: Ale
         <span className={styles.chartTitleIcon}><IconPieChart /></span>
         规则类型分布
       </div>
-      <div ref={containerRef} className={styles.chartContainer} />
+      <div ref={containerRef} className={`${styles.chartContainer} ${chartClassName}`} />
     </div>
   )
 })

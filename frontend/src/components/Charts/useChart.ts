@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
 import { LineChart, BarChart, GaugeChart, PieChart, ScatterChart, BoxplotChart, HeatmapChart } from 'echarts/charts'
@@ -14,6 +14,7 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { chartTheme } from './theme'
+import styles from './Charts.module.css'
 
 echarts.use([
   LineChart,
@@ -37,10 +38,13 @@ echarts.use([
 /**
  * ECharts hook: creates chart when container+option are both ready,
  * updates option on change, disposes on unmount.
+ * Includes smooth fade-in animation and loading state.
  */
 export function useChart(option: EChartsOption | null) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
     const el = containerRef.current
@@ -53,11 +57,24 @@ export function useChart(option: EChartsOption | null) {
       chartRef.current.setOption(chartTheme)
     }
 
-    // Apply option
+    // Apply option with smooth animation
     if (option) {
-      chartRef.current.setOption(option, true)
+      setIsLoading(false)
+      // Add slight delay for fade-in effect
+      requestAnimationFrame(() => {
+        chartRef.current?.setOption({
+          ...option,
+          animation: true,
+          animationDuration: 800,
+          animationEasing: 'cubicOut',
+          animationDelay: (_idx: number) => _idx * 10,
+        }, true)
+        setIsVisible(true)
+      })
     } else {
       chartRef.current.clear()
+      setIsLoading(true)
+      setIsVisible(false)
     }
 
     // Resize handling
@@ -74,5 +91,11 @@ export function useChart(option: EChartsOption | null) {
     }
   }, [option])
 
-  return { containerRef, chartRef }
+  return {
+    containerRef,
+    chartRef,
+    isLoading,
+    isVisible,
+    chartClassName: `${styles.chartWrapper} ${isVisible ? styles.visible : ''} ${isLoading ? styles.loading : ''}`,
+  }
 }

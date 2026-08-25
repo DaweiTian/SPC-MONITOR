@@ -42,11 +42,11 @@ const NoteBox: React.FC<{ children: React.ReactNode }> = ({ children }) => <div 
 const WarnBox: React.FC<{ children: React.ReactNode }> = ({ children }) => <div className={s.warnBox}>{children}</div>
 
 const ChartWrap: React.FC<{ title: string; height?: number; option: EChartsOption | null }> = ({ title, height = 300, option }) => {
-  const { containerRef } = useChart(option)
+  const { containerRef, chartClassName } = useChart(option)
   return (
     <div className={s.chartWrap}>
       <div className={s.chartTitle}>{title}</div>
-      <div className={s.chartBody}><div ref={containerRef} style={{ height, width: '100%' }} /></div>
+      <div className={s.chartBody}><div ref={containerRef} className={chartClassName} style={{ height, width: '100%' }} /></div>
     </div>
   )
 }
