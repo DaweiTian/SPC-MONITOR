@@ -27,7 +27,6 @@
     "notification:default",
     "notification:allow-notify",
     "notification:allow-request-permission",
-    "notification:allow-is-permission-granted",
-    "single-instance:default"
+    "notification:allow-is-permission-granted"
   ]
 }
