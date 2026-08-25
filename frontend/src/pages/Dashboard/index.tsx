@@ -340,7 +340,7 @@ export const Dashboard: React.FC = () => {
         popupEnabled: cfg.alert_popup_enabled ?? true,
       }
     }).catch(e => console.warn('获取通知配置失败:', e))
-    websocketService.connect()
+    const wsTimer = setTimeout(() => websocketService.connect(), 500)
 
     const onData = () => { debouncedFetchDashboard(); debouncedFetchTrend() }
     const onAlert = (msg: Record<string, unknown>) => {
@@ -354,6 +354,7 @@ export const Dashboard: React.FC = () => {
     websocketService.on('new_alert', onAlert)
 
     return () => {
+      clearTimeout(wsTimer)
       websocketService.off('data_update', onData)
       websocketService.off('new_alert', onAlert)
       websocketService.disconnect()
