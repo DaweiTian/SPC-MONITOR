@@ -2,7 +2,7 @@ from dataclasses import asdict
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 import numpy as np
-from backend.app.engine.spc.control_charts import IMRControlChart
+from backend.app.engine.spc.control_charts import IMRControlChart, EWMAControlChart
 from backend.app.engine.spc.rules import NelsonRules
 from backend.app.engine.spc.capability import ProcessCapability
 from backend.app.api.config import _get_merged_spec_limits
@@ -25,11 +25,13 @@ def get_spc_data(
     date_to: Optional[str] = Query(None),
     remark: Optional[str] = Query(None),
     mode: str = Query("process", description="分析模式: process=过程分析, stability=稳定性分析"),
+    chart_type: str = Query("imr", description="图表类型: imr=I-MR图, ewma=EWMA图"),
+    lambda_: float = Query(0.2, ge=0.05, le=0.5, description="EWMA平滑系数"),
 ):
     is_stability = mode == "stability"
     has_filter = date_from or date_to or remark
 
-    cache_key = f"spc:{product_code}:{indicator_code}:{window}:{date_from}:{date_to}:{remark}:{mode}"
+    cache_key = f"spc:{product_code}:{indicator_code}:{window}:{date_from}:{date_to}:{remark}:{mode}:{chart_type}:{lambda_}"
     cached = _cache.get(cache_key)
     if cached:
         return cached
@@ -94,11 +96,20 @@ def get_spc_data(
     values = np.array([d['value'] for d in data], dtype=float)
     timestamps = [d['sample_time'] for d in data]
 
-    chart = IMRControlChart()
-    result = chart.calculate(values)
+    chart_type_lower = chart_type.lower()
 
-    rules = NelsonRules()
-    violations = rules.check_all(values, result['i_chart'].cl, result['sigma_estimate'])
+    if chart_type_lower == "ewma":
+        ewma_chart = EWMAControlChart()
+        ewma_result = ewma_chart.calculate(values, lambda_=lambda_)
+        imr_chart = IMRControlChart()
+        imr_result = imr_chart.calculate(values)
+        rules = NelsonRules()
+        violations = rules.check_all(values, imr_result['i_chart'].cl, imr_result['sigma_estimate'])
+    else:
+        chart = IMRControlChart()
+        result = chart.calculate(values)
+        rules = NelsonRules()
+        violations = rules.check_all(values, result['i_chart'].cl, result['sigma_estimate'])
 
     violation_indices = set()
     for v in violations:
@@ -126,27 +137,45 @@ def get_spc_data(
     result_data = {
         "product_code": product_code,
         "indicator_code": indicator_code,
-        "i_chart": {
+        "chart_type": chart_type_lower,
+    }
+
+    if chart_type_lower == "ewma":
+        result_data["ewma_chart"] = {
+            "values": ewma_result['ewma_values'],
+            "ucl": ewma_result['ucl'],
+            "lcl": ewma_result['lcl'],
+            "cl": ewma_result['cl'],
+            "violations": ewma_result['violations'],
+            "lambda": ewma_result['lambda_'],
+        }
+    else:
+        result_data["i_chart"] = {
             "cl": round(result['i_chart'].cl, 4),
             "ucl": round(result['i_chart'].ucl, 4),
             "lcl": round(result['i_chart'].lcl, 4),
-        },
-        "mr_chart": {
+        }
+        result_data["mr_chart"] = {
             "cl": round(result['mr_chart'].cl, 4),
             "ucl": round(result['mr_chart'].ucl, 4),
             "lcl": round(result['mr_chart'].lcl, 4),
-        },
+        }
+
+    # sigma is always from IMR for consistency
+    sigma_val = round(imr_result['sigma_estimate'], 4) if chart_type_lower == "ewma" else round(result['sigma_estimate'], 4)
+
+    result_data.update({
         "spec_limits": {
             "usl": round(spec_usl, 4) if spec_usl is not None else None,
             "lsl": round(spec_lsl, 4) if spec_lsl is not None else None,
             "mean": round(mean, 4),
             "std": round(std, 4),
         },
-        "sigma": round(result['sigma_estimate'], 4),
+        "sigma": sigma_val,
         "data_points": data_points,
         "violations": [asdict(v) for v in violations],
         "analysis_mode": mode,
-    }
+    })
     _cache.set(cache_key, result_data)
     return result_data
 
