@@ -85,6 +85,8 @@ class OnlineStorage:
                     control_limit TEXT,
                     message TEXT NOT NULL,
                     detail TEXT,
+                    sample_id TEXT,
+                    remark TEXT,
                     status TEXT NOT NULL DEFAULT 'pending',
                     created_at TEXT DEFAULT (datetime('now', 'localtime')),
                     resolved_at TEXT,
@@ -254,7 +256,7 @@ class OnlineStorage:
     def save_alert(self, alert: dict[str, Any]) -> int:
         with self._connection() as conn:
             # 确保新列存在
-            for col in ['indicator_name', 'source_indicator']:
+            for col in ['indicator_name', 'source_indicator', 'sample_id', 'remark']:
                 try:
                     conn.execute(f"ALTER TABLE alerts ADD COLUMN {col} TEXT")
                 except sqlite3.OperationalError:
@@ -263,8 +265,8 @@ class OnlineStorage:
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO alerts
                    (alert_id, alert_type, severity, indicator_code, indicator_name, source_indicator, product_code,
-                    rule_type, rule_desc, test_value, control_limit, message, detail, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    rule_type, rule_desc, test_value, control_limit, message, detail, sample_id, remark, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     alert.get("alert_id"),
                     alert.get("alert_type", "spc_violation"),
@@ -279,6 +281,8 @@ class OnlineStorage:
                     alert.get("control_limit"),
                     alert.get("message", alert.get("rule_desc", "")),
                     alert.get("detail"),
+                    alert.get("sample_id"),
+                    alert.get("remark"),
                     alert.get("status", "pending"),
                 ),
             )

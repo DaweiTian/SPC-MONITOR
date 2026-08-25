@@ -33,6 +33,8 @@ export interface Alert {
   control_limit?: string
   message: string
   detail?: string
+  sample_id?: string
+  remark?: string
   status: 'pending' | 'resolved'
   created_at: string
   resolved_at?: string

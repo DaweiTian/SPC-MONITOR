@@ -514,6 +514,18 @@ export const AlertsPage: React.FC = () => {
                         <span>{currentAlert.test_value.toFixed(4)}</span>
                       </div>
                     )}
+                    {currentAlert.sample_id && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>样品编号：</span>
+                        <span className={styles.sampleId}>{currentAlert.sample_id}</span>
+                      </div>
+                    )}
+                    {currentAlert.remark && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>备注：</span>
+                        <span className={styles.remarkText}>{currentAlert.remark}</span>
+                      </div>
+                    )}
                     <div className={styles.detailRow}>
                       <span className={styles.detailLabel}>建议：</span>
                       <span className={styles.suggestion}>

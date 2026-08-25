@@ -979,6 +979,8 @@ def get_cross_indicator_prediction(
 
     predicted_data = []
     latest_predicted = None
+    latest_sample_id = None
+    latest_remark = None
     for d in source_data:
         src_val = d.get("value")
         if src_val is None:
@@ -989,6 +991,8 @@ def get_cross_indicator_prediction(
             "sample_time": d.get("sample_time", ""),
         })
         latest_predicted = result["predicted_value"]
+        latest_sample_id = d.get("sample_id")
+        latest_remark = d.get("remark")
 
     # 报警检查
     alert = None
@@ -1004,6 +1008,8 @@ def get_cross_indicator_prediction(
             alert["indicator_code"] = target
             alert["indicator_name"] = meta.get("name", target)  # 使用中文名称
             alert["source_indicator"] = source  # 保存源指标用于SPC链接
+            alert["sample_id"] = latest_sample_id  # 样品编号
+            alert["remark"] = latest_remark  # 备注
 
             # 去重检查：如果已有相同产品+指标+规则类型的待处理报警，则跳过
             if storage is not None:
