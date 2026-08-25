@@ -12,6 +12,8 @@ def get_alerts(
     product_code: Optional[str] = None,
     rule_type: Optional[str] = None,
     search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
 ):
@@ -22,6 +24,8 @@ def get_alerts(
         product_code=product_code,
         rule_type=rule_type,
         search=search,
+        date_from=date_from,
+        date_to=date_to,
         limit=page_size,
         offset=offset,
     )

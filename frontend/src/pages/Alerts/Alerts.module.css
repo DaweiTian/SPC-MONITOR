@@ -134,6 +134,40 @@
   flex-wrap: wrap;
 }
 
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.filterDateInput {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  width: 130px;
+  cursor: pointer;
+}
+
+.filterDateInput:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.filterDateSep {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .filterSelect {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);

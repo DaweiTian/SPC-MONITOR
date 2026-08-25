@@ -415,6 +415,8 @@ class OnlineStorage:
         product_code: str | None = None,
         rule_type: str | None = None,
         search: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, Any]:
@@ -437,6 +439,12 @@ class OnlineStorage:
                 conditions.append("(product_code LIKE ? OR indicator_code LIKE ? OR message LIKE ? OR rule_desc LIKE ?)")
                 like = f"%{search}%"
                 params.extend([like, like, like, like])
+            if date_from is not None:
+                conditions.append("created_at >= ?")
+                params.append(date_from)
+            if date_to is not None:
+                conditions.append("created_at <= ? || ' 23:59:59'")
+                params.append(date_to)
 
             where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 

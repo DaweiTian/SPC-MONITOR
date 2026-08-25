@@ -182,7 +182,20 @@ export const AlertsPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [loading, setLoading] = useState(false)
-  const [filter, setFilter] = useState({ severity: '', status: 'pending', product: '', search: '', rule_type: '' })
+
+  // 默认日期范围：最近30天
+  const getDefaultDateRange = () => {
+    const now = new Date()
+    const to = now.toISOString().split('T')[0]
+    const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    return { from, to }
+  }
+
+  const defaultRange = getDefaultDateRange()
+  const [filter, setFilter] = useState({
+    severity: '', status: 'pending', product: '', search: '', rule_type: '',
+    date_from: defaultRange.from, date_to: defaultRange.to
+  })
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -206,15 +219,19 @@ export const AlertsPage: React.FC = () => {
     }).catch(console.error)
   }, [])
 
-  // 总览数据：不受筛选条件影响，用于统计卡片和图表
+  // 总览数据：用于统计卡片和图表（受日期筛选影响）
   const fetchOverview = useCallback(async () => {
     try {
-      const data = await api.getAlerts({ page: 1, page_size: 500 })
+      const data = await api.getAlerts({
+        page: 1, page_size: 500,
+        date_from: filter.date_from || undefined,
+        date_to: filter.date_to || undefined,
+      })
       setOverviewAlerts(data?.alerts || [])
     } catch (e) {
       console.error('获取总览数据失败:', e)
     }
-  }, [])
+  }, [filter.date_from, filter.date_to])
 
   useEffect(() => { fetchOverview() }, [fetchOverview])
 
@@ -234,6 +251,8 @@ export const AlertsPage: React.FC = () => {
         product_code: filter.product || undefined,
         rule_type: filter.rule_type || undefined,
         search: debouncedSearch || undefined,
+        date_from: filter.date_from || undefined,
+        date_to: filter.date_to || undefined,
         page,
         page_size: pageSize,
       })
@@ -244,7 +263,7 @@ export const AlertsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [filter.severity, filter.status, filter.product, filter.rule_type, debouncedSearch, page, pageSize])
+  }, [filter.severity, filter.status, filter.product, filter.rule_type, filter.date_from, filter.date_to, debouncedSearch, page, pageSize])
 
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
@@ -381,6 +400,24 @@ export const AlertsPage: React.FC = () => {
 
       {/* ---- 筛选栏 ---- */}
       <div className={styles.filterBar}>
+        <div className={styles.filterGroup}>
+          <label className={styles.filterLabel}>日期范围：</label>
+          <input
+            type="date"
+            className={styles.filterDateInput}
+            value={filter.date_from}
+            onChange={e => setFilter(f => ({ ...f, date_from: e.target.value }))}
+            aria-label="开始日期"
+          />
+          <span className={styles.filterDateSep}>至</span>
+          <input
+            type="date"
+            className={styles.filterDateInput}
+            value={filter.date_to}
+            onChange={e => setFilter(f => ({ ...f, date_to: e.target.value }))}
+            aria-label="结束日期"
+          />
+        </div>
         <select className={styles.filterSelect} value={filter.severity} onChange={(e) => setFilter({ ...filter, severity: e.target.value })} aria-label="筛选严重程度">
           <option value="">全部严重程度</option>
           <option value="CRITICAL">严重警告</option>
@@ -408,7 +445,11 @@ export const AlertsPage: React.FC = () => {
           onChange={(e) => setSearchInput(e.target.value)}
           aria-label="搜索预警"
         />
-        <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '', rule_type: '' }); setSearchInput('') }}>重置</button>
+        <button className={styles.filterResetBtn} onClick={() => {
+          const range = getDefaultDateRange()
+          setFilter({ severity: '', status: 'pending', product: '', search: '', rule_type: '', date_from: range.from, date_to: range.to })
+          setSearchInput('')
+        }}>重置</button>
         {selected.size > 0 && (
           <button className={styles.batchBtn} onClick={() => { setBatchConfirm(true); setBatchAction('confirm') }}>批量处理 ({selected.size})</button>
         )}
