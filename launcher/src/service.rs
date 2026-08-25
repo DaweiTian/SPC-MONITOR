@@ -39,6 +39,7 @@ impl Drop for ServiceManager {
 /// 杀掉占用指定端口的残留进程（Windows）
 #[cfg(target_os = "windows")]
 fn kill_port_occupier(port: u16) {
+    use std::os::windows::process::CommandExt;
     use std::process::Command as StdCommand;
     // netstat 找到占用端口的 PID
     let output = StdCommand::new("netstat")
