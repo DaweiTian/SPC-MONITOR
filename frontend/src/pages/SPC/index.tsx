@@ -660,9 +660,9 @@ export const SPCPage: React.FC = () => {
             {analysisMode === 'stability' ? '检测稳定性监控图 (I Chart)' : '单值控制图 (I Chart)'}
           </div>
           <div className={styles.chartPanelActions}>
-            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.i_chart.ucl.toFixed(3) || '-'}</span>
-            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.i_chart.cl.toFixed(3) || '-'}</span>
-            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.i_chart.lcl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.i_chart?.ucl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.i_chart?.cl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.i_chart?.lcl.toFixed(3) || '-'}</span>
             {analysisMode !== 'stability' && spcData?.spec_limits.usl != null && (
               <span className={`${styles.tag} ${styles.tagCritical}`}>USL: {spcData.spec_limits.usl}</span>
             )}
@@ -692,9 +692,9 @@ export const SPCPage: React.FC = () => {
             移动极差控制图 (MR Chart)
           </div>
           <div className={styles.chartPanelActions}>
-            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.mr_chart.ucl.toFixed(3) || '-'}</span>
-            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.mr_chart.cl.toFixed(3) || '-'}</span>
-            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.mr_chart.lcl ?? 0}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>UCL: {spcData?.mr_chart?.ucl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagInfo}`}>CL: {spcData?.mr_chart?.cl.toFixed(3) || '-'}</span>
+            <span className={`${styles.tag} ${styles.tagSuccess}`}>LCL: {spcData?.mr_chart?.lcl ?? 0}</span>
           </div>
         </div>
         <div className={styles.chartPanelBody}>
