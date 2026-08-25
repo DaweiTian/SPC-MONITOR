@@ -36,6 +36,45 @@ impl Drop for ServiceManager {
     }
 }
 
+/// 杀掉占用指定端口的残留进程（Windows）
+#[cfg(target_os = "windows")]
+fn kill_port_occupier(port: u16) {
+    use std::process::Command as StdCommand;
+    // netstat 找到占用端口的 PID
+    let output = StdCommand::new("netstat")
+        .args(["-ano"])
+        .creation_flags(0x08000000)
+        .output();
+    let Ok(out) = output else { return };
+    let text = String::from_utf8_lossy(&out.stdout);
+    let port_str = format!(":{}", port);
+    let mut pids = Vec::new();
+    for line in text.lines() {
+        if line.contains(&port_str) && (line.contains("LISTENING") || line.contains("TIME_WAIT")) {
+            if let Some(pid_str) = line.split_whitespace().last() {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    if pid > 0 {
+                        pids.push(pid);
+                    }
+                }
+            }
+        }
+    }
+    pids.sort();
+    pids.dedup();
+    for pid in pids {
+        warn!("端口 {} 被进程 {} 占用，尝试终止", port, pid);
+        StdCommand::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .creation_flags(0x08000000)
+            .output()
+            .ok();
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn kill_port_occupier(_port: u16) {}
+
 impl ServiceManager {
     pub fn new(config: &AppConfig) -> Self {
         let backend_exe = Self::find_backend_exe();
@@ -100,6 +139,9 @@ impl ServiceManager {
                 }
             }
         }
+
+        // 启动前清理占用端口的残留进程
+        kill_port_occupier(self.server_port);
 
         let mut cmd = if let Some(ref exe_path) = self.backend_exe {
             // 使用打包的后端 exe
