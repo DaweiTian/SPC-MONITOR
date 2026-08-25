@@ -187,11 +187,11 @@ export const AlertsPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [resolveNote, setResolveNote] = useState('')
-  const [resolveAction, setResolveAction] = useState<'confirm' | 'void_data'>('confirm')
+  const [resolveAction, setResolveAction] = useState<'confirm' | 'void_data' | 'manual_verify'>('confirm')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [batchConfirm, setBatchConfirm] = useState(false)
   const [batchNote, setBatchNote] = useState('')
-  const [batchAction, setBatchAction] = useState<'confirm' | 'void_data'>('confirm')
+  const [batchAction, setBatchAction] = useState<'confirm' | 'void_data' | 'manual_verify'>('confirm')
   const [alertProducts, setAlertProducts] = useState<string[]>([])
   const [alertRules, setAlertRules] = useState<AlertRule[]>([])
 
@@ -457,7 +457,7 @@ export const AlertsPage: React.FC = () => {
                     <td>
                       <span className={styles.testValue}>{alert.test_value != null ? alert.test_value.toFixed(4) : '-'}</span>
                       {(alert.indicator_code || alert.product_code) && (
-                        <button className={styles.spcLink} title="跳转SPC控制图" onClick={() => navigate(`/spc?product=${alert.product_code}&indicator=${alert.indicator_code}`)}>
+                        <button className={styles.spcLink} title="跳转SPC控制图" onClick={() => navigate(`/spc?product=${alert.product_code}&indicator=${alert.source_indicator || alert.indicator_code}`)}>
                           <IconLink />
                         </button>
                       )}
@@ -486,25 +486,67 @@ export const AlertsPage: React.FC = () => {
       </div>
 
       {/* ---- 单条处理弹窗 ---- */}
-      {confirmId && (
-        <div className={styles.modalOverlay} onClick={() => setConfirmId(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="处理预警">
-            <div className={styles.modalTitle}>处理预警</div>
-            <div className={styles.modalBody}>
-              <p>请选择处理方式：</p>
-              <select className={styles.actionSelect} value={resolveAction} onChange={e => setResolveAction(e.target.value as 'confirm' | 'void_data')} aria-label="处理方式">
-                <option value="confirm">确认处理（仅关闭预警）</option>
-                <option value="void_data">作废数据（同时作废关联数据记录）</option>
-              </select>
-              <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} aria-label="处理备注" />
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.modalCancel} onClick={() => setConfirmId(null)}>取消</button>
-              <button className={styles.modalConfirm} onClick={() => handleResolve(confirmId)}>确认处理</button>
+      {confirmId && (() => {
+        const currentAlert = alerts.find(a => a.alert_id === confirmId)
+        return (
+          <div className={styles.modalOverlay} onClick={() => setConfirmId(null)}>
+            <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="处理预警">
+              <div className={styles.modalTitle}>处理预警</div>
+              <div className={styles.modalBody}>
+                {/* 预警详情 */}
+                {currentAlert && (
+                  <div className={styles.alertDetail}>
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>规则类型：</span>
+                      <span>{renderRuleType(currentAlert.rule_type || '')}</span>
+                    </div>
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>严重程度：</span>
+                      <span>{renderSeverity(currentAlert.severity)}</span>
+                    </div>
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>描述：</span>
+                      <span>{currentAlert.rule_desc || currentAlert.message || '-'}</span>
+                    </div>
+                    {currentAlert.test_value != null && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>检测值：</span>
+                        <span>{currentAlert.test_value.toFixed(4)}</span>
+                      </div>
+                    )}
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>建议：</span>
+                      <span className={styles.suggestion}>
+                        {currentAlert.rule_type?.startsWith('prediction_') 
+                          ? '请使用手工法进行验证确认' 
+                          : '请检查生产过程并采取相应措施'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                <p style={{ marginTop: '12px' }}>请选择处理方式：</p>
+                <select className={styles.actionSelect} value={resolveAction} onChange={e => {
+                  const action = e.target.value as 'confirm' | 'void_data' | 'manual_verify'
+                  setResolveAction(action)
+                  if (action === 'manual_verify' && !resolveNote) {
+                    setResolveNote('已通过手工法验证确认')
+                  }
+                }} aria-label="处理方式">
+                  <option value="confirm">确认处理（仅关闭预警）</option>
+                  <option value="manual_verify">手工法验证（已通过手工检测确认）</option>
+                  <option value="void_data">作废数据（同时作废关联数据记录）</option>
+                </select>
+                <textarea className={styles.noteInput} placeholder="处理备注（可选）" value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} aria-label="处理备注" />
+              </div>
+              <div className={styles.modalActions}>
+                <button className={styles.modalCancel} onClick={() => setConfirmId(null)}>取消</button>
+                <button className={styles.modalConfirm} onClick={() => handleResolve(confirmId)}>确认处理</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ---- 批量处理弹窗 ---- */}
       {batchConfirm && (

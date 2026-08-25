@@ -1003,6 +1003,7 @@ def get_cross_indicator_prediction(
             alert["product_code"] = product
             alert["indicator_code"] = target
             alert["indicator_name"] = meta.get("name", target)  # 使用中文名称
+            alert["source_indicator"] = source  # 保存源指标用于SPC链接
 
             # 去重检查：如果已有相同产品+指标+规则类型的待处理报警，则跳过
             if storage is not None:

@@ -25,6 +25,7 @@ export interface Alert {
   severity: 'CRITICAL' | 'WARNING' | 'INFO'
   indicator_code?: string
   indicator_name?: string
+  source_indicator?: string
   product_code?: string
   rule_type?: string
   rule_desc?: string

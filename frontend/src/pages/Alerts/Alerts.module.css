@@ -554,6 +554,36 @@
   margin: 0 0 12px;
 }
 
+.alertDetail {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.detailRow {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.suggestion {
+  color: var(--accent-cyan);
+  font-style: italic;
+}
+
 .actionSelect {
   width: 100%;
   background: var(--bg-secondary);
