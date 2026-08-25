@@ -92,6 +92,15 @@ export interface SPCData {
     severity: string
     violation_points: number[]
   }>
+  chart_type?: 'imr' | 'ewma'
+  ewma_chart?: {
+    values: number[]
+    ucl: number[]
+    lcl: number[]
+    cl: number
+    violations: number[]
+    lambda: number
+  }
 }
 
 export interface CapabilityData {
@@ -194,6 +203,13 @@ export interface PredictionData {
   auto_selected?: boolean
   select_reason?: string
   risk?: Record<string, unknown>
+  trend_analysis?: {
+    p_value: number
+    z: number
+    trend: 'increasing' | 'decreasing' | 'none'
+    sen_slope: number
+    has_trend: boolean
+  }
 }
 
 export interface DataSourceConfig {

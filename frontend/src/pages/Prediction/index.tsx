@@ -38,6 +38,13 @@ interface PredictionResult {
   auto_selected?: boolean
   select_reason?: string
   risk?: RiskData
+  trend_analysis?: {
+    p_value: number
+    z: number
+    trend: 'increasing' | 'decreasing' | 'none'
+    sen_slope: number
+    has_trend: boolean
+  }
 }
 
 interface CpkData {
@@ -123,6 +130,12 @@ const IconAlertTriangle = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 48, height: 48 }}>
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
     <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+)
+const IconTrend = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
   </svg>
 )
 
@@ -813,6 +826,45 @@ export const PredictionPage: React.FC = () => {
           </div>
           <div className={`${styles.kpiTrend} ${styles.kpiTrendFlat}`}>
             {result?.accuracy.mape != null && result.accuracy.mape < 5 ? '参考值' : '等待数据'}
+          </div>
+        </div>
+
+        {/* Mann-Kendall Trend Analysis Card */}
+        <div className={`${styles.kpiCard}`} style={{
+          borderLeft: result?.trend_analysis
+            ? `3px solid ${result.trend_analysis.trend === 'increasing' ? '#10b981' : result.trend_analysis.trend === 'decreasing' ? '#ef4444' : '#9ca3af'}`
+            : undefined,
+        }}>
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+            background: result?.trend_analysis
+              ? (result.trend_analysis.trend === 'increasing' ? 'var(--gradient-green)' : result.trend_analysis.trend === 'decreasing' ? '#ef4444' : '#9ca3af')
+              : 'var(--gradient-purple)',
+          }} />
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>趋势分析</span>
+            <div className={styles.kpiIcon}><IconTrend /></div>
+          </div>
+          <div className={styles.kpiValue} style={{
+            color: result?.trend_analysis
+              ? (result.trend_analysis.trend === 'increasing' ? '#10b981' : result.trend_analysis.trend === 'decreasing' ? '#ef4444' : '#9ca3af')
+              : undefined,
+          }}>
+            {result?.trend_analysis
+              ? (result.trend_analysis.trend === 'increasing' ? '↑ 上升' : result.trend_analysis.trend === 'decreasing' ? '↓ 下降' : '→ 无趋势')
+              : '--'}
+          </div>
+          <div className={`${styles.kpiTrend} ${styles.kpiTrendFlat}`} style={{ fontSize: 11 }}>
+            {result?.trend_analysis ? (
+              <>
+                <span>p={result.trend_analysis.p_value.toFixed(4)} {
+                  result.trend_analysis.p_value < 0.01 ? '***' :
+                  result.trend_analysis.p_value < 0.05 ? '**' :
+                  result.trend_analysis.p_value < 0.1 ? '*' : 'n.s.'
+                }</span>
+                <span style={{ marginLeft: 8 }}>斜率={result.trend_analysis.sen_slope.toFixed(4)}</span>
+              </>
+            ) : '等待预测'}
           </div>
         </div>
       </div>
