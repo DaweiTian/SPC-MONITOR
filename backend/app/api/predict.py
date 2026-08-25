@@ -287,6 +287,58 @@ def _adf_test(values: np.ndarray):
         return 1.0, False
 
 
+def _mann_kendall_test(values: np.ndarray) -> dict:
+    """Mann-Kendall 趋势检验 + Sen 斜率估计."""
+    from scipy import stats as sp_stats
+
+    values = np.array(values, dtype=float)
+    n = len(values)
+    if n < 4:
+        return {"p_value": 1.0, "z": 0.0, "trend": "none", "sen_slope": 0.0, "has_trend": False}
+
+    # Sub-sample for large n
+    if n > 500:
+        indices = np.linspace(0, n - 1, 500, dtype=int)
+        sampled = values[indices]
+    else:
+        sampled = values
+    nn = len(sampled)
+
+    # S statistic (vectorized)
+    s = 0
+    for i in range(nn - 1):
+        s += np.sum(np.sign(sampled[i + 1:] - sampled[i]))
+
+    # Variance and Z
+    var_s = nn * (nn - 1) * (2 * nn + 5) / 18
+    if s > 0:
+        z = (s - 1) / np.sqrt(var_s)
+    elif s < 0:
+        z = (s + 1) / np.sqrt(var_s)
+    else:
+        z = 0.0
+
+    p_value = 2 * (1 - sp_stats.norm.cdf(abs(z)))
+    has_trend = p_value < 0.05
+    trend = "increasing" if z > 0 else "decreasing" if z < 0 else "none"
+
+    # Sen slope
+    slopes = []
+    for i in range(nn - 1):
+        diffs = sampled[i + 1:] - sampled[i]
+        j_indices = np.arange(1, nn - i)
+        slopes.extend((diffs / j_indices).tolist())
+    sen_slope = float(np.median(slopes)) if slopes else 0.0
+
+    return {
+        "p_value": round(float(p_value), 6),
+        "z": round(float(z), 4),
+        "trend": trend,
+        "sen_slope": round(float(sen_slope), 6),
+        "has_trend": bool(has_trend),
+    }
+
+
 def _auto_select_d(values: np.ndarray, horizon: int):
     """Dual-fit d=0/d=1, pick lower MASE. Returns (best_d, reason)."""
     p_value, is_stationary = _adf_test(values)
@@ -318,12 +370,14 @@ def _auto_select_d(values: np.ndarray, horizon: int):
 
 
 def _auto_select_model(values: np.ndarray, horizon: int):
-    """ETS vs ARIMA auto-selection. Returns (model_name, reason)."""
+    """ETS vs ARIMA auto-selection. Returns (model_name, reason, mk_result)."""
+    mk_result = _mann_kendall_test(values)
+
     split = int(len(values) * 0.8)
     train = values[:split]
     actual = values[split:]
     if len(actual) < 2:
-        return "ets", "insufficient validation data"
+        return "ets", "insufficient validation data", mk_result
 
     ets_preds, _, _ = _ets_forecast(train, len(actual))
     ets_mase = _calc_mase(actual, np.array(ets_preds[:len(actual)]))
@@ -333,9 +387,9 @@ def _auto_select_model(values: np.ndarray, horizon: int):
     arima_mase = _calc_mase(actual, np.array(arima_preds[:len(actual)]))
 
     if ets_mase <= arima_mase:
-        return "ets", f"ETS MASE={ets_mase:.4f} < ARIMA(d={best_d}) MASE={arima_mase:.4f}"
+        return "ets", f"ETS MASE={ets_mase:.4f} < ARIMA(d={best_d}) MASE={arima_mase:.4f}", mk_result
     else:
-        return f"arima_d{best_d}", f"ARIMA(d={best_d}) MASE={arima_mase:.4f} < ETS MASE={ets_mase:.4f}; {d_reason}"
+        return f"arima_d{best_d}", f"ARIMA(d={best_d}) MASE={arima_mase:.4f} < ETS MASE={ets_mase:.4f}; {d_reason}", mk_result
 
 
 def _run_forecast(model_name: str, values: np.ndarray, horizon: int):
@@ -539,15 +593,17 @@ def forecast(
 
     if model_lower == "auto":
         auto_selected = True
-        selected_model, select_reason = _auto_select_model(values, horizon)
+        selected_model, select_reason, mk_result = _auto_select_model(values, horizon)
         model_lower = selected_model
         val_preds, _, _ = _run_forecast(model_lower, train, len(actual))
-    elif model_lower == "ets":
-        val_preds, _, _ = _ets_forecast(train, len(actual))
-    elif model_lower == "ma":
-        val_preds, _, _ = _ma_forecast(train, len(actual))
     else:
-        val_preds, _, _ = _arima_forecast(train, len(actual))
+        mk_result = _mann_kendall_test(values)
+        if model_lower == "ets":
+            val_preds, _, _ = _ets_forecast(train, len(actual))
+        elif model_lower == "ma":
+            val_preds, _, _ = _ma_forecast(train, len(actual))
+        else:
+            val_preds, _, _ = _arima_forecast(train, len(actual))
 
     accuracy = _calc_accuracy(actual, np.array(val_preds[:len(actual)]))
 
@@ -609,6 +665,7 @@ def forecast(
             "auto_selected": auto_selected,
             "select_reason": select_reason,
             "risk": risk,
+            "trend_analysis": mk_result,
         },
     })
     _cache.set(cache_key, result)
@@ -648,7 +705,7 @@ def compare_models(
             results.append({"model": m, "mase": None, "direction_acc": None})
 
     # Auto selection
-    auto_model, auto_reason = _auto_select_model(values, horizon)
+    auto_model, auto_reason, _ = _auto_select_model(values, horizon)
 
     # Mark the recommended model
     for r in results:
@@ -729,7 +786,7 @@ def risk_breach(
 
     model_lower = model.lower()
     if model_lower == "auto":
-        selected_model, _ = _auto_select_model(values, horizon)
+        selected_model, _, _ = _auto_select_model(values, horizon)
         model_lower = selected_model
 
     predictions, upper, lower = _run_forecast(model_lower, values, horizon)
