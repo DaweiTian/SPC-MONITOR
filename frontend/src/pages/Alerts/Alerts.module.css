@@ -531,17 +531,20 @@
 .modalBox {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-  width: 400px;
+  border-radius: 16px;
+  padding: 28px;
+  width: 560px;
   max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .modalTitle {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modalBody {
@@ -555,102 +558,115 @@
 }
 
 .alertDetail {
-  background: var(--bg-secondary);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
 }
 
 .detailRow {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border-color);
 }
 
 .detailRow:last-child {
   margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .detailLabel {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
-  min-width: 80px;
+  min-width: 90px;
   flex-shrink: 0;
 }
 
 .suggestion {
   color: var(--accent-cyan);
-  font-style: italic;
+  font-weight: 500;
 }
 
 .actionSelect {
   width: 100%;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text-primary);
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 10px 14px;
+  font-size: 14px;
   outline: none;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   appearance: auto;
   cursor: pointer;
+  transition: border-color 0.2s;
 }
 
 .actionSelect:focus {
   border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 }
 
 .noteInput {
   width: 100%;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text-primary);
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 10px 14px;
+  font-size: 14px;
   outline: none;
   resize: vertical;
   font-family: inherit;
+  transition: border-color 0.2s;
 }
 
 .noteInput:focus {
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 }
 
 .modalActions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
 }
 
 .modalCancel {
   background: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text-secondary);
-  padding: 6px 16px;
-  font-size: 13px;
+  padding: 10px 24px;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .modalCancel:hover {
   border-color: var(--text-secondary);
+  background: var(--bg-secondary);
 }
 
 .modalConfirm {
-  background: var(--accent-cyan);
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, #00b4d8 100%);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #0a0e1a;
-  padding: 6px 16px;
-  font-size: 13px;
+  padding: 10px 24px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .modalConfirm:hover {
-  box-shadow: var(--glow-cyan);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
 }
