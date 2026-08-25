@@ -266,13 +266,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>预测模块全面升级：MASE/方向准确率/越限概率</li>
-                <li className={styles.versionTooltipItem}>自动模型选择：ADF检验+双拟合d参数+MASE择优</li>
-                <li className={styles.versionTooltipItem}>风险监控面板：Cpk趋势/漂移检测/CRITICAL弹窗</li>
-                <li className={styles.versionTooltipItem}>关联热力图+GBDT特征重要性分析</li>
-                <li className={styles.versionTooltipItem}>CUSUM漂移检测（支持换料/换罐分段）</li>
-                <li className={styles.versionTooltipItem}>后端5分钟TTL缓存，重复请求提速186倍</li>
-                <li className={styles.versionTooltipItem}>SPC过程状态优化：只看近10点违规，红/橙/绿三色</li>
+                <li className={styles.versionTooltipItem}>EWMA控制图：指数加权移动平均，λ可调(0.05~0.5)，检测小偏移</li>
+                <li className={styles.versionTooltipItem}>Mann-Kendall趋势检验：非参数检验+Sen斜率，集成自动选模型</li>
+                <li className={styles.versionTooltipItem}>预测页面新增趋势分析KPI卡片（方向/p值/斜率）</li>
+                <li className={styles.versionTooltipItem}>EWMA越界点表替换Nelson规则表，显示越界详情</li>
+                <li className={styles.versionTooltipItem}>修复EWMA/I-MR切换崩溃、λ滑块刷屏、趋势数据空白等问题</li>
               </ul>
             </div>
           </span>
