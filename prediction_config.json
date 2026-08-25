@@ -4,8 +4,12 @@
       "source_indicator": "fat",
       "coefficient": 0.623,
       "enabled": true,
-      "alert_threshold": 0.10,
-      "alert_enabled": true
+      "alert_threshold": 0.1,
+      "alert_enabled": true,
+      "usl": null,
+      "lsl": null,
+      "target": null,
+      "unit": "g/100g"
     }
   },
   "砖草莓味学生奶": {
@@ -13,8 +17,12 @@
       "source_indicator": "fat",
       "coefficient": 0.623,
       "enabled": true,
-      "alert_threshold": 0.10,
-      "alert_enabled": true
+      "alert_threshold": 0.1,
+      "alert_enabled": true,
+      "usl": null,
+      "lsl": null,
+      "target": null,
+      "unit": "g/100g"
     }
   },
   "砖高钙低脂奶": {
@@ -22,8 +30,12 @@
       "source_indicator": "fat",
       "coefficient": 0.6277,
       "enabled": true,
-      "alert_threshold": 0.10,
-      "alert_enabled": true
+      "alert_enabled": true,
+      "alert_threshold": 0.1,
+      "usl": 1.1,
+      "lsl": null,
+      "target": 1.5,
+      "unit": "g/100g"
     }
   },
   "金典纯+酸": {
@@ -31,8 +43,12 @@
       "source_indicator": "fat",
       "coefficient": 0.6277,
       "enabled": true,
-      "alert_threshold": 0.10,
-      "alert_enabled": true
+      "alert_threshold": 0.1,
+      "alert_enabled": true,
+      "usl": null,
+      "lsl": null,
+      "target": null,
+      "unit": "g/100g"
     }
   },
   "屋顶包安慕希": {
@@ -40,8 +56,12 @@
       "source_indicator": "fat",
       "coefficient": 0.6232,
       "enabled": true,
-      "alert_threshold": 0.10,
-      "alert_enabled": true
+      "alert_threshold": 0.1,
+      "alert_enabled": true,
+      "usl": null,
+      "lsl": null,
+      "target": null,
+      "unit": "g/100g"
     }
   }
 }

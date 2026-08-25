@@ -197,12 +197,16 @@ export const ConfigPage: React.FC = () => {
   const [newRemarkKeyword, setNewRemarkKeyword] = useState('')
   const [productCategories, setProductCategories] = useState<Record<string, string>>({})
   const [predictionCategories, setPredictionCategories] = useState<Record<string, { name: string; k: number }>>({})
-  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>>>({})
+  const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }>>>({})
   const [selectedCategory, setSelectedCategory] = useState('')
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
   const [alertEnabled, setAlertEnabled] = useState(false)
   const [alertThreshold, setAlertThreshold] = useState('10')
+  const [predUsl, setPredUsl] = useState('')
+  const [predLsl, setPredLsl] = useState('')
+  const [predTarget, setPredTarget] = useState('')
+  const [predUnit, setPredUnit] = useState('')
   const [productSearch, setProductSearch] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; productId: string }>({ show: false, productId: '' })
   const { addToast } = useToast()
@@ -571,7 +575,7 @@ export const ConfigPage: React.FC = () => {
 
     // Load category and prediction config
     setSelectedCategory(productCategories[product.code] || '')
-    const prodPred = predictionConfig[product.code] || {} as Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>
+    const prodPred = predictionConfig[product.code] || {} as Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }>
     const satFatCfg = prodPred.saturated_fat
     setPredictSaturatedFat(satFatCfg?.enabled || false)
     if (satFatCfg?.coefficient != null) {
@@ -584,6 +588,11 @@ export const ConfigPage: React.FC = () => {
     // Load alert settings
     setAlertEnabled(satFatCfg?.alert_enabled ?? false)
     setAlertThreshold(satFatCfg?.alert_threshold != null ? (satFatCfg.alert_threshold * 100).toString() : '10')
+    // Load prediction spec limits
+    setPredUsl(satFatCfg?.usl?.toString() || '')
+    setPredLsl(satFatCfg?.lsl?.toString() || '')
+    setPredTarget(satFatCfg?.target?.toString() || '')
+    setPredUnit(satFatCfg?.unit || '')
 
     setShowProductDialog(true)
   }
@@ -702,7 +711,7 @@ export const ConfigPage: React.FC = () => {
     }
 
     // Save prediction config (source→target with user-configured coefficient)
-    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }> = {}
+    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }> = {}
     if (predictSaturatedFat) {
       predIndicators.saturated_fat = {
         source_indicator: 'fat',
@@ -710,6 +719,10 @@ export const ConfigPage: React.FC = () => {
         enabled: true,
         alert_enabled: alertEnabled,
         alert_threshold: parseFloat(alertThreshold) / 100 || 0.10,
+        usl: predUsl !== '' ? parseFloat(predUsl) : null,
+        lsl: predLsl !== '' ? parseFloat(predLsl) : null,
+        target: predTarget !== '' ? parseFloat(predTarget) : null,
+        unit: predUnit || null,
       }
     }
     try {
@@ -2035,30 +2048,60 @@ export const ConfigPage: React.FC = () => {
                         系数值可在帮助说明页面查阅参考
                       </div>
 
-                      {/* USL/LSL Display */}
-                      {(() => {
-                        const satFatSpec = indicatorSpecs.find(s => s.indicator_code === 'saturated_fat')
-                        if (satFatSpec && (satFatSpec.usl || satFatSpec.lsl)) {
-                          return (
-                            <div style={{
-                              marginTop: '10px', padding: '8px 10px',
-                              background: 'var(--bg-primary)', borderRadius: '4px',
-                              border: '1px dashed var(--border-color)',
-                            }}>
-                              <div style={{ fontWeight: 500, marginBottom: '4px' }}>规格限 (Spec Limits)</div>
-                              <div style={{ display: 'flex', gap: '16px' }}>
-                                {satFatSpec.usl && (
-                                  <span>USL: <strong>{satFatSpec.usl}</strong> {satFatSpec.unit || 'g/100g'}</span>
-                                )}
-                                {satFatSpec.lsl && (
-                                  <span>LSL: <strong>{satFatSpec.lsl}</strong> {satFatSpec.unit || 'g/100g'}</span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
+                      {/* Prediction Spec Limits - Editable */}
+                      <div style={{
+                        marginTop: '10px', padding: '8px 10px',
+                        background: 'var(--bg-primary)', borderRadius: '4px',
+                        border: '1px dashed var(--border-color)',
+                      }}>
+                        <div style={{ fontWeight: 500, marginBottom: '8px' }}>规格限与目标值</div>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                            <span>USL:</span>
+                            <input
+                              type="number"
+                              className={styles.formInput}
+                              style={{ width: '80px', padding: '4px 8px' }}
+                              value={predUsl}
+                              onChange={e => setPredUsl(e.target.value)}
+                              placeholder="-"
+                            />
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                            <span>LSL:</span>
+                            <input
+                              type="number"
+                              className={styles.formInput}
+                              style={{ width: '80px', padding: '4px 8px' }}
+                              value={predLsl}
+                              onChange={e => setPredLsl(e.target.value)}
+                              placeholder="-"
+                            />
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                            <span>目标值:</span>
+                            <input
+                              type="number"
+                              className={styles.formInput}
+                              style={{ width: '80px', padding: '4px 8px' }}
+                              value={predTarget}
+                              onChange={e => setPredTarget(e.target.value)}
+                              placeholder="-"
+                            />
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                            <span>单位:</span>
+                            <input
+                              type="text"
+                              className={styles.formInput}
+                              style={{ width: '60px', padding: '4px 8px' }}
+                              value={predUnit}
+                              onChange={e => setPredUnit(e.target.value)}
+                              placeholder="g/100g"
+                            />
+                          </label>
+                        </div>
+                      </div>
 
                       {/* Alert Configuration */}
                       <div style={{

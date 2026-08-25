@@ -450,7 +450,7 @@ export const AlertsPage: React.FC = () => {
                       )}
                     </td>
                     <td>{getProductName(alert.product_code || '')}</td>
-                    <td>{getIndicatorName(alert.indicator_code || '')}</td>
+                    <td>{alert.indicator_name || getIndicatorName(alert.indicator_code || '')}</td>
                     <td>{renderSeverity(alert.severity)}</td>
                     <td>{renderRuleType(alert.rule_type || '')}</td>
                     <td>{alert.rule_desc || alert.message || '-'}</td>

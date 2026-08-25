@@ -994,17 +994,36 @@ def get_cross_indicator_prediction(
     alert = None
     if target_cfg.get("alert_enabled", False) and latest_predicted is not None:
         threshold = target_cfg.get("alert_threshold", 0.10)
-        usl, lsl = _get_spec_limits(product, target)
+        # Read usl/lsl from prediction_config instead of spec_limits.json
+        usl = target_cfg.get("usl")
+        lsl = target_cfg.get("lsl")
         alert = check_prediction_alert(latest_predicted, usl, lsl, threshold)
 
         if alert:
             alert["product_code"] = product
             alert["indicator_code"] = target
+            alert["indicator_name"] = meta.get("name", target)  # 使用中文名称
+
+            # 去重检查：如果已有相同产品+指标+规则类型的待处理报警，则跳过
             if storage is not None:
                 try:
-                    storage.save_alert(alert)
+                    existing = storage.get_alerts(
+                        status="pending",
+                        product_code=product,
+                        rule_type=alert["rule_type"],
+                        limit=1,
+                    )
+                    if existing.get("total", 0) > 0:
+                        logger.info(f"Skipping duplicate prediction alert for {product}/{target}")
+                        alert = None  # 跳过重复报警
                 except Exception as e:
-                    logger.warning(f"Failed to save prediction alert: {e}")
+                    logger.warning(f"Failed to check duplicate alerts: {e}")
+
+        if alert and storage is not None:
+            try:
+                storage.save_alert(alert)
+            except Exception as e:
+                logger.warning(f"Failed to save prediction alert: {e}")
 
             # WebSocket推送
             try:

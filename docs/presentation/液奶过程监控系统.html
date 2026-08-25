@@ -346,7 +346,7 @@
     <div class="meta-row">
       <span><i class="dot"></i>版本 v1.6.0</span>
       <span><i class="dot"></i>技术汇报</span>
-      <span><i class="dot"></i>中心实验室</span>
+      <span><i class="dot"></i>液奶中心实验室</span>
     </div>
   </div>
 </header>
@@ -480,12 +480,9 @@
         <span class="cc-label">BEFORE</span>
         <h4>传统模式</h4>
         <ul>
-          <li>操作员定期手动查看仪器数据，手工记录到表格</li>
           <li>质量异常依赖班后人工分析，发现问题时已批量产出</li>
-          <li>FT1、FT120、FTA 各品牌仪器数据各自独立，无法关联</li>
           <li>仅靠成品检验把关，缺少过程控制和能力评估</li>
           <li>无法预测质量走势，工艺漂移发现滞后</li>
-          <li>规格限、告警规则等调整需修改数据库或代码</li>
           <li>质量分析报告依赖人工编写，耗时且易遗漏</li>
           <li>不同产线/班次的质量数据缺乏统一视图</li>
         </ul>
@@ -498,9 +495,7 @@
           <li>SPC 判异规则实时监控，异常 5 分钟内自动告警推送</li>
           <li>I-MR 控制图 + Cpk 能力指数，过程质量一目了然</li>
           <li>ETS/ARIMA 预测模型自动选模，越限概率分级预警</li>
-          <li>17+ 配置项运行时热更新，零停机调整参数</li>
-          <li>ECharts 交互式图表，支持在线钻取和数据探索</li>
-          <li>桌面原生应用常驻系统托盘，原生通知和声音告警</li>
+          <li>桌面原生应用常驻系统托盘，过程监测异常趋势立即通知和声音告警</li>
         </ul>
       </div>
     </div>
@@ -931,7 +926,7 @@
         </div>
       </div>
       <div class="feature-body">
-        <p>基于 Tauri v2 (Rust) 构建的桌面原生应用，安装包体积 &lt;10MB，内存占用远低于 Electron 方案。提供系统托盘常驻（最小化到托盘不退出）、原生系统通知推送、开机自启动管理、后端进程生命周期管理（自动启动/停止 Python 后端服务）、声音告警（Web Audio API 合成提示音）等原生能力。</p>
+        <p>基于 Tauri v2 (Rust) 构建的桌面原生应用，安装包体积 &lt;20MB，内存占用远低于 Electron 方案。提供系统托盘常驻（最小化到托盘不退出）、原生系统通知推送、开机自启动管理、后端进程生命周期管理（自动启动/停止 Python 后端服务）、声音告警（Web Audio API 合成提示音）等原生能力。</p>
         <ul class="feature-list">
           <li><strong>系统托盘</strong> &mdash; 最小化到托盘，双击恢复窗口</li>
           <li><strong>原生通知</strong> &mdash; 系统级弹窗通知，不依赖浏览器权限</li>
@@ -1044,16 +1039,8 @@
         <div class="rm-desc">在现有功能基础上深化能力、优化体验，覆盖更多分析场景和使用终端。</div>
         <div class="rm-items">
           <div class="rm-item">
-            <strong>多品种并行监控仪表盘</strong>
-            支持产线级总览，一屏查看所有产线的质量状况，快速定位问题产线
-          </div>
-          <div class="rm-item">
             <strong>告警规则引擎升级</strong>
             支持自定义组合条件和阈值联动，如"Cpk &lt; 1.33 且连续 3 点下降"触发升级告警
-          </div>
-          <div class="rm-item">
-            <strong>移动端适配 (PWA)</strong>
-            响应式 Web 适配手机端，支持移动端告警推送和快速处置
           </div>
           <div class="rm-item">
             <strong>SPC 图表扩展</strong>
@@ -1148,7 +1135,7 @@
     <p style="font-size:18px; color: var(--text); font-weight: 600;">让液奶质量管控从经验驱动迈向数据智能</p>
     <p style="margin-top: 20px;">全面监控 &bull; 智能预测 &bull; 实时告警 &bull; 持续演进</p>
     <div class="footer-meta">
-      SPC-MONITOR v1.5.4 &nbsp;&bull;&nbsp; 质量管控中心 &nbsp;&bull;&nbsp; 技术汇报
+      SPC-MONITOR v1.6.0 &nbsp;&bull;&nbsp; 液奶中心实验室 &nbsp;&bull;&nbsp; 技术汇报
     </div>
   </div>
 </footer>

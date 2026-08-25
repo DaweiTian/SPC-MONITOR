@@ -1303,6 +1303,11 @@ def update_prediction_config(product_code: str, indicators: dict):
                 raise HTTPException(400, "报警阈值必须在0-1之间")
         cfg.setdefault("alert_threshold", 0.10)
         cfg.setdefault("alert_enabled", False)
+        # Handle new spec limit fields
+        cfg.setdefault("usl", None)
+        cfg.setdefault("lsl", None)
+        cfg.setdefault("target", None)
+        cfg.setdefault("unit", None)
 
     data[product_code] = indicators
     success = _save_json_config(PREDICTION_CONFIG_FILE, data)

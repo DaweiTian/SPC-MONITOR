@@ -76,6 +76,7 @@ class OnlineStorage:
                     alert_type TEXT NOT NULL,
                     severity TEXT NOT NULL DEFAULT 'warning',
                     indicator_code TEXT,
+                    indicator_name TEXT,
                     product_code TEXT,
                     rule_type TEXT,
                     rule_desc TEXT,
@@ -251,16 +252,23 @@ class OnlineStorage:
 
     def save_alert(self, alert: dict[str, Any]) -> int:
         with self._connection() as conn:
+            # 确保 indicator_name 列存在
+            try:
+                conn.execute("ALTER TABLE alerts ADD COLUMN indicator_name TEXT")
+            except sqlite3.OperationalError:
+                pass  # 列已存在
+            
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO alerts
-                   (alert_id, alert_type, severity, indicator_code, product_code,
+                   (alert_id, alert_type, severity, indicator_code, indicator_name, product_code,
                     rule_type, rule_desc, test_value, control_limit, message, detail, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     alert.get("alert_id"),
                     alert.get("alert_type", "spc_violation"),
                     alert.get("severity", "warning"),
                     alert.get("indicator_code"),
+                    alert.get("indicator_name"),
                     alert.get("product_code"),
                     alert.get("rule_type"),
                     alert.get("rule_desc"),
