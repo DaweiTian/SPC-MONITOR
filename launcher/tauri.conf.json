@@ -1,6 +1,6 @@
 {
   "productName": "过程SPC监控平台",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",

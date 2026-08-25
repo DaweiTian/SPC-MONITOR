@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.6.1] - 2026-08-23
+
+### Added
+
+- **EWMA 控制图** `GET /spc/{product}/{indicator}?chart_type=ewma`: 指数加权移动平均控制图，支持 λ 滑块调参（0.05~0.5，默认 0.2），检测 0.5σ~1.5σ 小偏移，与 I-MR 图互补
+- **EWMA 越界点表**: EWMA 模式下替换 Nelson 规则表，显示越界点的序号、时间、检测值、EWMA 值、控制限、状态
+- **Mann-Kendall 趋势检验**: 非参数趋势检验 + Sen 斜率估计，集成到预测模块自动模型选择，所有预测模型均返回 `trend_analysis` 字段
+- **趋势分析 KPI 卡片**: 预测页面新增趋势方向（上升/下降/无趋势）、p 值显著性标注（***、**、*、n.s.）、Sen 斜率
+
+### Fixed
+
+- SPC 页面切换 EWMA/I-MR tab 时 `i_chart is undefined` 崩溃
+- SPC 页面 I-MR 标签显示增加 `i_chart`/`mr_chart` 可选链，防止竞态条件
+- λ 滑块快速拖动时 Axios `CanceledError` 日志刷屏（静默忽略取消请求）
+- 预测页面趋势分析卡片数据空白（`setResult` 漏存 `trend_analysis` 字段）
+- 预测页面 5 个 KPI 卡片布局调整为同一行（grid 从 4 列改为 5 列）
+
 ## [1.6.0] - 2026-08-24
 
 ### Added
