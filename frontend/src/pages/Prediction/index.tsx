@@ -307,6 +307,7 @@ export const PredictionPage: React.FC = () => {
           auto_selected: predRes.data.auto_selected,
           select_reason: predRes.data.select_reason,
           risk: predRes.data.risk,
+          trend_analysis: predRes.data.trend_analysis,
         })
 
         // Task 10 & 12: Parallel fetches for risk, correlation, feature importance, model comparison
