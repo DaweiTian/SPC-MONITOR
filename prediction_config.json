@@ -3,28 +3,45 @@
     "saturated_fat": {
       "source_indicator": "fat",
       "coefficient": 0.623,
-      "enabled": true
+      "enabled": true,
+      "alert_threshold": 0.10,
+      "alert_enabled": true
     }
   },
   "砖草莓味学生奶": {
     "saturated_fat": {
       "source_indicator": "fat",
       "coefficient": 0.623,
-      "enabled": true
+      "enabled": true,
+      "alert_threshold": 0.10,
+      "alert_enabled": true
     }
   },
   "砖高钙低脂奶": {
     "saturated_fat": {
       "source_indicator": "fat",
       "coefficient": 0.6277,
-      "enabled": true
+      "enabled": true,
+      "alert_threshold": 0.10,
+      "alert_enabled": true
     }
   },
   "金典纯+酸": {
     "saturated_fat": {
       "source_indicator": "fat",
       "coefficient": 0.6277,
-      "enabled": true
+      "enabled": true,
+      "alert_threshold": 0.10,
+      "alert_enabled": true
+    }
+  },
+  "屋顶包安慕希": {
+    "saturated_fat": {
+      "source_indicator": "fat",
+      "coefficient": 0.6232,
+      "enabled": true,
+      "alert_threshold": 0.10,
+      "alert_enabled": true
     }
   }
 }

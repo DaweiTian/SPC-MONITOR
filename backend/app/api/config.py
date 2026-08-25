@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Callable
 from datetime import datetime
 import json
@@ -1292,6 +1292,16 @@ def get_prediction_config():
 def update_prediction_config(product_code: str, indicators: dict):
     """更新某产品的交叉预测指标配置"""
     data = _load_json_config(PREDICTION_CONFIG_FILE, {})
+
+    # 验证并设置默认值
+    for indicator, cfg in indicators.items():
+        if "alert_threshold" in cfg:
+            threshold = cfg["alert_threshold"]
+            if not (0 < threshold <= 1):
+                raise HTTPException(400, "报警阈值必须在0-1之间")
+        cfg.setdefault("alert_threshold", 0.10)
+        cfg.setdefault("alert_enabled", False)
+
     data[product_code] = indicators
     success = _save_json_config(PREDICTION_CONFIG_FILE, data)
     if success:
