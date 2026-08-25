@@ -730,8 +730,59 @@ export const SPCPage: React.FC = () => {
       </div>
       )}
 
-      {/* Nelson Rules Violations */}
-      {spcData?.violations && spcData.violations.length > 0 && (
+      {/* Violations: Nelson Rules (IMR) or EWMA out-of-control points */}
+      {chartType === 'ewma' && spcData?.ewma_chart && spcData.ewma_chart.violations.length > 0 && (
+        <div className={styles.violationsPanel}>
+          <div className={styles.violationsHeader}>
+            <div className={styles.violationsTitle}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              EWMA 越界点 (λ={spcData.ewma_chart.lambda})
+            </div>
+          </div>
+          <div className={styles.violationsBody}>
+            <table className={styles.violationsTable} aria-label="EWMA越界点表">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th>时间</th>
+                  <th>检测值</th>
+                  <th>EWMA 值</th>
+                  <th>控制限</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {spcData.ewma_chart.violations.map(idx => {
+                  const dp = spcData.data_points[idx]
+                  const ewmaVal = spcData.ewma_chart!.values[idx]
+                  const ucl = spcData.ewma_chart!.ucl[idx]
+                  const lcl = spcData.ewma_chart!.lcl[idx]
+                  const isAbove = ewmaVal > ucl
+                  return (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td>
+                      <td>{dp?.time ? formatTime(dp.time) : '-'}</td>
+                      <td>{dp?.value?.toFixed(4) ?? '-'}</td>
+                      <td>{ewmaVal.toFixed(4)}</td>
+                      <td>{isAbove ? `UCL=${ucl.toFixed(4)}` : `LCL=${lcl.toFixed(4)}`}</td>
+                      <td>
+                        <span className={`${styles.tag} ${styles.tagCritical}`}>
+                          {isAbove ? '↑ 超上限' : '↓ 超下限'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {chartType === 'imr' && spcData?.violations && spcData.violations.length > 0 && (
         <div className={styles.violationsPanel}>
           <div className={styles.violationsHeader}>
             <div className={styles.violationsTitle}>
