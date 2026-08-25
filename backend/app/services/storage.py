@@ -398,6 +398,7 @@ class OnlineStorage:
         severity: str | None = None,
         status: str | None = None,
         product_code: str | None = None,
+        rule_type: str | None = None,
         search: str | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -414,6 +415,9 @@ class OnlineStorage:
             if product_code is not None:
                 conditions.append("product_code = ?")
                 params.append(product_code)
+            if rule_type is not None:
+                conditions.append("rule_type = ?")
+                params.append(rule_type)
             if search is not None:
                 conditions.append("(product_code LIKE ? OR indicator_code LIKE ? OR message LIKE ? OR rule_desc LIKE ?)")
                 like = f"%{search}%"

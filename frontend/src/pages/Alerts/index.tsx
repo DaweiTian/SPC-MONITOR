@@ -182,7 +182,7 @@ export const AlertsPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [loading, setLoading] = useState(false)
-  const [filter, setFilter] = useState({ severity: '', status: 'pending', product: '', search: '' })
+  const [filter, setFilter] = useState({ severity: '', status: 'pending', product: '', search: '', rule_type: '' })
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -232,6 +232,7 @@ export const AlertsPage: React.FC = () => {
         severity: filter.severity || undefined,
         status: filter.status || undefined,
         product_code: filter.product || undefined,
+        rule_type: filter.rule_type || undefined,
         search: debouncedSearch || undefined,
         page,
         page_size: pageSize,
@@ -243,12 +244,12 @@ export const AlertsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [filter.severity, filter.status, filter.product, debouncedSearch, page, pageSize])
+  }, [filter.severity, filter.status, filter.product, filter.rule_type, debouncedSearch, page, pageSize])
 
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
   // Reset to page 1 when filter changes (debouncedSearch uses its own effect)
-  useEffect(() => { setPage(1) }, [filter.severity, filter.status, filter.product, debouncedSearch])
+  useEffect(() => { setPage(1) }, [filter.severity, filter.status, filter.product, filter.rule_type, debouncedSearch])
 
   /* ---- 统计（基于总览数据，不受筛选影响） ---- */
   const stats = useMemo(
@@ -395,6 +396,10 @@ export const AlertsPage: React.FC = () => {
           <option value="">全部品项</option>
           {alertProducts.map(p => <option key={p} value={p}>{getProductName(p)}</option>)}
         </select>
+        <select className={styles.filterSelect} value={filter.rule_type} onChange={(e) => setFilter({ ...filter, rule_type: e.target.value })} aria-label="筛选规则类型">
+          <option value="">全部规则类型</option>
+          {alertRules.map(r => <option key={r.rule_type} value={r.rule_type}>{RULE_TYPE_CN[r.rule_type] || r.rule}</option>)}
+        </select>
         <input
           className={styles.filterInput}
           type="text"
@@ -403,7 +408,7 @@ export const AlertsPage: React.FC = () => {
           onChange={(e) => setSearchInput(e.target.value)}
           aria-label="搜索预警"
         />
-        <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '' }); setSearchInput('') }}>重置</button>
+        <button className={styles.filterResetBtn} onClick={() => { setFilter({ severity: '', status: 'pending', product: '', search: '', rule_type: '' }); setSearchInput('') }}>重置</button>
         {selected.size > 0 && (
           <button className={styles.batchBtn} onClick={() => { setBatchConfirm(true); setBatchAction('confirm') }}>批量处理 ({selected.size})</button>
         )}

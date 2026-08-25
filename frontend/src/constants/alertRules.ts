@@ -19,4 +19,6 @@ export const RULE_TYPE_CN: Record<string, string> = {
   nelson_6: 'Nelson规则6',
   nelson_7: 'Nelson规则7',
   nelson_8: 'Nelson规则8',
+  prediction_above_usl: '预测超上限',
+  prediction_below_lsl: '预测超下限',
 }

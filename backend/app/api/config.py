@@ -1151,6 +1151,8 @@ _default_alert_rules = [
     {"id": 8, "rule": "规则8", "description": "连续8个点在1σ以外（混合）", "severity": "INFO", "enabled": False, "rule_type": "nelson_8"},
     {"id": 9, "rule": "CPK预警", "description": "CPK低于目标值", "severity": "WARNING", "enabled": True, "rule_type": "cpk_below_target"},
     {"id": 10, "rule": "规格越限", "description": "检测值超出规格线（USL/LSL）", "severity": "CRITICAL", "enabled": True, "rule_type": "spec_limit_breach"},
+    {"id": 11, "rule": "预测超上限", "description": "预测值将超出规格上限（USL）", "severity": "WARNING", "enabled": True, "rule_type": "prediction_above_usl"},
+    {"id": 12, "rule": "预测超下限", "description": "预测值将超出规格下限（LSL）", "severity": "WARNING", "enabled": True, "rule_type": "prediction_below_lsl"},
 ]
 
 
