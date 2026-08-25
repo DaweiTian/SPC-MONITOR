@@ -3,7 +3,6 @@ import numpy as np
 import json
 import asyncio
 import logging
-from pathlib import Path
 
 from backend.app.core.cache import TTLCache
 
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/predict", tags=["prediction"])
 
 storage = None  # injected from main.py
 
-SPEC_LIMITS_FILE = Path(__file__).resolve().parents[3] / "spec_limits.json"
+SPEC_LIMITS_FILE = "spec_limits.json"
 
 
 def _sanitize(obj):
@@ -63,7 +62,7 @@ def _naive_forecast(values: np.ndarray, horizon: int):
 def _calc_mase(actual: np.ndarray, predicted: np.ndarray) -> float:
     """MASE = MAE_model / MAE_naive.  <1 means model beats naive."""
     n = len(actual)
-    naive_pred = np.full(n, actual[0])
+    naive_pred = np.concatenate([[actual[0]], actual[:-1]])
     mae_naive = float(np.mean(np.abs(actual - naive_pred)))
     if mae_naive == 0:
         return 0.0
@@ -638,14 +637,16 @@ def forecast(
     if risk_level == "CRITICAL":
         try:
             from backend.app.api.websocket import broadcast_typed
-            loop = asyncio.get_running_loop()
-            if loop and loop.is_running():
-                asyncio.ensure_future(broadcast_typed('risk_alert', {
-                    'product': product,
-                    'indicator': indicator,
-                    'risk': risk,
-                    'model': model_lower,
-                }))
+            from backend.main import _main_loop
+            if _main_loop is not None:
+                asyncio.run_coroutine_threadsafe(
+                    broadcast_typed('risk_alert', {
+                        'product': product,
+                        'indicator': indicator,
+                        'risk': risk,
+                        'model': model_lower,
+                    }), _main_loop
+                )
         except Exception as e:
             logger.debug(f"WebSocket push failed: {e}")
 
@@ -1095,7 +1096,11 @@ def get_cross_indicator_prediction(
             # WebSocket推送
             try:
                 from backend.app.api.websocket import broadcast_typed
-                asyncio.ensure_future(broadcast_typed('prediction_alert', alert))
+                from backend.main import _main_loop
+                if _main_loop is not None:
+                    asyncio.run_coroutine_threadsafe(
+                        broadcast_typed('prediction_alert', alert), _main_loop
+                    )
             except Exception:
                 pass
 

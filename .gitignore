@@ -184,6 +184,9 @@ backend/build/
 backend/dist/
 backend/*.spec.bak
 
+# Nuitka build output
+ft1-backend-dist/
+
 # Bundled backend in launcher (build artifact)
 launcher/ft1-backend/
 

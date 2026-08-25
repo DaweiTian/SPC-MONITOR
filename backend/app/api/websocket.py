@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from backend.app.core.auth import FT1_API_KEY
-
 router = APIRouter(tags=["WebSocket"])
 
 websocket_clients: Set[WebSocket] = set()
@@ -29,7 +27,8 @@ async def broadcast_typed(msg_type: str, data: dict):
 async def websocket_endpoint(websocket: WebSocket):
     # Accept api_key from header (preferred) or query param (backward compat)
     api_key = websocket.headers.get("x-api-key", websocket.query_params.get("api_key"))
-    if api_key != FT1_API_KEY:
+    from backend.app.core.auth import VALID_API_KEYS
+    if api_key not in VALID_API_KEYS:
         await websocket.close(code=4001, reason="Invalid API key")
         return
     await websocket.accept()

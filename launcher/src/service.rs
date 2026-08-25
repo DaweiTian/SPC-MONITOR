@@ -75,6 +75,12 @@ fn kill_port_occupier(port: u16) {
 #[cfg(not(target_os = "windows"))]
 fn kill_port_occupier(_port: u16) {}
 
+/// 检查端口是否被占用
+fn is_port_in_use(port: u16) -> bool {
+    use std::net::TcpListener;
+    TcpListener::bind(format!("127.0.0.1:{}", port)).is_err()
+}
+
 impl ServiceManager {
     pub fn new(config: &AppConfig) -> Self {
         let backend_exe = Self::find_backend_exe();
@@ -142,6 +148,21 @@ impl ServiceManager {
 
         // 启动前清理占用端口的残留进程
         kill_port_occupier(self.server_port);
+
+        // 等待端口释放（Windows 下进程退出后端口可能仍在 TIME_WAIT）
+        for attempt in 1..=10 {
+            if !is_port_in_use(self.server_port) {
+                break;
+            }
+            if attempt == 10 {
+                warn!("端口 {} 在 10 次尝试后仍被占用，继续尝试启动", self.server_port);
+            } else {
+                info!("等待端口 {} 释放... (尝试 {}/10)", self.server_port, attempt);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                // 再次尝试清理
+                kill_port_occupier(self.server_port);
+            }
+        }
 
         let mut cmd = if let Some(ref exe_path) = self.backend_exe {
             // 使用打包的后端 exe
@@ -322,6 +343,7 @@ mod tests {
                 server_port: port,
                 python_path: "python".to_string(),
                 backend_exe: None,
+                api_key: "test-key".to_string(),
             }
         }
     }

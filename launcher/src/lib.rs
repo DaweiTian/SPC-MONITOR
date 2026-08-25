@@ -114,8 +114,8 @@ pub fn run() {
                                     items.stop.set_enabled(false).ok();
                                 }
                                 was_healthy = false;
-                                // 等待端口释放（Windows TIME_WAIT）
-                                std::thread::sleep(std::time::Duration::from_secs(3));
+                                // 等待端口释放（Windows TIME_WAIT 可能需要数秒）
+                                std::thread::sleep(std::time::Duration::from_secs(5));
                                 if let Err(e) = sm_for_timer.start_server() {
                                     error!("自动重启失败: {}", e);
                                 } else {

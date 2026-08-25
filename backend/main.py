@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
     _main_loop = asyncio.get_running_loop()
     yield
 
-app = FastAPI(title="液奶过程监控系统", version="1.6.0", lifespan=lifespan)
+app = FastAPI(title="液奶过程监控系统", version="1.6.1", lifespan=lifespan)
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
@@ -86,7 +86,7 @@ if _frontend_dist.exists():
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:18080").split(",")
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:18080,tauri://localhost,https://tauri.localhost").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -481,9 +481,6 @@ config_module._switch_collector_func = switch_collector
 # Auto-switch to configured instrument on startup
 def _auto_switch_on_startup():
     """Automatically switch to the configured instrument on startup."""
-    import json
-    import os
-    
     instrument_config_file = "instrument_config.json"
     if os.path.exists(instrument_config_file):
         try:
@@ -492,84 +489,11 @@ def _auto_switch_on_startup():
             current = config.get("current_instrument", "mock")
             if current != "mock":
                 logger.info(f"自动切换到配置的仪器: {current}")
-                
-                # Build new collector without stopping scheduler
-                global collector
-                is_connected = False
-                source = "mock"
-                
-                if current == "ft1":
-                    # FT1 uses SQL Server with 4-table relational structure
-                    db_config_file = "db_config.json"
-                    mapping_file = "db_mapping.json"
-
-                    if os.path.exists(db_config_file) and os.path.exists(mapping_file):
-                        with open(db_config_file, "r", encoding="utf-8") as f:
-                            db_config = json.load(f)
-                        with open(mapping_file, "r", encoding="utf-8") as f:
-                            mapping_config = json.load(f)
-
-                        new_collector = SQLServerCollector.from_config(
-                            db_config=db_config,
-                            mapping_config=mapping_config,
-                            storage=storage,
-                        )
-
-                        if new_collector.test_connection():
-                            collector = new_collector
-                            is_connected = True
-                            source = "sqlserver"
-                            logger.info(f"已自动切换到 {current.upper()} 数据源")
-                        else:
-                            logger.warning(f"SQL Server 连接失败，保持 Mock 数据源")
-                elif current == "fta":
-                    # FTA uses Perten SQL Server database
-                    fta_config_file = "fta_config.json"
-
-                    if os.path.exists(fta_config_file):
-                        with open(fta_config_file, "r", encoding="utf-8") as f:
-                            fta_config = json.load(f)
-
-                        new_collector = FTACollector.from_config(
-                            db_config=fta_config,
-                            storage=storage,
-                        )
-
-                        if new_collector.test_connection():
-                            collector = new_collector
-                            is_connected = True
-                            source = "fta"
-                            logger.info("已自动切换到 FTA 数据源")
-                        else:
-                            logger.warning("FTA 数据库连接失败，保持 Mock 数据源")
-                elif current == "ft120":
-                    # FT120 uses .mdb file
-                    mdb_config_file = "mdb_config.json"
-                    
-                    if os.path.exists(mdb_config_file):
-                        with open(mdb_config_file, "r", encoding="utf-8") as f:
-                            mdb_config = json.load(f)
-                        
-                        new_collector = MDBCollector.from_config(
-                            config=mdb_config,
-                            storage=storage,
-                        )
-                        
-                        if new_collector.test_connection():
-                            collector = new_collector
-                            is_connected = True
-                            source = "mdb"
-                            logger.info("已自动切换到 FT120 数据源")
-                        else:
-                            logger.warning("MDB 文件连接失败，保持 Mock 数据源")
-                
-                # Update all references
-                _update_all_references(source, is_connected, current if is_connected else "mock")
-                
-                # Update modules
-                monitor_module.collector = collector
-                spc_module.collector = collector
-                
+                result = switch_collector(current)
+                if result.get("success"):
+                    logger.info(f"启动时自动切换成功: {result.get('message')}")
+                else:
+                    logger.warning(f"启动时自动切换失败: {result.get('message')}")
         except Exception as e:
             logger.error(f"自动切换仪器失败: {e}")
 
