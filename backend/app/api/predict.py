@@ -960,6 +960,7 @@ def get_cross_indicator_prediction(
     from backend.app.engine.predictor.cross_indicator import (
         TARGET_INDICATOR_META, SOURCE_INDICATOR_META, predict_cross_indicator,
     )
+    from backend.app.engine.predictor.alert_checker import check_prediction_alert
 
     pred_config = _load_json_config(PREDICTION_CONFIG_FILE, {})
 
@@ -977,6 +978,7 @@ def get_cross_indicator_prediction(
     source_data.reverse()
 
     predicted_data = []
+    latest_predicted = None
     for d in source_data:
         src_val = d.get("value")
         if src_val is None:
@@ -986,6 +988,30 @@ def get_cross_indicator_prediction(
             "value": result["predicted_value"],
             "sample_time": d.get("sample_time", ""),
         })
+        latest_predicted = result["predicted_value"]
+
+    # 报警检查
+    alert = None
+    if target_cfg.get("alert_enabled", False) and latest_predicted is not None:
+        threshold = target_cfg.get("alert_threshold", 0.10)
+        usl, lsl = _get_spec_limits(product, target)
+        alert = check_prediction_alert(latest_predicted, usl, lsl, threshold)
+
+        if alert:
+            alert["product_code"] = product
+            alert["indicator_code"] = target
+            if storage is not None:
+                try:
+                    storage.save_alert(alert)
+                except Exception as e:
+                    logger.warning(f"Failed to save prediction alert: {e}")
+
+            # WebSocket推送
+            try:
+                from backend.app.api.websocket import broadcast_typed
+                asyncio.ensure_future(broadcast_typed('prediction_alert', alert))
+            except Exception:
+                pass
 
     return {
         "enabled": True,
@@ -997,4 +1023,5 @@ def get_cross_indicator_prediction(
             "coefficient": coefficient,
             "formula": f"{meta['name']} = {source_meta['name']} × {coefficient:.4f}",
         },
+        "alert": alert,
     }
