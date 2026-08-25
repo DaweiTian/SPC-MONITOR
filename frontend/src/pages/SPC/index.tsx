@@ -163,7 +163,7 @@ export const SPCPage: React.FC = () => {
 
   // I Chart option
   const iChartOption = useMemo<EChartsOption | null>(() => {
-    if (!spcData) return null
+    if (!spcData || !spcData.i_chart) return null
     const { data_points, i_chart, spec_limits } = spcData
     const times = data_points.map(p => formatTime(p.time))
     const values = data_points.map(p => p.value)
@@ -285,7 +285,7 @@ export const SPCPage: React.FC = () => {
 
   // MR Chart option
   const mrChartOption = useMemo<EChartsOption | null>(() => {
-    if (!spcData || mrData.values.length === 0) return null
+    if (!spcData || !spcData.mr_chart || mrData.values.length === 0) return null
     const { mr_chart, data_points } = spcData
     const { ucl, cl } = mr_chart
     const times = mrData.times.map(t => formatTime(t))
