@@ -98,7 +98,7 @@ export const SPCPage: React.FC = () => {
       const data = await api.getSPCData(productCode, indicatorCode, window, filters, mode, chartTypeParam, lambdaParam, { signal })
       setSPCData(data)
     } catch (e: unknown) {
-      if (e instanceof Error && e.name === 'AbortError') return
+      if (e instanceof Error && (e.name === 'AbortError' || e.name === 'CanceledError' || e.message === 'canceled')) return
       console.error('获取SPC数据失败:', e)
     } finally {
       setLoading(false)
