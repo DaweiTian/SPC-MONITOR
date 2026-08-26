@@ -108,7 +108,7 @@ if _frontend_dist.exists():
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:18080,tauri://localhost,https://tauri.localhost").split(",")
+CORS_ORIGINS = os.environ.get("FT1_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:18080,tauri://localhost,http://tauri.localhost,https://tauri.localhost").split(",")
 
 app.add_middleware(
     CORSMiddleware,
