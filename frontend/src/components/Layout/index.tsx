@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { api } from '../../services'
+import { api, websocketService } from '../../services'
 import { useAppContext } from '../../contexts/AppContext'
 import styles from './Layout.module.css'
 
@@ -165,12 +165,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }, [])
 
   useEffect(() => {
+    let prevReachable = false
     const fetchStatus = async () => {
       try {
         // First check if backend is reachable (use Tauri invoke to bypass CORS)
         const isTauri = !!window.__TAURI__
         if (isTauri) {
-          const ok = await window.__TAURI__.core.invoke<boolean>('check_backend_health')
+          const ok = await window.__TAURI__.core.invoke('check_backend_health')
           if (!ok) throw new Error('unhealthy')
         } else {
           const resp = await fetch('/api/health')
@@ -184,8 +185,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           instrument_type: status.instrument_type || 'mock',
           backendReachable: true,
         })
+        // 后端恢复时自动重连 WebSocket
+        if (!prevReachable) {
+          websocketService.reconnect()
+        }
+        prevReachable = true
       } catch {
         setSourceStatus(prev => ({ ...prev, backendReachable: false, connected: false }))
+        prevReachable = false
       }
     }
     fetchStatus()

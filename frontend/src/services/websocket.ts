@@ -8,7 +8,6 @@ class WebSocketService {
   private reconnectDelay = 1000
   private readonly maxReconnectDelay = 30000
   private retryCount = 0
-  private readonly maxRetries = 5
   private waitingForFirstSuccess = false
   private intentionalClose = false
   private unloadBound = false
@@ -98,12 +97,8 @@ class WebSocketService {
           this._stopHeartbeat()
           if (this.intentionalClose) return
           this.retryCount++
-          if (this.retryCount > this.maxRetries) {
-            if (!this.waitingForFirstSuccess) console.log('WebSocket 重连次数超限，停止重连')
-            return
-          }
           if (!this.waitingForFirstSuccess) {
-            console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (${this.retryCount}/${this.maxRetries})`)
+            console.log(`WebSocket 已断开，${this.reconnectDelay / 1000}s 后重连 (第 ${this.retryCount} 次)`)
           }
           this.reconnectTimer = window.setTimeout(() => this._doConnect(), this.reconnectDelay)
           this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
@@ -139,6 +134,19 @@ class WebSocketService {
     }
     this._connected = false
     this.handlers.clear()
+  }
+
+  /** 后端恢复时调用：重置退避，立即重连 */
+  reconnect() {
+    if (this._connected && this.ws && this.ws.readyState === WebSocket.OPEN) return
+    this.intentionalClose = false
+    this.retryCount = 0
+    this.reconnectDelay = 1000
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    this._doConnect()
   }
 
   private _startHeartbeat() {
