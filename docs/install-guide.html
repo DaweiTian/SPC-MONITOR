@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液奶过程监控系统 — 安装使用指南 v1.6.1</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 15px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0b1120;
+    color: #cbd5e1;
+    line-height: 1.8;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .page-wrapper {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    background: #0f172a;
+    border-right: 1px solid #1e293b;
+    padding: 28px 0;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .sidebar-brand {
+    padding: 0 24px 20px;
+    border-bottom: 1px solid #1e293b;
+    margin-bottom: 16px;
+  }
+  .sidebar-brand h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 2px;
+  }
+  .sidebar-brand .ver {
+    font-size: 12px;
+    color: #00d4ff;
+    font-weight: 600;
+  }
+  .sidebar-group {
+    padding: 0 12px;
+    margin-bottom: 8px;
+  }
+  .sidebar-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 8px 12px 4px;
+  }
+  .sidebar a {
+    display: block;
+    padding: 7px 12px;
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: none;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .sidebar a:hover {
+    color: #e2e8f0;
+    background: rgba(0,212,255,0.05);
+  }
+  .sidebar a.active {
+    color: #00d4ff;
+    background: rgba(0,212,255,0.08);
+    border-left-color: #00d4ff;
+    font-weight: 600;
+  }
+
+  /* ── Main Content ── */
+  .main {
+    margin-left: 260px;
+    flex: 1;
+    padding: 40px 48px 80px;
+    max-width: 960px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 48px 0 40px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid #1e293b;
+  }
+  .hero-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    box-shadow: 0 8px 32px rgba(0,212,255,0.25);
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+  }
+  .hero .subtitle {
+    font-size: 16px;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+  .hero-badges {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .badge-cyan { background: rgba(0,212,255,0.08); color: #00d4ff; border-color: rgba(0,212,255,0.2); }
+  .badge-green { background: rgba(16,185,129,0.08); color: #10b981; border-color: rgba(16,185,129,0.2); }
+  .badge-purple { background: rgba(139,92,246,0.08); color: #8b5cf6; border-color: rgba(139,92,246,0.2); }
+  .badge-orange { background: rgba(245,158,11,0.08); color: #f59e0b; border-color: rgba(245,158,11,0.2); }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1e293b;
+  }
+  .section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .section-icon.cyan { background: rgba(0,212,255,0.1); }
+  .section-icon.green { background: rgba(16,185,129,0.1); }
+  .section-icon.purple { background: rgba(139,92,246,0.1); }
+  .section-icon.orange { background: rgba(245,158,11,0.1); }
+  .section-icon.red { background: rgba(239,68,68,0.1); }
+  .section-icon.blue { background: rgba(59,130,246,0.1); }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .section-sub {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00d4ff, #0066ff);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── Requirements Grid ── */
+  .req-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .req-item {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .req-item .icon { font-size: 28px; margin-bottom: 8px; }
+  .req-item .name { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+  .req-item .detail { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+  /* ── Code Block ── */
+  .code-block {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    margin: 14px 0;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+  }
+  .code-header .dots {
+    display: flex;
+    gap: 6px;
+  }
+  .code-header .dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .code-header .dots .r { background: #ef4444; }
+  .code-header .dots .y { background: #f59e0b; }
+  .code-header .dots .g { background: #10b981; }
+  .code-body {
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #e2e8f0;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .code-body .comment { color: #475569; }
+  .code-body .cmd { color: #00d4ff; }
+  .code-body .flag { color: #f59e0b; }
+  .code-body .str { color: #10b981; }
+  .code-body .var { color: #8b5cf6; }
+
+  /* ── Steps ── */
+  .steps {
+    position: relative;
+    padding-left: 32px;
+    margin: 16px 0;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: #1e293b;
+  }
+  .step {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 8px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #00d4ff;
+    border: 3px solid #0b1120;
+    box-shadow: 0 0 0 2px #00d4ff;
+  }
+  .step-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 6px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: #94a3b8;
+  }
+
+  /* ── Table ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 14px 0;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: #1e293b;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #94a3b8;
+    border-bottom: 2px solid #334155;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1e293b;
+    color: #cbd5e1;
+  }
+  tbody tr:hover td { background: rgba(0,212,255,0.03); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Alert Boxes ── */
+  .alert {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 13px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert-tip { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); }
+  .alert-tip .alert-icon { color: #10b981; }
+  .alert-warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+  .alert-warn .alert-icon { color: #f59e0b; }
+  .alert-info { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); }
+  .alert-info .alert-icon { color: #3b82f6; }
+  .alert-danger { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); }
+  .alert-danger .alert-icon { color: #ef4444; }
+
+  /* ── Architecture Diagram ── */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .arch-layer {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 16px 20px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .arch-layer.l1 { border-left-color: #8b5cf6; }
+  .arch-layer.l2 { border-left-color: #3b82f6; }
+  .arch-layer.l3 { border-left-color: #00d4ff; }
+  .arch-layer.l4 { border-left-color: #10b981; }
+  .arch-layer .layer-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .arch-layer.l1 .layer-badge { background: rgba(139,92,246,0.15); color: #8b5cf6; }
+  .arch-layer.l2 .layer-badge { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .arch-layer.l3 .layer-badge { background: rgba(0,212,255,0.15); color: #00d4ff; }
+  .arch-layer.l4 .layer-badge { background: rgba(16,185,129,0.15); color: #10b981; }
+  .arch-layer .layer-tech {
+    font-size: 11px;
+    color: #64748b;
+    padding: 2px 8px;
+    background: rgba(30,41,59,0.8);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .arch-layer .layer-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    flex: 1;
+  }
+  .arch-arrow {
+    text-align: center;
+    color: #334155;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  /* ── Flow Diagram ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    min-width: 90px;
+    text-align: center;
+  }
+  .flow-node .fn-label { font-size: 12px; font-weight: 700; color: #00d4ff; }
+  .flow-node .fn-desc { font-size: 11px; color: #64748b; }
+  .flow-arrow { color: #334155; font-size: 18px; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #0f172a;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: #e2e8f0; background: rgba(0,212,255,0.05); }
+  .tab-btn.active {
+    background: linear-gradient(135deg, #00d4ff, #0066ff);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,212,255,0.25);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── FAQ ── */
+  .faq-item {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+  }
+  .faq-q:hover { background: rgba(0,212,255,0.04); }
+  .faq-q::before { content: 'Q'; color: #00d4ff; font-weight: 800; font-size: 15px; }
+  .faq-q .arrow { margin-left: auto; color: #475569; transition: transform 0.2s; }
+  .faq-item.open .faq-q .arrow { transform: rotate(180deg); }
+  .faq-a {
+    padding: 0 20px 14px 44px;
+    font-size: 13px;
+    color: #94a3b8;
+    display: none;
+    line-height: 1.8;
+  }
+  .faq-item.open .faq-a { display: block; }
+
+  /* ── Inline Code ── */
+  code {
+    background: rgba(0,212,255,0.08);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    color: #00d4ff;
+  }
+
+  /* ── Kbd ── */
+  kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-family: monospace;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 #334155;
+    color: #e2e8f0;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid #1e293b;
+    text-align: center;
+    font-size: 12px;
+    color: #475569;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 24px 20px 60px; }
+    .hero h1 { font-size: 24px; }
+    .req-grid { grid-template-columns: 1fr 1fr; }
+    .arch-layer { flex-wrap: wrap; }
+  }
+
+  /* ── Print ── */
+  @media print {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    body { background: #fff; color: #1e293b; }
+    .card, .code-block, .arch-layer, .flow-node, .faq-item { border-color: #e2e8f0; background: #f8fafc; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h2>液奶过程监控系统</h2>
+    <span class="ver">v1.6.1 安装指南</span>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-title">开始</div>
+    <a href="#intro" class="active">系统简介</a>
+    <a href="#requirements">环境要求</a>
+    <a href="#quickstart">快速开始</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-title">部署方式</div>
+    <a href="#dev-mode">开发模式</a>
+    <a href="#prod-mode">生产模式</a>
+    <a href="#docker">Docker 部署</a>
+    <a href="#desktop">桌面应用</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-title">配置</div>
+    <a href="#config">系统配置</a>
+    <a href="#instrument">仪器接入</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-title">附录</div>
+    <a href="#structure">目录结构</a>
+    <a href="#faq">常见问题</a>
+    <a href="#troubleshoot">故障排查</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main class="main">
+
+<!-- ── Hero ── -->
+<div class="hero" id="intro">
+  <div class="hero-icon">&#9878;</div>
+  <h1>液奶过程监控系统</h1>
+  <div class="subtitle">FT1-MONITOR &mdash; 安装使用指南</div>
+  <div class="hero-badges">
+    <span class="badge badge-cyan">v1.6.1</span>
+    <span class="badge badge-green">Python 3.11+</span>
+    <span class="badge badge-purple">React 18</span>
+    <span class="badge badge-orange">FastAPI</span>
+  </div>
+</div>
+
+<!-- ── 系统简介 ── -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-icon cyan">&#9878;</div>
+    <div>
+      <div class="section-title">系统简介</div>
+      <div class="section-sub">了解 FT1-MONITOR 的功能与架构</div>
+    </div>
+  </div>
+  <p style="margin-bottom:16px;">液奶过程监控系统 (FT1-MONITOR) 是一套面向乳制品生产过程的实时 SPC 分析与智能预警平台。系统集成多源仪器数据自动采集、统计过程控制 (SPC) 分析、过程能力评估、AI 指标预测和分级预警功能，帮助质量管理人员实时掌握生产过程稳定性。</p>
+
+  <div class="arch-diagram">
+    <div class="arch-layer l1">
+      <span class="layer-badge">桌面应用层</span>
+      <span class="layer-tech">Tauri v2 + Rust</span>
+      <span class="layer-desc">原生桌面应用，系统托盘、声音告警、开机自启</span>
+    </div>
+    <div class="arch-arrow">&#8595;</div>
+    <div class="arch-layer l2">
+      <span class="layer-badge">前端展示层</span>
+      <span class="layer-tech">React 18 + ECharts 5</span>
+      <span class="layer-desc">9 个功能页面，深色科技主题，WebSocket 实时推送</span>
+    </div>
+    <div class="arch-arrow">&#8595;</div>
+    <div class="arch-layer l3">
+      <span class="layer-badge">后端服务层</span>
+      <span class="layer-tech">FastAPI + Python 3.11</span>
+      <span class="layer-desc">SPC 引擎、AI 预测引擎、自适应采集调度、API Key 认证</span>
+    </div>
+    <div class="arch-arrow">&#8595;</div>
+    <div class="arch-layer l4">
+      <span class="layer-badge">数据存储层</span>
+      <span class="layer-tech">SQLite + SQL Server + MDB</span>
+      <span class="layer-desc">本地 SQLite (WAL) + 三类仪器数据源对接</span>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-node"><span class="fn-label">FT1</span><span class="fn-desc">SQL Server</span></div>
+    <div class="flow-node"><span class="fn-label">FT120</span><span class="fn-desc">MDB 文件</span></div>
+    <div class="flow-node"><span class="fn-label">FTA</span><span class="fn-desc">Perten DB</span></div>
+    <span class="flow-arrow">&#8594;</span>
+    <div class="flow-node"><span class="fn-label">采集调度</span><span class="fn-desc">自适应频率</span></div>
+    <span class="flow-arrow">&#8594;</span>
+    <div class="flow-node"><span class="fn-label">分析引擎</span><span class="fn-desc">SPC + AI</span></div>
+    <span class="flow-arrow">&#8594;</span>
+    <div class="flow-node"><span class="fn-label">WebSocket</span><span class="fn-desc">实时推送</span></div>
+    <span class="flow-arrow">&#8594;</span>
+    <div class="flow-node"><span class="fn-label">前端展示</span><span class="fn-desc">React + ECharts</span></div>
+  </div>
+</div>
+
+<!-- ── 环境要求 ── -->
+<div class="section" id="requirements">
+  <div class="section-head">
+    <div class="section-icon green">&#9745;</div>
+    <div>
+      <div class="section-title">环境要求</div>
+      <div class="section-sub">安装前请确认以下依赖已就绪</div>
+    </div>
+  </div>
+
+  <div class="req-grid">
+    <div class="req-item">
+      <div class="icon">&#128270;</div>
+      <div class="name">Python 3.11+</div>
+      <div class="detail">后端运行环境</div>
+    </div>
+    <div class="req-item">
+      <div class="icon">&#127760;</div>
+      <div class="name">Node.js 18+</div>
+      <div class="detail">前端构建环境</div>
+    </div>
+    <div class="req-item">
+      <div class="icon">&#128230;</div>
+      <div class="name">npm / pnpm</div>
+      <div class="detail">前端包管理器</div>
+    </div>
+    <div class="req-item">
+      <div class="icon">&#128736;</div>
+      <div class="name">Git</div>
+      <div class="detail">代码版本管理</div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">&#9432;</span>
+    <div><strong>Windows 用户</strong>：推荐安装 Python 3.11 官方安装包（勾选 "Add to PATH"），Node.js LTS 版本。如需连接 SQL Server 数据库，需确保网络可达目标数据库服务器。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>组件</th><th>版本要求</th><th>用途</th><th>安装方式</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Python</strong></td><td>&ge; 3.11</td><td>后端服务、分析引擎</td><td><a href="https://python.org" style="color:#00d4ff">python.org</a> 下载安装</td></tr>
+        <tr><td><strong>Node.js</strong></td><td>&ge; 18.0</td><td>前端构建、开发服务器</td><td><a href="https://nodejs.org" style="color:#00d4ff">nodejs.org</a> LTS 版本</td></tr>
+        <tr><td><strong>Git</strong></td><td>任意版本</td><td>克隆代码仓库</td><td><a href="https://git-scm.com" style="color:#00d4ff">git-scm.com</a></td></tr>
+        <tr><td><strong>pymssql</strong></td><td>&ge; 2.2.0</td><td>SQL Server 连接（自动安装）</td><td>pip 自动安装</td></tr>
+        <tr><td><strong>access-parser</strong></td><td>&ge; 0.0.6</td><td>MDB 文件解析（自动安装）</td><td>pip 自动安装</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── 快速开始 ── -->
+<div class="section" id="quickstart">
+  <div class="section-head">
+    <div class="section-icon purple">&#9889;</div>
+    <div>
+      <div class="section-title">快速开始</div>
+      <div class="section-sub">3 分钟完成安装并启动系统</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num">1</span>克隆代码仓库</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Terminal</span></div>
+      <div class="code-body"><span class="comment"># 克隆项目到本地</span>
+<span class="cmd">git</span> clone https://gitee.com/aerlee/FT1-MONITOR.git
+<span class="cmd">cd</span> FT1-MONITOR</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num">2</span>安装依赖</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>后端依赖</span></div>
+      <div class="code-body"><span class="comment"># 创建 Python 虚拟环境并安装依赖</span>
+<span class="cmd">cd</span> backend
+<span class="cmd">python</span> <span class="flag">-m</span> venv venv
+
+<span class="comment"># Windows</span>
+venv\Scripts\activate
+
+<span class="comment"># Linux / macOS</span>
+<span class="cmd">source</span> venv/bin/activate
+
+<span class="cmd">pip</span> install <span class="flag">-r</span> requirements.txt</div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>前端依赖</span></div>
+      <div class="code-body"><span class="cmd">cd</span> ../frontend
+<span class="cmd">npm</span> install</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num">3</span>启动系统</div>
+
+    <!-- Tabs: Windows / Linux -->
+    <div class="tabs" id="start-tabs">
+      <button class="tab-btn active" onclick="switchTab('start-tabs','start-panels','win')">Windows</button>
+      <button class="tab-btn" onclick="switchTab('start-tabs','start-panels','linux')">Linux / macOS</button>
+    </div>
+    <div id="start-panels">
+      <div class="tab-panel active" data-key="win">
+        <div class="code-block">
+          <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Windows - 一键启动（开发模式）</span></div>
+          <div class="code-body"><span class="comment"># 回到项目根目录</span>
+<span class="cmd">cd</span> ..
+
+<span class="comment"># 运行 Windows 启动脚本</span>
+scripts\dev.bat</div>
+        </div>
+      </div>
+      <div class="tab-panel" data-key="linux">
+        <div class="code-block">
+          <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Linux / macOS - 一键启动（开发模式）</span></div>
+          <div class="code-body"><span class="comment"># 回到项目根目录</span>
+<span class="cmd">cd</span> ..
+
+<span class="comment"># 添加执行权限并运行</span>
+<span class="cmd">chmod</span> +x scripts/dev.sh
+<span class="cmd">./scripts/dev.sh</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-tip">
+      <span class="alert-icon">&#128161;</span>
+      <div>启动成功后，前端访问 <code>http://localhost:5173</code>，后端 API 文档访问 <code>http://localhost:18080/docs</code>。系统默认使用 Mock 模拟数据，无需连接真实仪器即可体验全部功能。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 开发模式 ── -->
+<div class="section" id="dev-mode">
+  <div class="section-head">
+    <div class="section-icon blue">&#128736;</div>
+    <div>
+      <div class="section-title">开发模式</div>
+      <div class="section-sub">前后端分离，支持热更新</div>
+    </div>
+  </div>
+
+  <p style="margin-bottom:16px;">开发模式下，前端 Vite 开发服务器和后端 Uvicorn 服务分别运行，支持代码热更新。适合开发调试阶段使用。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>服务</th><th>地址</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><strong>前端</strong></td><td><code>http://localhost:5173</code></td><td>Vite 开发服务器，代码修改即时生效</td></tr>
+        <tr><td><strong>后端</strong></td><td><code>http://localhost:18080</code></td><td>Uvicorn 服务，<code>--reload</code> 模式自动重启</td></tr>
+        <tr><td><strong>API 文档</strong></td><td><code>http://localhost:18080/docs</code></td><td>FastAPI 自动生成的 Swagger 文档</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">启动脚本</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Windows</span></div>
+      <div class="code-body">scripts\dev.bat</div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Linux / macOS</span></div>
+      <div class="code-body"><span class="cmd">chmod</span> +x scripts/dev.sh
+<span class="cmd">./scripts/dev.sh</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">停止服务</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Linux / macOS</span></div>
+      <div class="code-body"><span class="cmd">./scripts/stop.sh</span></div>
+    </div>
+    <div class="alert alert-info">
+      <span class="alert-icon">&#9432;</span>
+      <div>Windows 用户直接关闭命令行窗口即可停止所有服务。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 生产模式 ── -->
+<div class="section" id="prod-mode">
+  <div class="section-head">
+    <div class="section-icon green">&#9878;</div>
+    <div>
+      <div class="section-title">生产模式</div>
+      <div class="section-sub">前端构建为静态文件，后端统一托管</div>
+    </div>
+  </div>
+
+  <p style="margin-bottom:16px;">生产模式下，前端代码构建为静态文件，由后端 FastAPI 服务统一托管。只需一个端口即可访问完整系统。</p>
+
+  <div class="card">
+    <div class="card-title">一键启动</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Windows</span></div>
+      <div class="code-body">scripts\start.bat</div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Linux / macOS</span></div>
+      <div class="code-body"><span class="cmd">chmod</span> +x scripts/start.sh
+<span class="cmd">./scripts/start.sh</span></div>
+    </div>
+    <div class="alert alert-tip">
+      <span class="alert-icon">&#128161;</span>
+      <div>生产模式启动后访问 <code>http://localhost:18080</code>，前端和 API 均通过同一端口提供服务。</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">手动部署（高级）</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>手动构建前端</span></div>
+      <div class="code-body"><span class="cmd">cd</span> frontend
+<span class="cmd">npm</span> run build
+<span class="comment"># 生成的静态文件在 frontend/dist/ 目录</span></div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>启动后端服务</span></div>
+      <div class="code-body"><span class="cmd">cd</span> ..
+<span class="cmd">python</span> <span class="flag">-m</span> uvicorn backend.main:app <span class="flag">--host</span> 0.0.0.0 <span class="flag">--port</span> 18080</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Nginx 反向代理配置（可选）</div>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">如需使用 Nginx 作为反向代理，参考以下配置：</p>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>nginx.conf</span></div>
+      <div class="code-body">server {
+    listen 80;
+    server_name localhost;
+
+    <span class="comment"># 前端静态文件</span>
+    location / {
+        root <span class="str">/path/to/frontend/dist</span>;
+        try_files <span class="var">$uri</span> <span class="var">$uri/</span> /index.html;
+    }
+
+    <span class="comment"># API 代理</span>
+    location /api {
+        proxy_pass http://localhost:18080;
+        proxy_set_header Host <span class="var">$host</span>;
+        proxy_set_header X-Real-IP <span class="var">$remote_addr</span>;
+    }
+
+    <span class="comment"># WebSocket 代理</span>
+    location /api/ws {
+        proxy_pass http://localhost:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade <span class="var">$http_upgrade</span>;
+        proxy_set_header Connection <span class="str">"upgrade"</span>;
+    }
+}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Docker 部署 ── -->
+<div class="section" id="docker">
+  <div class="section-head">
+    <div class="section-icon blue">&#128203;</div>
+    <div>
+      <div class="section-title">Docker 部署</div>
+      <div class="section-sub">容器化部署，环境隔离</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">构建与运行</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Docker</span></div>
+      <div class="code-body"><span class="comment"># 构建镜像</span>
+<span class="cmd">docker</span> build <span class="flag">-t</span> ft1-monitor-backend <span class="flag">-f</span> backend/Dockerfile .
+
+<span class="comment"># 运行容器</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">-p</span> 18080:18080 <span class="flag">--name</span> ft1-monitor ft1-monitor-backend</div>
+    </div>
+    <div class="alert alert-warn">
+      <span class="alert-icon">&#9888;</span>
+      <div>Docker 部署仅包含后端服务。前端需先执行 <code>npm run build</code> 构建静态文件，然后通过 volume 挂载或 Nginx 容器提供前端服务。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 桌面应用 ── -->
+<div class="section" id="desktop">
+  <div class="section-head">
+    <div class="section-icon purple">&#128187;</div>
+    <div>
+      <div class="section-title">桌面应用（Tauri）</div>
+      <div class="section-sub">原生桌面体验，安装包 &lt;10MB</div>
+    </div>
+  </div>
+
+  <p style="margin-bottom:16px;">系统支持通过 Tauri v2 打包为 Windows 桌面应用，提供系统托盘常驻、原生通知推送、声音告警、开机自启动等原生能力。</p>
+
+  <div class="card">
+    <div class="card-title">构建桌面安装包</div>
+    <div class="code-block">
+      <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>Tauri 构建</span></div>
+      <div class="code-body"><span class="comment"># 前置条件：安装 Rust 工具链</span>
+<span class="comment"># https://rustup.rs</span>
+
+<span class="comment"># 先构建前端</span>
+<span class="cmd">cd</span> frontend
+<span class="cmd">npm</span> run build
+
+<span class="comment"># 构建 Tauri 桌面应用</span>
+<span class="cmd">cd</span> ../launcher
+<span class="cmd">cargo</span> tauri build
+
+<span class="comment"># 安装包位于 launcher/target/release/bundle/nsis/</span></div>
+    </div>
+    <div class="alert alert-info">
+      <span class="alert-icon">&#9432;</span>
+      <div>桌面应用内置 Python 后端，安装后双击图标即可启动完整系统，无需手动配置 Python 环境。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 系统配置 ── -->
+<div class="section" id="config">
+  <div class="section-head">
+    <div class="section-icon orange">&#9881;</div>
+    <div>
+      <div class="section-title">系统配置</div>
+      <div class="section-sub">首次使用前的关键配置项</div>
+    </div>
+  </div>
+
+  <p style="margin-bottom:16px;">系统启动后默认使用 Mock 模拟数据。如需连接真实仪器，请在「配置管理」页面完成以下配置。所有配置均支持热更新，保存后立即生效。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>配置项</th><th>说明</th><th>配置位置</th></tr></thead>
+      <tbody>
+        <tr><td><strong>仪器数据源</strong></td><td>选择 FT1 / FT120 / FTA 并填写连接信息</td><td>配置管理 &rarr; 仪器选择</td></tr>
+        <tr><td><strong>品项管理</strong></td><td>启用/停用品项，设置别名和样品类别</td><td>配置管理 &rarr; 品项管理</td></tr>
+        <tr><td><strong>规格限</strong></td><td>为每个指标设置 USL / LSL / 目标值</td><td>品项编辑弹窗</td></tr>
+        <tr><td><strong>预警规则</strong></td><td>启用/禁用 Nelson 判异规则</td><td>配置管理 &rarr; 预警规则</td></tr>
+        <tr><td><strong>排除关键词</strong></td><td>排除基准样等不参与分析的数据</td><td>配置管理 &rarr; 排除备注</td></tr>
+        <tr><td><strong>指标别名</strong></td><td>为指标设置中文显示名称</td><td>配置管理 &rarr; 检验项目别名</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── 仪器接入 ── -->
+<div class="section" id="instrument">
+  <div class="section-head">
+    <div class="section-icon cyan">&#128268;</div>
+    <div>
+      <div class="section-title">仪器接入指南</div>
+      <div class="section-sub">连接 FT1 / FT120 / FTA 乳品分析仪</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">FT1 乳品分析仪（SQL Server）</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-title">确认网络连通</div>
+        <div class="step-desc">确保运行系统的电脑能访问 FT1 仪器的 SQL Server 数据库（默认端口 1433 或自定义端口）</div>
+      </div>
+      <div class="step">
+        <div class="step-title">填写连接信息</div>
+        <div class="step-desc">在配置管理 &rarr; 仪器选择中选择 FT1，填写服务器地址（格式：<code>主机名\实例名,端口</code>）、数据库名称（默认 <code>MSCFT1</code>）、认证方式</div>
+      </div>
+      <div class="step">
+        <div class="step-title">测试连接</div>
+        <div class="step-desc">点击「测试连接」验证配置是否正确，绿色提示表示连接成功</div>
+      </div>
+      <div class="step">
+        <div class="step-title">保存并采集</div>
+        <div class="step-desc">点击「保存配置」，系统自动连接数据源并预览最近数据，确认后开始自动采集</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">FT120 乳品分析仪（MDB 文件）</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-title">获取 MDB 文件路径</div>
+        <div class="step-desc">找到 FT120 仪器导出的 Access 数据库文件（.mdb），记录完整文件路径</div>
+      </div>
+      <div class="step">
+        <div class="step-title">配置文件路径和表映射</div>
+        <div class="step-desc">在配置管理中选择 FT120，填写 MDB 文件路径，确认表名和字段映射（通常使用默认值即可）</div>
+      </div>
+      <div class="step">
+        <div class="step-title">测试并保存</div>
+        <div class="step-desc">测试连接成功后保存配置，系统开始从 MDB 文件采集数据</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">FTA Perten 乳品分析仪（SQL Server）</div>
+    <p style="font-size:13px;color:#94a3b8;">配置方式与 FT1 类似，连接 Perten 仪器的独立 SQL Server 实例。默认数据库名为 <code>Pert_Application</code>，默认使用 SQL Server 认证（用户名 <code>sa</code>）。</p>
+  </div>
+</div>
+
+<!-- ── 目录结构 ── -->
+<div class="section" id="structure">
+  <div class="section-head">
+    <div class="section-icon blue">&#128193;</div>
+    <div>
+      <div class="section-title">项目目录结构</div>
+      <div class="section-sub">了解项目文件组织方式</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>FT1-MONITOR/</span></div>
+    <div class="code-body">FT1-MONITOR/
+├── <span class="cmd">frontend/</span>                  <span class="comment"># 前端项目 (React + TypeScript)</span>
+│   ├── src/
+│   │   ├── pages/             <span class="comment"># 9 个功能页面</span>
+│   │   ├── components/        <span class="comment"># 公共组件</span>
+│   │   └── services/          <span class="comment"># API 服务、WebSocket</span>
+│   ├── package.json
+│   └── dist/                  <span class="comment"># 构建产物（生产模式）</span>
+│
+├── <span class="cmd">backend/</span>                   <span class="comment"># 后端项目 (FastAPI + Python)</span>
+│   ├── main.py                <span class="comment"># 入口文件</span>
+│   ├── app/
+│   │   ├── api/               <span class="comment"># 7 个 API 模块</span>
+│   │   ├── engine/            <span class="comment"># 分析引擎 (SPC/预测/采集/告警)</span>
+│   │   ├── core/              <span class="comment"># 认证、配置、缓存</span>
+│   │   └── services/          <span class="comment"># 数据存储服务</span>
+│   └── requirements.txt
+│
+├── <span class="cmd">launcher/</span>                  <span class="comment"># Tauri 桌面应用</span>
+│   ├── src/                   <span class="comment"># Rust 源码</span>
+│   └── tauri.conf.json
+│
+├── <span class="cmd">scripts/</span>                   <span class="comment"># 启动/停止脚本</span>
+│   ├── dev.bat / dev.sh       <span class="comment"># 开发模式启动</span>
+│   ├── start.bat / start.sh   <span class="comment"># 生产模式启动</span>
+│   └── stop.sh                <span class="comment"># 停止服务</span>
+│
+├── <span class="cmd">data/</span>                      <span class="comment"># SQLite 数据库文件</span>
+├── <span class="cmd">logs/</span>                      <span class="comment"># 运行日志</span>
+│
+├── *.json                     <span class="comment"># 配置文件（仪器、规格限、规则等）</span>
+└── README.md</div>
+  </div>
+</div>
+
+<!-- ── 常见问题 ── -->
+<div class="section" id="faq">
+  <div class="section-head">
+    <div class="section-icon orange">&#10067;</div>
+    <div>
+      <div class="section-title">常见问题</div>
+      <div class="section-sub">安装和使用中的常见疑问</div>
+    </div>
+  </div>
+
+  <div class="faq-item open">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      没有真实仪器数据，能否体验系统功能？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">可以。系统默认使用 Mock 模拟数据源，会自动生成仿真检测数据。启动后即可体验全部功能，包括 SPC 控制图、过程能力分析、智能预测、告警管理等。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      pip install 速度很慢怎么办？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">可使用国内镜像源加速安装：<br><code>pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple</code></div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      npm install 报错怎么办？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">1. 确认 Node.js 版本 &ge; 18（运行 <code>node -v</code> 查看）<br>2. 尝试清除缓存：<code>npm cache clean --force</code><br>3. 使用国内镜像：<code>npm config set registry https://registry.npmmirror.com</code><br>4. 删除 <code>node_modules</code> 目录后重新安装</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      连接 SQL Server 数据库失败？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">1. 确认数据库服务器地址和端口正确<br>2. 确认网络可达（尝试 <code>telnet 服务器IP 端口</code>）<br>3. 确认 SQL Server 已启用 TCP/IP 协议<br>4. 确认认证方式和账号密码正确<br>5. 检查防火墙是否放行了数据库端口</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      端口 18080 被占用怎么办？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">修改启动命令中的端口号：<br><code>python -m uvicorn backend.main:app --host 0.0.0.0 --port 18081</code><br>同时需要修改前端 <code>vite.config.ts</code> 中的代理端口配置。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+      数据存储在哪里？如何备份？
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="faq-a">所有数据存储在项目根目录的 <code>data/</code> 文件夹中的 SQLite 数据库文件。配置文件（<code>*.json</code>）也在项目根目录。备份时只需复制整个项目目录或 <code>data/</code> 和 <code>*.json</code> 文件即可。</div>
+  </div>
+</div>
+
+<!-- ── 故障排查 ── -->
+<div class="section" id="troubleshoot">
+  <div class="section-head">
+    <div class="section-icon red">&#128295;</div>
+    <div>
+      <div class="section-title">故障排查</div>
+      <div class="section-sub">常见问题的诊断与解决</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>问题现象</th><th>可能原因</th><th>解决方案</th></tr></thead>
+      <tbody>
+        <tr><td>页面空白或加载失败</td><td>后端服务未启动</td><td>检查后端进程是否运行，查看 <code>logs/backend.log</code></td></tr>
+        <tr><td>数据不更新</td><td>采集服务未运行或数据源断开</td><td>检查配置管理页面的采集状态面板</td></tr>
+        <tr><td>控制图无数据</td><td>品项未启用或无规格限</td><td>在配置管理中启用品项并设置规格限</td></tr>
+        <tr><td>告警不触发</td><td>Nelson 规则被禁用</td><td>在配置管理中启用所需的预警规则</td></tr>
+        <tr><td>WebSocket 断连</td><td>网络不稳定或服务重启</td><td>刷新页面，系统会自动重连</td></tr>
+        <tr><td>预测页面报错</td><td>历史数据不足</td><td>至少需要 30 条以上数据才能进行预测</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-danger">
+    <span class="alert-icon">&#9888;</span>
+    <div><strong>查看日志</strong>：遇到问题时，首先查看日志文件获取详细错误信息：<br>
+    后端日志：<code>logs/backend.log</code> &nbsp;|&nbsp; 前端日志：<code>logs/frontend.log</code></div>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer">
+  <p>液奶过程监控系统 FT1-MONITOR v1.6.1 &mdash; 由液态奶中心实验室开发</p>
+  <p style="margin-top:4px;">如有技术问题，请联系系统管理员</p>
+</div>
+
+</main>
+</div>
+
+<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script>
+// Tab switching
+function switchTab(tabsId, panelsId, key) {
+  const tabs = document.getElementById(tabsId);
+  const panels = document.getElementById(panelsId);
+  tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  panels.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  panels.querySelector(`[data-key="${key}"]`).classList.add('active');
+}
+
+// Sidebar active state on scroll
+const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+const sections = [];
+sidebarLinks.forEach(link => {
+  const id = link.getAttribute('href').slice(1);
+  const el = document.getElementById(id);
+  if (el) sections.push({ id, el, link });
+});
+
+function updateSidebar() {
+  let current = '';
+  for (const s of sections) {
+    const rect = s.el.getBoundingClientRect();
+    if (rect.top <= 120) current = s.id;
+  }
+  sidebarLinks.forEach(l => l.classList.remove('active'));
+  if (current) {
+    const active = document.querySelector(`.sidebar a[href="#${current}"]`);
+    if (active) active.classList.add('active');
+  }
+}
+window.addEventListener('scroll', updateSidebar, { passive: true });
+updateSidebar();
+</script>
+
+</body>
+</html>
