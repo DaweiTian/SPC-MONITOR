@@ -168,15 +168,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     let prevReachable = false
     const fetchStatus = async () => {
       try {
-        // First check if backend is reachable (use Tauri invoke to bypass CORS)
+        // Check if backend is reachable (CSP allows http://127.0.0.1:18080)
         const isTauri = !!window.__TAURI__
-        if (isTauri) {
-          const ok = await window.__TAURI__.core.invoke('check_backend_health')
-          if (!ok) throw new Error('unhealthy')
-        } else {
-          const resp = await fetch('/api/health')
-          if (!resp.ok) throw new Error('unhealthy')
-        }
+        const healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health'
+        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) })
+        if (!resp.ok) throw new Error('unhealthy')
 
         const status = await api.getStatus()
         setSourceStatus({
