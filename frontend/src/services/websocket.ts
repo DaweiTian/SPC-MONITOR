@@ -12,6 +12,8 @@ class WebSocketService {
   private waitingForFirstSuccess = false
   private intentionalClose = false
   private unloadBound = false
+  private heartbeatTimer: number | null = null
+  private readonly heartbeatInterval = 25000 // 25 seconds (less than server's 30s timeout)
 
   get connected() {
     return this._connected
@@ -79,6 +81,7 @@ class WebSocketService {
             clearTimeout(this.reconnectTimer)
             this.reconnectTimer = null
           }
+          this._startHeartbeat()
         }
 
         this.ws.onmessage = (event) => {
@@ -92,6 +95,7 @@ class WebSocketService {
 
         this.ws.onclose = () => {
           this._connected = false
+          this._stopHeartbeat()
           if (this.intentionalClose) return
           this.retryCount++
           if (this.retryCount > this.maxRetries) {
@@ -122,6 +126,7 @@ class WebSocketService {
 
   disconnect() {
     this.intentionalClose = true
+    this._stopHeartbeat()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -134,6 +139,22 @@ class WebSocketService {
     }
     this._connected = false
     this.handlers.clear()
+  }
+
+  private _startHeartbeat() {
+    this._stopHeartbeat()
+    this.heartbeatTimer = window.setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send('ping')
+      }
+    }, this.heartbeatInterval)
+  }
+
+  private _stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
+    }
   }
 
   on(event: string, handler: MessageHandler) {

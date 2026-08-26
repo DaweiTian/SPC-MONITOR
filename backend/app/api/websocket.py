@@ -1,8 +1,11 @@
 import asyncio
 import json
+import logging
 from datetime import datetime
 from typing import Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["WebSocket"])
 
@@ -39,7 +42,7 @@ async def websocket_endpoint(websocket: WebSocket):
             'message': '已连接到实时数据推送',
             'timestamp': datetime.now().isoformat(),
         })
-        
+
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
@@ -50,7 +53,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({'type': 'heartbeat'})
                 except Exception:
                     break
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, ConnectionResetError):
+        # ConnectionResetError: client disconnected abruptly (common on Windows)
         pass
+    except Exception as e:
+        logger.debug(f"WebSocket error: {e}")
     finally:
         websocket_clients.discard(websocket)
