@@ -26,6 +26,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=_log_handlers,
 )
+# Windows: suppress noisy asyncio connection reset errors (WinError 10054)
+logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 from backend.app.api.monitor import router as monitor_router
 from backend.app.api.spc import router as spc_router
