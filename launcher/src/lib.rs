@@ -96,8 +96,6 @@ pub fn run() {
                         let _ = w.hide();
                     }
                 });
-                // 打开开发者工具（调试用，问题修好后删除）
-                window.open_devtools();
             }
 
             // 启动后端健康检查 + 就绪通知
