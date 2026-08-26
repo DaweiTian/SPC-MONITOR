@@ -31,7 +31,9 @@ import sys
 if sys.platform == 'win32':
     class _WinResetFilter(logging.Filter):
         def filter(self, record):
-            return 'WinError 10054' not in record.getMessage()
+            if record.exc_info and record.exc_info[0] is ConnectionResetError:
+                return False
+            return True
     logging.getLogger('asyncio').addFilter(_WinResetFilter())
 
 from backend.app.api.monitor import router as monitor_router
@@ -72,14 +74,17 @@ if _frontend_dist.exists():
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
     from starlette.staticfiles import StaticFiles as StarletteStaticFiles
+    from starlette.exceptions import HTTPException as StarletteHTTPException
 
     class SPAStaticFiles(StarletteStaticFiles):
         """StaticFiles that serves index.html for missing files (SPA support)."""
         async def get_response(self, path, scope):
-            response = await super().get_response(path, scope)
-            if response.status_code == 404:
-                return FileResponse(str(_frontend_dist / "index.html"))
-            return response
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404:
+                    return FileResponse(str(_frontend_dist / "index.html"))
+                raise
 
     # Mount at /app to avoid intercepting /api/* and /ws routes
     app.mount("/app", SPAStaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
