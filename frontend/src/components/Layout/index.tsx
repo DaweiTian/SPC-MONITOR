@@ -167,11 +167,15 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        // First check if backend is reachable
+        // First check if backend is reachable (use Tauri invoke to bypass CORS)
         const isTauri = !!window.__TAURI__
-        const healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health'
-        const resp = await fetch(healthUrl)
-        if (!resp.ok) throw new Error('unhealthy')
+        if (isTauri) {
+          const ok = await window.__TAURI__.core.invoke<boolean>('check_backend_health')
+          if (!ok) throw new Error('unhealthy')
+        } else {
+          const resp = await fetch('/api/health')
+          if (!resp.ok) throw new Error('unhealthy')
+        }
 
         const status = await api.getStatus()
         setSourceStatus({
