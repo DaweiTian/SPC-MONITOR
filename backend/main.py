@@ -27,7 +27,12 @@ logging.basicConfig(
     handlers=_log_handlers,
 )
 # Windows: suppress noisy asyncio connection reset errors (WinError 10054)
-logging.getLogger('asyncio').setLevel(logging.WARNING)
+import sys
+if sys.platform == 'win32':
+    class _WinResetFilter(logging.Filter):
+        def filter(self, record):
+            return 'WinError 10054' not in record.getMessage()
+    logging.getLogger('asyncio').addFilter(_WinResetFilter())
 
 from backend.app.api.monitor import router as monitor_router
 from backend.app.api.spc import router as spc_router
