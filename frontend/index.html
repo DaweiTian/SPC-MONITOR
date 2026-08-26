@@ -57,7 +57,8 @@
     <script>
       // Poll backend health with timeout and max retries
       (function() {
-        var retries = 0, maxRetries = 40;
+        var retries = 0, maxRetries = 60;
+        var isTauri = '__TAURI__' in window;
         function checkBackend() {
           if (retries >= maxRetries) {
             var err = document.getElementById('splash-error');
@@ -69,15 +70,28 @@
             return;
           }
           retries++;
-          var ctrl = new AbortController();
-          var timer = setTimeout(function() { ctrl.abort(); }, 5000);
-          fetch('http://127.0.0.1:18080/api/health', { signal: ctrl.signal })
-            .then(function(r) { clearTimeout(timer); if (r.ok) return r.json(); throw new Error('not ok'); })
-            .then(function() {
-              var el = document.getElementById('splash-overlay');
-              if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
-            })
-            .catch(function() { clearTimeout(timer); setTimeout(checkBackend, 1500); });
+          if (isTauri) {
+            // Tauri: use native command to bypass CORS
+            window.__TAURI__.core.invoke('check_backend_health').then(function(ok) {
+              if (ok) {
+                var el = document.getElementById('splash-overlay');
+                if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
+              } else {
+                setTimeout(checkBackend, 1500);
+              }
+            }).catch(function() { setTimeout(checkBackend, 1500); });
+          } else {
+            // Browser: use fetch
+            var ctrl = new AbortController();
+            var timer = setTimeout(function() { ctrl.abort(); }, 5000);
+            fetch('http://127.0.0.1:18080/api/health', { signal: ctrl.signal })
+              .then(function(r) { clearTimeout(timer); if (r.ok) return r.json(); throw new Error('not ok'); })
+              .then(function() {
+                var el = document.getElementById('splash-overlay');
+                if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
+              })
+              .catch(function() { clearTimeout(timer); setTimeout(checkBackend, 1500); });
+          }
         }
         checkBackend();
       })();
