@@ -98,6 +98,12 @@ pub fn run() {
                 });
             }
 
+            // F12 打开开发者工具
+            #[cfg(debug_assertions)]
+            if let Some(window) = app.get_webview_window("main") {
+                window.open_devtools();
+            }
+
             // 启动后端健康检查 + 就绪通知
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
