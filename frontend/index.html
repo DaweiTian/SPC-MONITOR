@@ -6,51 +6,215 @@
     <link href="/fonts/orbitron.css" rel="stylesheet">
     <title>液奶过程监控系统</title>
     <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+      @keyframes scanline { 0% { top: -10%; } 100% { top: 110%; } }
+      @keyframes glitch { 0%, 100% { transform: translate(0); } 20% { transform: translate(-2px, 1px); } 40% { transform: translate(2px, -1px); } 60% { transform: translate(-1px, -1px); } 80% { transform: translate(1px, 2px); } }
+      @keyframes typeblink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes gridPulse { 0%, 100% { opacity: 0.03; } 50% { opacity: 0.08; } }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
       #splash-overlay {
         position: fixed; inset: 0; z-index: 99999;
-        background: #0a0e1a;
+        background: #060a14;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        color: #e2e8f0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        transition: opacity 0.4s ease;
-      }
-      #splash-overlay.hide { opacity: 0; pointer-events: none; }
-      #splash-overlay .ring {
-        width: 60px; height: 60px;
-        border: 3px solid rgba(0,212,255,0.15);
-        border-top-color: #00d4ff;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      #splash-overlay .text { margin-top: 24px; font-size: 14px; color: #8b95a7; }
-      #splash-overlay .sub { margin-top: 6px; font-size: 12px; color: #64748b; }
-      #splash-overlay .error { margin-top: 12px; font-size: 13px; color: #ef4444; display: none; }
-      #splash-overlay .bar-wrap {
-        margin-top: 16px; width: 180px; height: 3px;
-        background: rgba(0,212,255,0.1); border-radius: 2px;
+        color: #c8d6e5;
+        font-family: 'SF Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
         overflow: hidden;
       }
-      #splash-overlay .bar {
-        height: 100%; width: 30%;
-        background: linear-gradient(90deg, #00d4ff, #0066ff);
-        border-radius: 2px;
-        animation: slide 1.5s ease-in-out infinite;
+
+      /* 网格背景 */
+      #splash-overlay::before {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(0,212,255,0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,212,255,0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        animation: gridPulse 4s ease-in-out infinite;
       }
-      @keyframes slide {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(400%); }
+
+      /* 扫描线 */
+      #splash-overlay::after {
+        content: '';
+        position: absolute;
+        left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent);
+        box-shadow: 0 0 20px rgba(0,212,255,0.2);
+        animation: scanline 3s linear infinite;
+      }
+
+      .splash-content {
+        position: relative; z-index: 1;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 32px;
+      }
+
+      /* Logo 区域 */
+      .splash-logo {
+        display: flex; flex-direction: column; align-items: center; gap: 16px;
+      }
+      .splash-logo-icon {
+        width: 72px; height: 72px;
+        position: relative;
+      }
+      .splash-logo-icon .ring-outer {
+        position: absolute; inset: 0;
+        border: 2px solid rgba(0,212,255,0.2);
+        border-top-color: #00d4ff;
+        border-radius: 50%;
+        animation: spin 2s linear infinite;
+      }
+      .splash-logo-icon .ring-inner {
+        position: absolute; inset: 10px;
+        border: 1px solid rgba(0,212,255,0.1);
+        border-bottom-color: rgba(0,212,255,0.6);
+        border-radius: 50%;
+        animation: spin 1.5s linear infinite reverse;
+      }
+      .splash-logo-icon .center-dot {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 8px; height: 8px;
+        background: #00d4ff;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 12px rgba(0,212,255,0.6);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .splash-title {
+        font-size: 11px;
+        letter-spacing: 6px;
+        text-transform: uppercase;
+        color: rgba(0,212,255,0.7);
+        font-weight: 400;
+      }
+
+      /* 状态区域 */
+      .splash-status {
+        display: flex; flex-direction: column;
+        align-items: center; gap: 12px;
+        min-height: 80px;
+      }
+      .splash-status-text {
+        font-size: 13px;
+        color: #8b95a7;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+      }
+      .splash-status-text.active { color: #00d4ff; }
+      .splash-status-text.success { color: #00e676; }
+      .splash-status-text.error { color: #ef5350; }
+
+      /* 进度条 */
+      .splash-progress {
+        width: 200px; height: 2px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 1px;
+        overflow: hidden;
+        position: relative;
+      }
+      .splash-progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #00d4ff, #00e676);
+        border-radius: 1px;
+        transition: width 0.8s ease;
+        box-shadow: 0 0 8px rgba(0,212,255,0.4);
+      }
+
+      /* 步骤指示器 */
+      .splash-steps {
+        display: flex; gap: 24px;
+        font-size: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .splash-step {
+        display: flex; align-items: center; gap: 6px;
+        color: rgba(255,255,255,0.2);
+        transition: all 0.3s ease;
+      }
+      .splash-step.active { color: #00d4ff; }
+      .splash-step.done { color: #00e676; }
+      .splash-step-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        transition: all 0.3s ease;
+      }
+      .splash-step.active .splash-step-dot {
+        box-shadow: 0 0 8px rgba(0,212,255,0.6);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      /* 错误信息 */
+      .splash-error {
+        margin-top: 8px;
+        padding: 12px 20px;
+        background: rgba(239,83,80,0.08);
+        border: 1px solid rgba(239,83,80,0.2);
+        border-radius: 4px;
+        font-size: 11px;
+        color: #ef5350;
+        max-width: 400px;
+        text-align: center;
+        line-height: 1.6;
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      /* 底部信息 */
+      .splash-footer {
+        position: absolute; bottom: 24px;
+        font-size: 10px;
+        color: rgba(255,255,255,0.15);
+        letter-spacing: 2px;
       }
     </style>
   </head>
   <body>
     <div id="splash-overlay">
-      <div class="ring"></div>
-      <div class="text" id="splash-text">正在启动后端服务</div>
-      <div class="sub" id="splash-sub">首次启动可能需要几秒钟...</div>
-      <div class="bar-wrap"><div class="bar"></div></div>
-      <div class="error" id="splash-error"></div>
+      <div class="splash-content">
+        <div class="splash-logo">
+          <div class="splash-logo-icon">
+            <div class="ring-outer"></div>
+            <div class="ring-inner"></div>
+            <div class="center-dot"></div>
+          </div>
+          <div class="splash-title">过程 SPC 监控平台</div>
+        </div>
+
+        <div class="splash-status">
+          <div class="splash-status-text" id="splash-text">INITIALIZING SYSTEM</div>
+          <div class="splash-progress">
+            <div class="splash-progress-bar" id="splash-progress"></div>
+          </div>
+        </div>
+
+        <div class="splash-steps" id="splash-steps">
+          <div class="splash-step" id="step-backend">
+            <div class="splash-step-dot"></div>
+            <span>后端服务</span>
+          </div>
+          <div class="splash-step" id="step-connect">
+            <div class="splash-step-dot"></div>
+            <span>网络连接</span>
+          </div>
+          <div class="splash-step" id="step-ready">
+            <div class="splash-step-dot"></div>
+            <span>就绪</span>
+          </div>
+        </div>
+
+        <div class="splash-error" id="splash-error"></div>
+      </div>
+
+      <div class="splash-footer">FT1-MONITOR v1.6.1</div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
@@ -60,64 +224,112 @@
         var isTauri = '__TAURI__' in window;
         var healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health';
 
+        var elText = document.getElementById('splash-text');
+        var elProgress = document.getElementById('splash-progress');
+        var elError = document.getElementById('splash-error');
+        var elStepBackend = document.getElementById('step-backend');
+        var elStepConnect = document.getElementById('step-connect');
+        var elStepReady = document.getElementById('step-ready');
+
+        function setText(msg, cls) {
+          elText.textContent = msg;
+          elText.className = 'splash-status-text' + (cls ? ' ' + cls : '');
+        }
+
+        function setProgress(pct) {
+          elProgress.style.width = pct + '%';
+        }
+
+        function setStep(el, state) {
+          el.className = 'splash-step' + (state ? ' ' + state : '');
+        }
+
         function showError(msg) {
-          var err = document.getElementById('splash-error');
-          if (err) { err.textContent = msg; err.style.display = 'block'; }
-          var sub = document.getElementById('splash-sub');
-          if (sub) sub.style.display = 'none';
-          var bar = document.querySelector('.bar-wrap');
-          if (bar) bar.style.display = 'none';
+          elError.textContent = msg;
+          elError.style.display = 'block';
+          setText('CONNECTION FAILED', 'error');
+          setStep(elStepBackend, '');
+          setStep(elStepConnect, '');
         }
 
         function hideSplash() {
-          var el = document.getElementById('splash-overlay');
-          if (el) { el.classList.add('hide'); setTimeout(function() { el.remove(); }, 500); }
-        }
-
-        function setText(msg) {
-          var t = document.getElementById('splash-text');
-          if (t) t.textContent = msg;
+          var overlay = document.getElementById('splash-overlay');
+          overlay.style.transition = 'opacity 0.6s ease';
+          overlay.style.opacity = '0';
+          setTimeout(function() { overlay.remove(); }, 600);
         }
 
         function checkBackend() {
           if (retries >= maxRetries) {
-            showError('后端服务启动超时（' + Math.round(maxRetries * 1.5) + '秒），请检查后端日志');
+            setStep(elStepBackend, '');
+            showError('后端服务启动超时 (' + Math.round(maxRetries * 1.5) + 's)。请检查后端日志或端口 18080 是否被占用。');
             return;
           }
           retries++;
 
-          // 阶段1：检查后端是否存活
+          if (retries === 1) {
+            setText('STARTING BACKEND SERVICE', 'active');
+            setProgress(10);
+          }
+
           var ctrl = new AbortController();
           var timer = setTimeout(function() { ctrl.abort(); }, 5000);
 
           fetch(healthUrl, { signal: ctrl.signal })
             .then(function(r) {
               clearTimeout(timer);
-              if (!r.ok) throw new Error('status ' + r.status);
+              if (!r.ok) throw new Error('HTTP ' + r.status);
               return r.json();
             })
             .then(function() {
-              // 阶段2：验证客户端实际连接能力（再请求一次确认稳定）
-              setText('正在验证连接...');
-              var ctrl2 = new AbortController();
-              var timer2 = setTimeout(function() { ctrl2.abort(); }, 5000);
-              fetch(healthUrl, { signal: ctrl2.signal })
-                .then(function(r2) {
-                  clearTimeout(timer2);
-                  if (r2.ok) {
-                    hideSplash();
-                  } else {
-                    showError('后端已启动但连接不稳定 (HTTP ' + r2.status + ')，请检查网络或防火墙设置');
-                  }
-                })
-                .catch(function(e2) {
-                  clearTimeout(timer2);
-                  showError('后端已启动但客户端无法连接: ' + (e2.name === 'AbortError' ? '请求超时' : e2.message) + '。请检查防火墙或端口 18080 是否被阻止');
-                });
+              // 后端已启动
+              setStep(elStepBackend, 'done');
+              setProgress(40);
+              setText('BACKEND SERVICE ONLINE', 'success');
+
+              // 阶段2：验证连接稳定性
+              setTimeout(function() {
+                setStep(elStepConnect, 'active');
+                setText('VERIFYING CONNECTION...', 'active');
+                setProgress(60);
+
+                var ctrl2 = new AbortController();
+                var timer2 = setTimeout(function() { ctrl2.abort(); }, 5000);
+                fetch(healthUrl, { signal: ctrl2.signal })
+                  .then(function(r2) {
+                    clearTimeout(timer2);
+                    if (r2.ok) {
+                      // 连接成功
+                      setStep(elStepConnect, 'done');
+                      setStep(elStepReady, 'active');
+                      setProgress(90);
+                      setText('CONNECTION ESTABLISHED', 'success');
+
+                      setTimeout(function() {
+                        setStep(elStepReady, 'done');
+                        setProgress(100);
+                        setText('SYSTEM READY', 'success');
+                        setTimeout(hideSplash, 400);
+                      }, 300);
+                    } else {
+                      setStep(elStepConnect, '');
+                      showError('后端已启动但连接不稳定 (HTTP ' + r2.status + ')。请检查网络或防火墙设置。');
+                    }
+                  })
+                  .catch(function(e2) {
+                    clearTimeout(timer2);
+                    setStep(elStepConnect, '');
+                    var reason = e2.name === 'AbortError' ? '连接超时 (5s)' : e2.message;
+                    showError('后端已启动但客户端无法连接: ' + reason + '。请检查防火墙是否阻止了端口 18080。');
+                  });
+              }, 500);
             })
-            .catch(function(e) {
+            .catch(function() {
               clearTimeout(timer);
-              // 还没启动完成，继续轮询
+              // 后端未就绪，继续轮询
+              if (retries % 4 === 0) {
+                setText('STARTING BACKEND SERVICE' + '.'.repeat((retries / 4) % 4), 'active');
+              }
               setTimeout(checkBackend, 1500);
             });
         }
