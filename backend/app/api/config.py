@@ -28,6 +28,19 @@ router = APIRouter(prefix="/config", tags=["配置"])
 # Collector swap callback (set by main.py)
 _switch_collector_func: Optional[Callable] = None
 
+
+def _fix_mdb_encoding(s):
+    """Fix encoding for Chinese characters from .mdb files (typically GBK/GB2312)"""
+    if isinstance(s, str):
+        try:
+            return s.encode('latin-1').decode('gbk')
+        except (UnicodeDecodeError, LookupError):
+            try:
+                return s.encode('latin-1').decode('gb2312')
+            except (UnicodeDecodeError, LookupError):
+                return s
+    return s
+
 # Source status tracking (updated by main.py)
 _source_status = {
     "source": "mock",
@@ -660,12 +673,12 @@ def get_mdb_init_status():
                 comp_no_list = components.get('CompNo', []) if components else []
                 comp_map = {}
                 for i in range(min(len(comp_no_list), len(comp_name_list))):
-                    comp_map[comp_no_list[i]] = comp_name_list[i]
+                    comp_map[comp_no_list[i]] = _fix_mdb_encoding(comp_name_list[i])
                 prod_name_list = products.get('Name', []) if products else []
                 prod_no_list = products.get('ProdNo', []) if products else []
                 prod_map = {}
                 for i in range(min(len(prod_no_list), len(prod_name_list))):
-                    prod_map[prod_no_list[i]] = prod_name_list[i]
+                    prod_map[prod_no_list[i]] = _fix_mdb_encoding(prod_name_list[i])
                 samp_no_list = samples.get('SampNo', []) if samples else []
                 samp_prod_list = samples.get('ProdRef', []) if samples else []
                 samp_time_list = samples.get('DateTime', []) if samples else []
