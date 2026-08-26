@@ -14,7 +14,12 @@ if (Test-Path $PORTABLE) { Remove-Item -Recurse -Force $PORTABLE }
 New-Item -ItemType Directory -Path $PORTABLE | Out-Null
 
 # Copy launcher exe
-Copy-Item (Join-Path $LAUNCHER_DIR "target\release\SPC-Monitor.exe") (Join-Path $PORTABLE "过程SPC监控平台.exe")
+$launcherExe = Join-Path $LAUNCHER_DIR "target\release\SPC-Monitor.exe"
+if (-not (Test-Path $launcherExe)) {
+    Write-Host "Error: Launcher exe not found at $launcherExe"
+    exit 1
+}
+Copy-Item $launcherExe (Join-Path $PORTABLE "过程SPC监控平台.exe")
 
 # Copy backend with robocopy
 $portableBackend = Join-Path $PORTABLE "ft1-backend"
@@ -32,12 +37,16 @@ Write-Host "Portable: $zipPath"
 
 # Copy NSIS installer
 $nsisDir = Join-Path $LAUNCHER_DIR "target\release\bundle\nsis"
-$nsisExe = Get-ChildItem "$nsisDir\*.exe" | Select-Object -First 1
-if ($nsisExe) {
-    Copy-Item $nsisExe.FullName $OUTPUT_DIR
-    Write-Host "Installer: $($nsisExe.FullName)"
+if (Test-Path $nsisDir) {
+    $nsisExe = Get-ChildItem -Path $nsisDir -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($nsisExe) {
+        Copy-Item $nsisExe.FullName $OUTPUT_DIR
+        Write-Host "Installer: $($nsisExe.Name)"
+    } else {
+        Write-Host "Warning: No NSIS installer exe found in $nsisDir"
+    }
 } else {
-    Write-Host "Warning: NSIS installer not found"
+    Write-Host "Warning: NSIS directory not found at $nsisDir"
 }
 
 # List outputs
