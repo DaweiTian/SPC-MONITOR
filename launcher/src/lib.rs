@@ -81,6 +81,12 @@ pub fn run() {
             // 创建系统托盘
             tray::create_tray(app, sm_for_handler.clone())?;
 
+            // 默认开启开机自启
+            let autostart = app.autolaunch();
+            if !autostart.is_enabled().unwrap_or(false) {
+                autostart.enable().ok();
+            }
+
             // 拦截主窗口关闭：隐藏到托盘
             if let Some(window) = app.get_webview_window("main") {
                 let w = window.clone();
