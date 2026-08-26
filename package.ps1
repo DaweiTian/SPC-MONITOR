@@ -38,7 +38,7 @@ Write-Host "Portable: $zipPath"
 # Copy NSIS installer
 $nsisDir = Join-Path $LAUNCHER_DIR "target\release\bundle\nsis"
 if (Test-Path $nsisDir) {
-    $nsisExe = Get-ChildItem -Path $nsisDir -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $nsisExe = Get-ChildItem -Path $nsisDir -Filter "*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($nsisExe) {
         Copy-Item $nsisExe.FullName $OUTPUT_DIR
         Write-Host "Installer: $($nsisExe.Name)"
