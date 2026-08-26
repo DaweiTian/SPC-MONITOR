@@ -96,11 +96,7 @@ pub fn run() {
                         let _ = w.hide();
                     }
                 });
-            }
-
-            // F12 打开开发者工具
-            #[cfg(debug_assertions)]
-            if let Some(window) = app.get_webview_window("main") {
+                // 打开开发者工具（调试用，问题修好后删除）
                 window.open_devtools();
             }
 
