@@ -9,7 +9,7 @@ use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
-use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tray::TrayMenuItems;
 
 struct ApiKeyState(String);
