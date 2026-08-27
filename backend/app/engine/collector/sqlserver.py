@@ -121,18 +121,21 @@ class SQLServerCollector(BaseCollector):
     def _build_pymssql_connection(config: dict):
         """创建 pymssql 连接（当 pyodbc 不可用时的备选方案）"""
         import pymssql
-        import re
         server_raw = config.get("server", "localhost")
         database = config.get("database", "")
         auth_type = config.get("auth_type", "sql")
         username = config.get("username", "sa")
         password = config.get("password", "")
 
-        # pymssql/FreeTDS 处理命名实例不可靠，解析为 host:port 格式
-        # 支持格式: "host\instance,port" / "host,port" / "host\instance" / "host"
+        # pymssql server 参数格式：
+        # - 指定端口: "host,port" (逗号分隔)
+        # - 命名实例: "host\instance"
+        # - 默认实例: "host"
+        # 注意：pymssql 不支持 host\instance,port 格式，端口优先
         host = server_raw
         port = None
         instance = None
+
         # 提取端口 (逗号后面)
         if ',' in server_raw:
             parts = server_raw.rsplit(',', 1)
@@ -141,15 +144,16 @@ class SQLServerCollector(BaseCollector):
                 port = int(parts[1])
             except ValueError:
                 pass
+
         # 提取命名实例 (反斜杠后面)
         if '\\' in host:
             parts = host.split('\\', 1)
             host = parts[0]
             instance = parts[1]
 
-        # 构建 pymssql server 参数：优先 host:port，否则 host\instance
+        # 构建 pymssql server 参数：优先 host,port，否则 host\instance
         if port:
-            server = f"{host}:{port}"
+            server = f"{host},{port}"
         elif instance:
             server = f"{host}\\{instance}"
         else:

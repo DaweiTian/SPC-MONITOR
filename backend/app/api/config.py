@@ -243,26 +243,43 @@ def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
     error_str = str(e)
     server = cfg.get("server", "")
 
-    # Extract host and port from server string
+    # Parse server string: support "host\instance,port" / "host,port" / "host\instance" / "host"
     host = server
     port = None
-    if ':' in server:
-        parts = server.rsplit(':', 1)
+    instance = None
+
+    # Extract port (after comma)
+    if ',' in server:
+        parts = server.rsplit(',', 1)
         host = parts[0]
         try:
             port = int(parts[1])
         except ValueError:
             pass
 
+    # Extract instance (after backslash)
+    if '\\' in host:
+        parts = host.split('\\', 1)
+        host = parts[0]
+        instance = parts[1]
+
     # Error 20002: TCP connection failed (server unreachable)
     if "20002" in error_str:
         if port:
             return (
-                f"无法连接到 {host}:{port}。请检查：\n"
+                f"无法连接到 {server}。请检查：\n"
                 f"1. 服务器 {host} 是否可达（在命令行运行: ping {host}）\n"
                 f"2. SQL Server 是否在端口 {port} 监听（运行: Test-NetConnection -ComputerName {host} -Port {port}）\n"
                 f"3. 防火墙是否放行端口 {port}\n"
                 f"4. SQL Server 服务是否已启动"
+            )
+        elif instance:
+            return (
+                f"无法连接到 {server}。请检查：\n"
+                f"1. 服务器 {host} 是否可达（在命令行运行: ping {host}）\n"
+                f"2. SQL Server 实例 {instance} 是否存在\n"
+                f"3. SQL Server Browser 服务是否运行\n"
+                f"4. 防火墙是否放行 SQL Server 端口"
             )
         else:
             return (
