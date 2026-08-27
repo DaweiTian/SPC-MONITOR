@@ -22,11 +22,18 @@ for lib in libs_to_collect:
     except Exception:
         pass  # 库未安装时跳过
 
+# Include config/data files that should be next to the exe
+config_datas = []
+for cfg_file in ['spec_limits.json']:
+    cfg_path = os.path.join(project_root, '..', cfg_file)
+    if os.path.exists(cfg_path):
+        config_datas.append((cfg_path, '.'))
+
 a = Analysis(
     [os.path.join(project_root, 'run.py')],
     pathex=[project_root],
     binaries=all_binaries,
-    datas=all_datas,
+    datas=all_datas + config_datas,
     hiddenimports=[
         'uvicorn.logging',
         'uvicorn.loops',

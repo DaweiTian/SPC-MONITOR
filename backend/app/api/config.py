@@ -5,6 +5,7 @@ import json
 import logging
 import copy
 import os
+import sys
 import threading
 
 from backend.app.core.validation import validate_identifier, validate_mdb_path
@@ -199,8 +200,9 @@ def test_db_connection(config: DBConfigRequest):
             conn.close()
             return {"success": True, "message": "连接成功！(pymssql)"}
         except Exception as e:
+            error_msg = _diagnose_pymssql_error(e, cfg)
             logger.error(f"pymssql连接失败: {e}", exc_info=True)
-            return {"success": False, "message": "连接失败，请检查数据库配置"}
+            return {"success": False, "message": error_msg}
 
     # ODBC 模式
     try:
@@ -233,7 +235,120 @@ def test_db_connection(config: DBConfigRequest):
             error_msg = "ODBC 驱动未安装，请安装对应的驱动"
 
         logger.error(f"ODBC连接失败: {error_msg}", exc_info=True)
-        return {"success": False, "message": "连接失败，请检查数据库配置"}
+        return {"success": False, "message": error_msg}
+
+
+def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
+    """Diagnose pymssql connection errors and return actionable message."""
+    error_str = str(e)
+    server = cfg.get("server", "")
+
+    # Extract host and port from server string
+    host = server
+    port = None
+    if ':' in server:
+        parts = server.rsplit(':', 1)
+        host = parts[0]
+        try:
+            port = int(parts[1])
+        except ValueError:
+            pass
+
+    # Error 20002: TCP connection failed (server unreachable)
+    if "20002" in error_str:
+        if port:
+            return (
+                f"无法连接到 {host}:{port}。请检查：\n"
+                f"1. 服务器 {host} 是否可达（在命令行运行: ping {host}）\n"
+                f"2. SQL Server 是否在端口 {port} 监听（运行: Test-NetConnection -ComputerName {host} -Port {port}）\n"
+                f"3. 防火墙是否放行端口 {port}\n"
+                f"4. SQL Server 服务是否已启动"
+            )
+        else:
+            return (
+                f"无法连接到 {host}。请检查：\n"
+                f"1. 服务器 {host} 是否可达（在命令行运行: ping {host}）\n"
+                f"2. SQL Server 服务是否已启动\n"
+                f"3. 防火墙是否放行 SQL Server 端口"
+            )
+
+    # Error 18456: Login failed
+    if "18456" in error_str or "Login failed" in error_str:
+        return "登录失败，请检查用户名和密码"
+
+    # Error 4060: Cannot open database
+    if "4060" in error_str or "Cannot open database" in error_str:
+        database = cfg.get("database", "")
+        return f"无法打开数据库 '{database}'，请检查数据库名称是否正确"
+
+    # Default
+    return f"连接失败: {error_str[:200]}"
+
+
+@router.post("/db/diagnose")
+def diagnose_db_connection(config: DBConfigRequest):
+    """网络诊断：检查服务器可达性，不依赖 pymssql/ODBC"""
+    import socket
+    import subprocess
+    cfg = config.model_dump()
+    server = cfg.get("server", "")
+
+    # Extract host and port
+    host = server
+    port = None
+    if ':' in server:
+        parts = server.rsplit(':', 1)
+        host = parts[0]
+        try:
+            port = int(parts[1])
+        except ValueError:
+            pass
+
+    results = {"host": host, "port": port, "checks": []}
+
+    # Check 1: DNS resolution
+    try:
+        ip = socket.gethostbyname(host)
+        results["checks"].append({"step": "DNS解析", "success": True, "detail": f"{host} → {ip}"})
+    except socket.gaierror:
+        results["checks"].append({
+            "step": "DNS解析", "success": False,
+            "detail": f"无法解析主机名 '{host}'，请检查主机名是否正确"
+        })
+        return {"success": False, "diagnosis": results}
+
+    # Check 2: TCP port connectivity
+    if port:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((ip, port))
+            sock.close()
+            if result == 0:
+                results["checks"].append({"step": f"端口 {port}", "success": True, "detail": "端口可达"})
+            else:
+                results["checks"].append({
+                    "step": f"端口 {port}", "success": False,
+                    "detail": f"端口 {port} 不可达（错误码: {result}）。SQL Server 可能未在此端口监听，或防火墙阻止连接"
+                })
+        except Exception as e:
+            results["checks"].append({"step": f"端口 {port}", "success": False, "detail": str(e)})
+
+    # Check 3: ping
+    try:
+        param = '-n' if sys.platform == 'win32' else '-c'
+        ret = subprocess.run(['ping', param, '1', '-w', '2000', host],
+                             capture_output=True, timeout=5)
+        if ret.returncode == 0:
+            results["checks"].append({"step": "Ping", "success": True, "detail": "主机可达"})
+        else:
+            results["checks"].append({"step": "Ping", "success": False, "detail": "主机不可达（可能被防火墙阻止）"})
+    except Exception:
+        results["checks"].append({"step": "Ping", "success": False, "detail": "无法执行 ping"})
+
+    all_ok = all(c["success"] for c in results["checks"])
+    return {"success": all_ok, "diagnosis": results}
+
 
 @router.post("/db/explore")
 def explore_db_structure(config: DBConfigRequest):
@@ -761,7 +876,8 @@ def test_fta_connection(config: dict):
 
         # Test connection
         if not collector.test_connection():
-            return {"success": False, "message": "FTA 数据库连接失败"}
+            error_msg = _diagnose_pymssql_error(Exception("20002 connection failed"), config)
+            return {"success": False, "message": error_msg}
 
         # Test tables
         table_result = collector.test_tables()
@@ -783,8 +899,9 @@ def test_fta_connection(config: dict):
             "indicators": [i["name"] for i in indicators[:5]],
         }
     except Exception as e:
+        error_msg = _diagnose_pymssql_error(e, config)
         logger.error(f"FTA测试失败: {e}", exc_info=True)
-        return {"success": False, "message": "测试失败，请检查FTA数据库配置"}
+        return {"success": False, "message": error_msg}
 
 
 # ========== FT1 / FTA Init Status (data preview before import) ==========

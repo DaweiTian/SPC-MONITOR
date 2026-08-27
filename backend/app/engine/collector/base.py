@@ -2,11 +2,25 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import json
 import os
+import sys
 import logging
 
 logger = logging.getLogger(__name__)
 
-SPEC_LIMITS_FILE = "spec_limits.json"
+
+def _resolve_data_file(filename: str) -> str:
+    """Resolve a data file path, checking exe directory first (for PyInstaller), then CWD."""
+    # For PyInstaller packaged app: check next to the executable
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidate = os.path.join(exe_dir, filename)
+        if os.path.exists(candidate):
+            return candidate
+    # Fallback: relative to current working directory
+    return filename
+
+
+SPEC_LIMITS_FILE = _resolve_data_file("spec_limits.json")
 
 
 class BaseCollector(ABC):

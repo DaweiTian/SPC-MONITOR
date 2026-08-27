@@ -430,7 +430,7 @@ export const ConfigPage: React.FC = () => {
         if (switchResult?.success) {
           setSaveResult({ success: true, message: '数据源已连接，正在获取预览...' })
         } else {
-          setSaveResult({ success: true, message: switchResult?.message || '数据源连接中...' })
+          setSaveResult({ success: false, message: switchResult?.message || '数据源连接失败' })
         }
 
         // Fetch init status for preview dialog (all instrument types)
