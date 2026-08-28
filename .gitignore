@@ -26,9 +26,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Sensitive config files (contain passwords)
-backend/server_config.json
-backend/devices.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
