@@ -107,7 +107,14 @@ export default function DevicesPage() {
 
   const openDevice = (device: Device) => {
     const url = `http://${device.ip}:${device.port}/app/`
-    window.open(url, '_blank', 'noopener,noreferrer')
+    if ('__TAURI__' in window) {
+      const opener = (window as any).__TAURI__?.opener
+      if (opener?.openUrl) {
+        opener.openUrl(url)
+        return
+      }
+    }
+    window.open(url, '_blank')
   }
 
   if (loading) return <div className={styles.loading}>加载中...</div>

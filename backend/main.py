@@ -659,7 +659,7 @@ def update_network_config(request: Request, request_body: dict):
 
 # ---- 设备管理接口 ----
 
-DEVICES_FILE = os.path.join(os.path.dirname(__file__), "devices.json")
+DEVICES_FILE = os.path.join(os.getcwd(), "devices.json") if os.path.exists(os.path.join(os.getcwd(), "devices.json")) else os.path.join(os.path.dirname(__file__), "devices.json")
 
 
 def _load_devices() -> list:
@@ -787,7 +787,7 @@ async def open_firewall(request: Request):
             ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=FT1-MONITOR (TCP 18080)'],
             capture_output=True, text=True
         )
-        if 'No rules match' in check.stdout or check.returncode != 0:
+        if 'No rules match' in (check.stdout or '') or check.returncode != 0:
             return {"success": False, "message": "防火墙规则未生效，UAC可能被拒绝或操作失败"}
         return {"success": True, "message": "防火墙放行成功，局域网设备现在可以访问本机"}
     except Exception as e:

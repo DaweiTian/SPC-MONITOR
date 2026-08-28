@@ -3,8 +3,12 @@ from functools import lru_cache
 from pathlib import Path
 import json
 
-# 服务器配置文件路径
-SERVER_CONFIG_FILE = Path(__file__).parent.parent.parent / "server_config.json"
+# 服务器配置文件路径（Nuitka编译后 __file__ 在 _internal/ 下，需要向上找到 exe 目录）
+_SERVER_CONFIG_CANDIDATES = [
+    Path.cwd() / "server_config.json",                       # exe 所在目录（run.py 设置了 cwd）
+    Path(__file__).parent.parent.parent / "server_config.json",  # 开发环境
+]
+SERVER_CONFIG_FILE = next((p for p in _SERVER_CONFIG_CANDIDATES if p.exists()), _SERVER_CONFIG_CANDIDATES[0])
 
 class Settings(BaseSettings):
     app_name: str = "液奶过程监控系统"
