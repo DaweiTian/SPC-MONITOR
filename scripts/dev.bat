@@ -51,7 +51,7 @@ if not exist "%PROJECT_DIR%\data" mkdir "%PROJECT_DIR%\data"
 echo.
 echo [3/4] 启动后端服务 (端口 18080)...
 cd /d "%PROJECT_DIR%"
-start "FT1-Monitor Backend" python -m uvicorn backend.main:app --host 127.0.0.1 --port 18080 --reload
+start "FT1-Monitor Backend" python -m uvicorn backend.main:app --host 0.0.0.0 --port 18080 --reload
 
 echo [4/4] 启动前端服务 (端口 5173)...
 cd /d "%PROJECT_DIR%\frontend"

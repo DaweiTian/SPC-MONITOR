@@ -58,7 +58,7 @@ cd "$PROJECT_DIR"
 # 前端默认发送 'ft1-monitor-default-key'，本地开发需与之一致；生产环境请设置强随机密钥
 export FT1_API_KEY="${FT1_API_KEY:-ft1-monitor-default-key}"
 nohup python3 -m uvicorn backend.main:app \
-    --host 127.0.0.1 \
+    --host 0.0.0.0 \
     --port 18080 \
     --reload \
     --log-level warning \
@@ -82,7 +82,7 @@ echo -e "${GREEN}  开发服务已在后台启动${NC}"
 echo "=========================================="
 echo ""
 echo "  前端: http://localhost:5173"
-echo "  后端: http://localhost:18080"
+echo "  后端: http://0.0.0.0:18080 (局域网可访问)"
 echo "  API 文档: http://localhost:18080/docs"
 echo ""
 echo "  日志文件:"
