@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '../../services'
 import { useToast } from '../../components/Toast'
 import styles from './NetworkSettings.module.css'
@@ -26,6 +26,7 @@ export const NetworkSettings: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [firewallLoading, setFirewallLoading] = useState(false)
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const { addToast } = useToast()
 
   const fetchConfig = useCallback(async () => {
@@ -44,6 +45,10 @@ export const NetworkSettings: React.FC = () => {
   useEffect(() => {
     fetchConfig()
   }, [fetchConfig])
+
+  useEffect(() => {
+    return () => { clearTimeout(copiedTimerRef.current) }
+  }, [])
 
   const isShared = config?.host === '0.0.0.0'
   const isPasswordEnabled = config?.password_enabled
@@ -103,7 +108,8 @@ export const NetworkSettings: React.FC = () => {
     try {
       await navigator.clipboard.writeText(address)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      clearTimeout(copiedTimerRef.current)
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000)
     } catch {
       const textArea = document.createElement('textarea')
       textArea.value = address
@@ -112,7 +118,8 @@ export const NetworkSettings: React.FC = () => {
       document.execCommand('copy')
       document.body.removeChild(textArea)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      clearTimeout(copiedTimerRef.current)
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000)
     }
   }
 

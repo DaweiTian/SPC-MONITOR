@@ -1,11 +1,24 @@
 import json
 import os
+import socket
 import logging
 import urllib.parse
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_host(host: str) -> str:
+    """解析主机名到IP地址（解决非ASCII主机名导致 pymssql/FreeTDS 连接失败的问题）"""
+    try:
+        ip = socket.gethostbyname(host)
+        if ip != host:
+            logger.info(f"主机名解析: {host} -> {ip}")
+        return ip
+    except (socket.gaierror, OSError):
+        logger.warning(f"主机名解析失败，使用原始主机名: {host}")
+        return host
 
 
 def parse_datetime(time_str: str) -> Optional[datetime]:

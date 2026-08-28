@@ -668,8 +668,18 @@ def _load_devices() -> list:
         if os.path.exists(DEVICES_FILE):
             with open(DEVICES_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
-    except Exception:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"devices.json 格式错误，将重新创建: {e}")
+        # 备份损坏文件
+        try:
+            import shutil
+            backup = DEVICES_FILE + '.bak'
+            shutil.copy2(DEVICES_FILE, backup)
+            logger.info(f"已备份损坏文件到: {backup}")
+        except Exception:
+            pass
+    except Exception as e:
+        logger.warning(f"读取 devices.json 失败: {e}")
     return []
 
 
@@ -758,12 +768,12 @@ async def open_firewall(request: Request):
 
     try:
         import ctypes
+        import subprocess
+        import time
         ps_cmd = (
             'Start-Process cmd -ArgumentList '
             '"/c netsh advfirewall firewall add rule '
-            'name=\'FT1-MONITOR (TCP 18080)\' dir=in action=allow protocol=TCP localport=18080 & '
-            'netsh advfirewall firewall add rule '
-            'name=\'FT1-MONITOR (UDP 18080)\' dir=in action=allow protocol=UDP localport=18080" '
+            'name=\'FT1-MONITOR (TCP 18080)\' dir=in action=allow protocol=TCP localport=18080" '
             '-Verb RunAs -WindowStyle Hidden'
         )
         rc = ctypes.windll.shell32.ShellExecuteW(
@@ -771,7 +781,15 @@ async def open_firewall(request: Request):
         )
         if rc <= 32:
             return {"success": False, "message": f"无法请求管理员权限 (code {rc})"}
-        return {"success": True, "message": "已请求管理员权限，如UAC弹窗中点击[是]则放行成功"}
+        # 等待 UAC 操作完成后验证
+        time.sleep(3)
+        check = subprocess.run(
+            ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=FT1-MONITOR (TCP 18080)'],
+            capture_output=True, text=True
+        )
+        if 'No rules match' in check.stdout or check.returncode != 0:
+            return {"success": False, "message": "防火墙规则未生效，UAC可能被拒绝或操作失败"}
+        return {"success": True, "message": "防火墙放行成功，局域网设备现在可以访问本机"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
