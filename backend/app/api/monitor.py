@@ -56,22 +56,24 @@ def manual_collect():
 @router.get("/widget_spc")
 def get_widget_spc():
     """小组件用的 SPC 数据（自动选取最近有数据的指标）"""
-    if not storage or not collector:
+    if not storage:
         return {"spc_points": [], "spc_mean": 0, "spc_ucl": 0, "spc_lcl": 0}
 
     try:
-        products = collector.get_products()
-        indicators = collector.get_indicators()
+        import numpy as np
+        # 从 SQLite 获取实际有数据的品项（不依赖源数据库连接）
+        db_products = storage.get_products_with_data(limit=3)
 
-        for product in products[:3]:
-            for indicator in indicators[:10]:
+        for product in db_products:
+            pc = product['product_code']
+            indicator_codes = storage.get_product_indicator_codes(pc)
+            for ic in indicator_codes[:10]:
                 data = storage.get_recent_data(
-                    indicator_code=indicator['code'],
-                    product_code=product['code'],
+                    indicator_code=ic,
+                    product_code=pc,
                     limit=20,
                 )
                 if len(data) >= 5:
-                    import numpy as np
                     values = np.array([d['value'] for d in data], dtype=float)
                     mean = float(np.mean(values))
                     std = float(np.std(values, ddof=1)) if len(values) > 1 else 1.0
@@ -96,21 +98,23 @@ def get_widget_capability():
         from backend.app.engine.spc.capability import ProcessCapability
         import numpy as np
 
-        products = collector.get_products()
-        indicators = collector.get_indicators()
+        # 从 SQLite 获取实际有数据的品项（不依赖源数据库连接）
+        db_products = storage.get_products_with_data(limit=3)
         capability = ProcessCapability()
 
         results = {"cp": [], "cpk": [], "pp": [], "ppk": [], "sigma": [], "ppm": []}
 
-        for product in products[:3]:
-            spec_limits_map = collector.get_spec_limits(product_code=product['code'])
-            for indicator in indicators[:10]:
-                spec = spec_limits_map.get(indicator['code'], {})
+        for product in db_products:
+            pc = product['product_code']
+            spec_limits_map = collector.get_spec_limits(product_code=pc)
+            indicator_codes = storage.get_product_indicator_codes(pc)
+            for ic in indicator_codes[:10]:
+                spec = spec_limits_map.get(ic, {})
                 if spec.get('lsl') is None and spec.get('usl') is None:
                     continue
                 data = storage.get_recent_data(
-                    indicator_code=indicator['code'],
-                    product_code=product['code'],
+                    indicator_code=ic,
+                    product_code=pc,
                     limit=30,
                 )
                 if len(data) < 5:
