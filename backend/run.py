@@ -53,8 +53,22 @@ if __name__ == '__main__':
     parser.add_argument('--host', default=server_config['host'])
     parser.add_argument('--port', type=int, default=server_config['port'])
     args = parser.parse_args()
+    import time as _time
     try:
-        uvicorn.run(app, host=args.host, port=args.port)
+        # 重试机制：端口可能因 Launcher 重启仍在 TIME_WAIT 状态
+        for _attempt in range(5):
+            try:
+                uvicorn.run(app, host=args.host, port=args.port)
+                break
+            except OSError as e:
+                if '10048' in str(e) or 'Address already in use' in str(e):
+                    print(f"端口 {args.port} 被占用，等待释放后重试...")
+                    _time.sleep(3)
+                    continue
+                raise
+        else:
+            print(f"错误: 端口 {args.port} 多次重试后仍无法绑定")
+            sys.exit(1)
     except OSError as e:
         print(f"错误: 无法绑定到 {args.host}:{args.port} — {e}")
         print("端口可能已被占用，请使用 --port 指定其他端口")

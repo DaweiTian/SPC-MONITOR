@@ -783,11 +783,15 @@ async def open_firewall(request: Request):
             return {"success": False, "message": f"无法请求管理员权限 (code {rc})"}
         # 等待 UAC 操作完成后验证
         time.sleep(3)
-        check = subprocess.run(
-            ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=FT1-MONITOR (TCP 18080)'],
-            capture_output=True, text=True
-        )
-        if 'No rules match' in (check.stdout or '') or check.returncode != 0:
+        try:
+            check = subprocess.run(
+                ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=FT1-MONITOR (TCP 18080)'],
+                capture_output=True
+            )
+            stdout = check.stdout.decode('gbk', errors='replace') if check.stdout else ''
+        except Exception:
+            stdout = ''
+        if 'No rules match' in stdout or not stdout:
             return {"success": False, "message": "防火墙规则未生效，UAC可能被拒绝或操作失败"}
         return {"success": True, "message": "防火墙放行成功，局域网设备现在可以访问本机"}
     except Exception as e:

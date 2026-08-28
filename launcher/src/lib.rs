@@ -113,7 +113,7 @@ pub fn run() {
                     if sm_for_timer.has_process() {
                         if !sm_for_timer.health_check() {
                             failures += 1;
-                            if failures >= 3 {
+                            if failures >= 5 {
                                 sm_for_timer.stop_server().ok();
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
                                     items.start.set_enabled(true).ok();

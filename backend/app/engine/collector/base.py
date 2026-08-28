@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_data_file(filename: str) -> str:
-    """Resolve a data file path, checking exe directory first (for PyInstaller), then CWD."""
-    # For PyInstaller packaged app: check next to the executable
-    if getattr(sys, 'frozen', False):
+    """Resolve a data file path, checking exe directory first (for Nuitka/PyInstaller), then CWD."""
+    # For packaged app: check next to the executable
+    if getattr(sys, 'frozen', False) or '__compiled__' in globals():
         exe_dir = os.path.dirname(sys.executable)
         candidate = os.path.join(exe_dir, filename)
         if os.path.exists(candidate):
