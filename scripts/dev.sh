@@ -57,8 +57,9 @@ echo -e "${GREEN}[3/4] 启动后端服务 (端口 18080)...${NC}"
 cd "$PROJECT_DIR"
 # 前端默认发送 'ft1-monitor-default-key'，本地开发需与之一致；生产环境请设置强随机密钥
 export FT1_API_KEY="${FT1_API_KEY:-ft1-monitor-default-key}"
+BACKEND_HOST=$(python3 -c "from backend.app.core.config import get_server_config; print(get_server_config()['host'])" 2>/dev/null || echo "0.0.0.0")
 nohup python3 -m uvicorn backend.main:app \
-    --host 0.0.0.0 \
+    --host "$BACKEND_HOST" \
     --port 18080 \
     --reload \
     --log-level warning \
