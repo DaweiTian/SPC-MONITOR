@@ -25,6 +25,7 @@ export const NetworkSettings: React.FC = () => {
   const [copied, setCopied] = useState(false)
   const [passwordInput, setPasswordInput] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isEditingPassword, setIsEditingPassword] = useState(false)
   const [firewallLoading, setFirewallLoading] = useState(false)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const { addToast } = useToast()
@@ -311,41 +312,97 @@ export const NetworkSettings: React.FC = () => {
             <div className={styles.sharingDesc} style={{ marginBottom: '16px' }}>
               设置共享密码后，远程设备访问时需要输入密码才能查看监控页面，防止非授权访问。
             </div>
-            <div className={styles.passwordRow}>
-              <div className={styles.passwordInputWrapper}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="留空表示不设密码"
-                  className={styles.passwordInput}
-                />
+
+            {isPasswordEnabled && !isEditingPassword ? (
+              /* 已设置密码：显示掩码 + 操作按钮 */
+              <div className={styles.passwordRow}>
+                <div className={styles.passwordInputWrapper}>
+                  <input
+                    type="text"
+                    value="••••••••"
+                    readOnly
+                    className={styles.passwordInput}
+                    style={{ color: 'var(--text-muted)', letterSpacing: '2px' }}
+                  />
+                </div>
                 <button
-                  className={styles.eyeBtn}
-                  onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? '隐藏密码' : '显示密码'}
+                  className={styles.saveBtn}
+                  onClick={() => { setIsEditingPassword(true); setPasswordInput('') }}
                 >
-                  {showPassword ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
+                  修改
+                </button>
+                <button
+                  className={styles.saveBtn}
+                  onClick={async () => {
+                    setSaving(true)
+                    try {
+                      const result = await api.updateNetworkConfig({ shared_password: '' })
+                      if (result.success) {
+                        setConfig(prev => prev ? { ...prev, shared_password: '', password_enabled: false } : prev)
+                        setPasswordInput('')
+                        addToast({ title: '成功', message: '共享密码已清除', severity: 'INFO' })
+                      }
+                    } catch {
+                      addToast({ title: '错误', message: '清除密码失败', severity: 'WARNING' })
+                    } finally {
+                      setSaving(false)
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  清除
                 </button>
               </div>
-              <button
-                className={styles.saveBtn}
-                onClick={handleSavePassword}
-                disabled={saving}
-              >
-                {saving ? '保存中...' : '保存'}
-              </button>
-            </div>
+            ) : (
+              /* 未设置密码 或 正在修改：显示输入框 */
+              <div className={styles.passwordRow}>
+                <div className={styles.passwordInputWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="输入新的共享密码"
+                    className={styles.passwordInput}
+                    autoFocus={isEditingPassword}
+                  />
+                  <button
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? '隐藏密码' : '显示密码'}
+                  >
+                    {showPassword ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <button
+                  className={styles.saveBtn}
+                  onClick={async () => {
+                    await handleSavePassword()
+                    setIsEditingPassword(false)
+                  }}
+                  disabled={saving}
+                >
+                  {saving ? '保存中...' : '保存'}
+                </button>
+                {isEditingPassword && (
+                  <button
+                    className={styles.saveBtn}
+                    onClick={() => { setIsEditingPassword(false); setPasswordInput('') }}
+                  >
+                    取消
+                  </button>
+                )}
+              </div>
+            )}
             <div className={styles.hint}>
               {isPasswordEnabled
                 ? '密码已启用，远程用户需要输入密码才能访问系统。'
