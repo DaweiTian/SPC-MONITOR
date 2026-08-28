@@ -14,12 +14,11 @@ if FT1_API_KEY == DEFAULT_API_KEY:
         "Using default API key. Set FT1_API_KEY environment variable for production deployments."
     )
 
-# When FT1_API_KEY is explicitly set (non-default), only accept it.
-# When using the default key (dev mode), also accept the default explicitly.
-if FT1_API_KEY != DEFAULT_API_KEY:
-    VALID_API_KEYS = {FT1_API_KEY}
-else:
-    VALID_API_KEYS = {FT1_API_KEY, DEFAULT_API_KEY}
+# Accept both the configured key and the default key, so browser clients
+# (which cannot read the launcher-generated random key) can still connect.
+# Security note: API key is a lightweight gate; the shared_password is the
+# real authentication boundary for remote users.
+VALID_API_KEYS = {FT1_API_KEY, DEFAULT_API_KEY}
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
