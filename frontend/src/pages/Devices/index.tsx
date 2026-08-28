@@ -81,6 +81,7 @@ export default function DevicesPage() {
   }
 
   const handleRemove = async (ip: string) => {
+    if (!window.confirm('确认移除此设备？')) return
     try {
       await api.removeDevice(ip)
       addToast({ title: '成功', message: '设备已移除', severity: 'INFO' })
@@ -105,12 +106,8 @@ export default function DevicesPage() {
   }
 
   const openDevice = (device: Device) => {
-    let url = `http://${device.ip}:${device.port}/app/`
-    // 如果有保存密码，通过 URL 参数传递
-    if (device.password) {
-      url += `?auth=${encodeURIComponent(device.password)}`
-    }
-    window.open(url, '_blank')
+    const url = `http://${device.ip}:${device.port}/app/`
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   if (loading) return <div className={styles.loading}>加载中...</div>

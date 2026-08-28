@@ -222,7 +222,7 @@ export const api = {
 
   // 权限查询
   getPermissions: () =>
-    http.get<{ isLocal: boolean; allowedModules: string; restrictedModules: string[]; passwordRequired: boolean }>('/permissions').then(r => r.data),
+    http.get<{ isLocal: boolean; allowedModules: string; restrictedModules?: string[]; passwordRequired: boolean }>('/permissions').then(r => r.data),
 
   // 网络配置
   getNetworkConfig: () =>
@@ -236,9 +236,9 @@ export const api = {
 
   // 设备管理
   getDevices: () =>
-    http.get<{ devices: Array<{ ip: string; port: number; name: string; added_at?: string }> }>('/devices').then(r => r.data),
+    http.get<{ devices: Array<{ ip: string; port: number; name: string; has_password?: boolean; added_at?: string }> }>('/devices').then(r => r.data),
   addDevice: (device: { ip: string; port?: number; name?: string; password?: string }) =>
-    http.post<{ success: boolean; message?: string; device?: any }>('/devices', device).then(r => r.data),
+    http.post<{ success: boolean; message?: string; device?: { ip: string; port: number; name: string; added_at: string } }>('/devices', device).then(r => r.data),
   removeDevice: (ip: string) =>
     http.delete(`/devices/${ip}`).then(r => r.data),
   discoverDevices: () =>

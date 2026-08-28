@@ -56,7 +56,8 @@ def get_server_config() -> dict:
                     "port": int(config.get("port", default_config["port"])),
                     "shared_password": config.get("shared_password", default_config["shared_password"])
                 }
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"读取 server_config.json 失败，使用默认配置: {e}")
     
     return default_config

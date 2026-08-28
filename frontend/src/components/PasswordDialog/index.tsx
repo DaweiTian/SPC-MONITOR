@@ -3,7 +3,6 @@ import styles from './PasswordDialog.module.css'
 
 interface PasswordDialogProps {
   onVerify: (password: string) => Promise<boolean>
-  onClose?: () => void
 }
 
 export function PasswordDialog({ onVerify }: PasswordDialogProps) {
@@ -21,12 +20,18 @@ export function PasswordDialog({ onVerify }: PasswordDialogProps) {
     setLoading(true)
     setError('')
 
-    const success = await onVerify(password)
-    if (!success) {
-      setError('密码错误，请重试')
+    try {
+      const success = await onVerify(password)
+      if (!success) {
+        setError('密码错误，请重试')
+        setPassword('')
+      }
+    } catch {
+      setError('网络错误，请检查连接后重试')
       setPassword('')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

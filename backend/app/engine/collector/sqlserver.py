@@ -119,16 +119,14 @@ class SQLServerCollector(BaseCollector):
 
     @staticmethod
     def _resolve_host(host: str) -> str:
-        """解析主机名到IP地址（解决中文主机名导致 pymssql/FreeTDS 连接失败的问题）"""
+        """解析主机名到IP地址（解决非ASCII主机名导致 pymssql/FreeTDS 连接失败的问题）"""
         import socket
         try:
-            # 尝试将主机名解析为 IP 地址
             ip = socket.gethostbyname(host)
             if ip != host:
                 logger.info(f"主机名解析: {host} -> {ip}")
             return ip
-        except socket.gaierror:
-            # 解析失败时返回原主机名
+        except (socket.gaierror, OSError):
             logger.warning(f"主机名解析失败，使用原始主机名: {host}")
             return host
 

@@ -1,4 +1,5 @@
 @echo off
+setlocal
 chcp 65001 >nul
 echo ==========================================
 echo   FT1-MONITOR 防火墙端口放行工具
@@ -15,24 +16,18 @@ if %errorLevel% neq 0 (
     exit /b 1
 )
 
-echo [1/2] 添加入站规则：允许 TCP 18080 端口...
+echo 添加入站规则：允许 TCP 18080 端口...
 netsh advfirewall firewall add rule name="FT1-MONITOR (TCP 18080)" dir=in action=allow protocol=TCP localport=18080 >nul 2>&1
 if %errorLevel% equ 0 (
     echo       规则添加成功！
 ) else (
     echo       规则可能已存在，尝试更新...
     netsh advfirewall firewall set rule name="FT1-MONITOR (TCP 18080)" new dir=in action=allow protocol=TCP localport=18080 >nul 2>&1
-    echo       规则已更新！
-)
-
-echo [2/2] 添加入站规则：允许 UDP 18080 端口（WebSocket）...
-netsh advfirewall firewall add rule name="FT1-MONITOR (UDP 18080)" dir=in action=allow protocol=UDP localport=18080 >nul 2>&1
-if %errorLevel% equ 0 (
-    echo       规则添加成功！
-) else (
-    echo       规则可能已存在，尝试更新...
-    netsh advfirewall firewall set rule name="FT1-MONITOR (UDP 18080)" new dir=in action=allow protocol=UDP localport=18080 >nul 2>&1
-    echo       规则已更新！
+    if %errorLevel% equ 0 (
+        echo       规则已更新！
+    ) else (
+        echo       [警告] 规则更新失败，请手动检查防火墙设置
+    )
 )
 
 echo.

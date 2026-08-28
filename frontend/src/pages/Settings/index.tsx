@@ -150,6 +150,8 @@ export const NetworkSettings: React.FC = () => {
         <div className={styles.card}>
           <div className={styles.cardBody} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
             无法获取网络配置
+            <br />
+            <button className={styles.saveBtn} style={{ marginTop: '16px' }} onClick={fetchConfig}>重试</button>
           </div>
         </div>
       </div>

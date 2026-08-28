@@ -46,7 +46,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .then((data) => {
         setPermissions({
           isLocal: data.isLocal,
-          restrictedModules: data.restrictedModules,
+          restrictedModules: data.restrictedModules ?? [],
           passwordRequired: data.passwordRequired,
         })
         // 本地访问自动通过验证
@@ -68,9 +68,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       })
       .catch(() => {
-        // 默认允许访问所有模块
-        setPermissions({ isLocal: true, restrictedModules: [], passwordRequired: false })
-        setIsAuthenticated(true)
+        // 默认拒绝访问（安全优先）
+        setPermissions({ isLocal: false, restrictedModules: ['correction', 'data', 'config', 'network', 'devices'], passwordRequired: true })
+        setIsAuthenticated(false)
       })
   }, [])
 

@@ -539,7 +539,7 @@ def health():
 
 # ---- 权限查询接口 ----
 
-LOCAL_ONLY_MODULES: set[str] = {"correction", "data", "config", "network"}
+LOCAL_ONLY_MODULES: set[str] = {"correction", "data", "config", "network", "devices"}
 
 
 def is_local_request(request: Request) -> bool:
@@ -555,12 +555,13 @@ def is_password_required() -> bool:
 
 
 def verify_shared_password(password: str) -> bool:
-    """验证共享密码"""
+    """验证共享密码（防时序攻击）"""
+    import hmac as _hmac
     config = get_server_config()
     expected = config.get("shared_password", "")
     if not expected:
         return True  # 没有设置密码，直接通过
-    return password == expected
+    return _hmac.compare_digest(password.encode(), expected.encode())
 
 
 @app.get("/api/permissions")
@@ -609,7 +610,7 @@ def get_local_ip() -> str:
         return "127.0.0.1"
 
 
-@app.get("/api/network/config")
+@app.get("/api/network/config", dependencies=_auth)
 def get_network_config():
     """获取网络配置。"""
     config = get_server_config()
@@ -617,13 +618,15 @@ def get_network_config():
         "host": config["host"],
         "port": config["port"],
         "local_ip": get_local_ip(),
-        "shared_password": config.get("shared_password", ""),
+        "shared_password": "",  # 不返回明文密码
         "password_enabled": bool(config.get("shared_password")),
     }
 
 
-@app.put("/api/network/config")
-def update_network_config(request_body: dict):
+@app.put("/api/network/config", dependencies=_auth)
+def update_network_config(request: Request, request_body: dict):
+    if not is_local_request(request):
+        raise HTTPException(status_code=403, detail="仅本机可修改网络配置")
     """更新网络配置（仅允许 host 为 127.0.0.1 或 0.0.0.0）。"""
     new_host = request_body.get("host", "")
     new_password = request_body.get("shared_password")
@@ -676,15 +679,19 @@ def _save_devices(devices: list) -> None:
         json.dump(devices, f, ensure_ascii=False, indent=2)
 
 
-@app.get("/api/devices")
+@app.get("/api/devices", dependencies=_auth)
 async def list_devices():
-    """获取已保存的设备列表"""
-    return {"devices": _load_devices()}
+    """获取已保存的设备列表（不返回密码）"""
+    devices = _load_devices()
+    safe_devices = [{k: v for k, v in d.items() if k != "password"} for d in devices]
+    return {"devices": safe_devices}
 
 
-@app.post("/api/devices")
-async def add_device(body: dict):
+@app.post("/api/devices", dependencies=_auth)
+async def add_device(request: Request, body: dict):
     """手动添加设备"""
+    if not is_local_request(request):
+        raise HTTPException(status_code=403, detail="仅本机可管理设备")
     ip_raw = body.get("ip", "").strip()
     name = body.get("name", "").strip()
     port = body.get("port", 18080)
@@ -732,13 +739,18 @@ async def remove_device(ip: str):
     ip = ip.strip("/")
 
     devices = _load_devices()
+    original_count = len(devices)
     devices = [d for d in devices if d["ip"] != ip]
+    if len(devices) == original_count:
+        return {"success": False, "message": "设备不存在"}
     _save_devices(devices)
     return {"success": True}
 
 
-@app.post("/api/network/open-firewall")
-async def open_firewall():
+@app.post("/api/network/open-firewall", dependencies=_auth)
+async def open_firewall(request: Request):
+    if not is_local_request(request):
+        raise HTTPException(status_code=403, detail="仅本机可操作防火墙")
     """尝试以管理员权限添加 Windows 防火墙放行规则。"""
     import sys
     if sys.platform != 'win32':
@@ -799,10 +811,15 @@ async def discover_devices():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
         futures = {executor.submit(check_host, ip): ip for ip in ips}
-        for future in concurrent.futures.as_completed(futures, timeout=10):
-            result = future.result()
-            if result:
-                discovered.append(result)
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=10):
+                result = future.result()
+                if result:
+                    discovered.append(result)
+        except concurrent.futures.TimeoutError:
+            pass  # 返回已发现的结果
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     return {"devices": discovered, "local_ip": local_ip}
 

@@ -269,7 +269,7 @@ def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
         has_non_ascii = any(ord(c) > 127 for c in host)
         if has_non_ascii:
             return (
-                f"连接失败：主机名 '{host}' 包含中文字符，pymssql/FreeTDS 无法正确解析。\n"
+                f"连接失败：主机名 '{host}' 包含非ASCII字符（如中文等），pymssql/FreeTDS 无法正确解析。\n"
                 f"解决方案：\n"
                 f"1. 在服务器上查询 IP 地址（运行: ping {host}）\n"
                 f"2. 将主机名替换为 IP 地址（例如: 192.168.1.100）\n"
@@ -338,9 +338,16 @@ def diagnose_db_connection(config: DBConfigRequest):
     port = None
     instance = None
 
-    # 提取端口 (逗号后面)
+    # 提取端口 (逗号或冒号后面)
     if ',' in server:
         parts = server.rsplit(',', 1)
+        host = parts[0]
+        try:
+            port = int(parts[1])
+        except ValueError:
+            pass
+    elif ':' in server:
+        parts = server.rsplit(':', 1)
         host = parts[0]
         try:
             port = int(parts[1])

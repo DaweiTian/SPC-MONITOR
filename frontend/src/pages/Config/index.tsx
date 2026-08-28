@@ -692,9 +692,9 @@ export const ConfigPage: React.FC = () => {
     for (const spec of enabledSpecs) {
       try {
         const limits: { lsl?: number; usl?: number; target?: number; product_code: string } = { product_code: newProduct.code }
-        if (spec.lsl != null) limits.lsl = spec.lsl
-        if (spec.usl != null) limits.usl = spec.usl
-        if (spec.target != null) limits.target = spec.target
+        if (spec.lsl != null && spec.lsl) limits.lsl = spec.lsl
+        if (spec.usl != null && spec.usl) limits.usl = spec.usl
+        if (spec.target != null && spec.target) limits.target = spec.target
         await api.updateSingleSpecLimit(spec.indicator_code, limits)
         if (spec.lsl != null || spec.usl != null) {
           productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }

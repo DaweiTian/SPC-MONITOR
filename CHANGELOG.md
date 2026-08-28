@@ -7,9 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [1.6.2] - 2026-08-23
 
+### Added
+
+- **网络设置页面** (`/settings`): 局域网共享开关、共享密码管理、防火墙一键放行、访问地址复制
+- **设备管理页面** (`/devices`): 局域网设备扫描、手动添加/移除设备、设备列表管理
+- **密码验证对话框** (`PasswordDialog`): 远程访问时弹出密码输入框，支持 sessionStorage 持久化
+- **共享密码保护**: `POST /api/auth/verify` 密码验证端点，远程用户需输入密码才能访问
+- **局域网发现** (`GET /api/network/discover`): 扫描同网段内其他 FT1-MONITOR 实例
+- **防火墙放行** (`POST /api/network/open-firewall`): 一键 Windows 防火墙端口放行（UAC 提权）
+- **防火墙脚本** (`scripts/open-firewall.bat`): 手动防火墙配置工具
+
 ### Changed
 
+- 远程用户权限限制：禁止访问 `config`、`data`、`correction`、`network`、`devices` 模块
+- SQL Server 主机名解析捕获 `OSError`（兼容 Windows 非ASCII主机名）
+- 服务器字符串诊断支持 `:` 分隔符（兼容 `host:port` 格式）
 - 版本号更新至 v1.6.2
+
+### Fixed
+
+- SQL Server 中文/非ASCII主机名连接失败问题（`_resolve_host`）
+- 规格限清空后未同步更新（空字符串通过 `!= null` 检查）
+- 配置管理表头滚动时不可见（`position: sticky`）
+- `get_server_config` 异常静默吞没（添加日志）
+- 密码比较改用 `hmac.compare_digest` 防时序攻击
+- 新增 API 端点添加认证和权限检查
+- 设备发现超时未捕获 `TimeoutError`
+- 网络故障时默认拒绝访问（原为授予全部权限）
 
 ## [1.6.1] - 2026-08-23
 

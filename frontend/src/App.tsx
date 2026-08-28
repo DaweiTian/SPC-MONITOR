@@ -50,7 +50,7 @@ function AppContent() {
             <Route path="/spc" element={<ErrorBoundary><SPCPage /></ErrorBoundary>} />
             <Route path="/capability" element={<ErrorBoundary><CapabilityPage /></ErrorBoundary>} />
             <Route path="/prediction" element={<ErrorBoundary><PredictionPage /></ErrorBoundary>} />
-            <Route path="/devices" element={<ErrorBoundary><DevicesPage /></ErrorBoundary>} />
+            <Route path="/devices" element={<ProtectedRoute moduleKey="devices"><ErrorBoundary><DevicesPage /></ErrorBoundary></ProtectedRoute>} />
             <Route path="/alerts" element={<ErrorBoundary><AlertsPage /></ErrorBoundary>} />
             <Route path="/config" element={<ProtectedRoute moduleKey="config"><ErrorBoundary><ConfigPage /></ErrorBoundary></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute moduleKey="network"><ErrorBoundary><NetworkSettingsPage /></ErrorBoundary></ProtectedRoute>} />
