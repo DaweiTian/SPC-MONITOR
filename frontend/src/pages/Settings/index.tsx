@@ -79,8 +79,8 @@ export const NetworkSettings: React.FC = () => {
     }
   }
 
-  const handleSavePassword = async () => {
-    if (!config) return
+  const handleSavePassword = async (): Promise<boolean> => {
+    if (!config) return false
     setSaving(true)
     try {
       const result = await api.updateNetworkConfig({ shared_password: passwordInput })
@@ -95,11 +95,14 @@ export const NetworkSettings: React.FC = () => {
           message: passwordInput ? '共享密码已设置' : '共享密码已清除',
           severity: 'INFO',
         })
+        return true
       } else {
         addToast({ title: '错误', message: result.message || '保存失败', severity: 'WARNING' })
+        return false
       }
     } catch {
       addToast({ title: '错误', message: '保存密码失败', severity: 'WARNING' })
+      return false
     } finally {
       setSaving(false)
     }
@@ -314,16 +317,33 @@ export const NetworkSettings: React.FC = () => {
             </div>
 
             {isPasswordEnabled && !isEditingPassword ? (
-              /* 已设置密码：显示掩码 + 操作按钮 */
+              /* 已设置密码：显示密码 + 操作按钮 */
               <div className={styles.passwordRow}>
                 <div className={styles.passwordInputWrapper}>
                   <input
-                    type="text"
-                    value="••••••••"
+                    type={showPassword ? 'text' : 'password'}
+                    value={config?.shared_password || ''}
                     readOnly
                     className={styles.passwordInput}
-                    style={{ color: 'var(--text-muted)', letterSpacing: '2px' }}
                   />
+                  <button
+                    type="button"
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPassword(v => !v)}
+                    title={showPassword ? '隐藏密码' : '显示密码'}
+                  >
+                    {showPassword ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
                 <button
                   className={styles.saveBtn}
@@ -340,7 +360,10 @@ export const NetworkSettings: React.FC = () => {
                       if (result.success) {
                         setConfig(prev => prev ? { ...prev, shared_password: '', password_enabled: false } : prev)
                         setPasswordInput('')
+                        setShowPassword(false)
                         addToast({ title: '成功', message: '共享密码已清除', severity: 'INFO' })
+                      } else {
+                        addToast({ title: '错误', message: result.message || '清除密码失败', severity: 'WARNING' })
                       }
                     } catch {
                       addToast({ title: '错误', message: '清除密码失败', severity: 'WARNING' })
@@ -366,6 +389,7 @@ export const NetworkSettings: React.FC = () => {
                     autoFocus={isEditingPassword}
                   />
                   <button
+                    type="button"
                     className={styles.eyeBtn}
                     onClick={() => setShowPassword(!showPassword)}
                     title={showPassword ? '隐藏密码' : '显示密码'}
@@ -386,8 +410,8 @@ export const NetworkSettings: React.FC = () => {
                 <button
                   className={styles.saveBtn}
                   onClick={async () => {
-                    await handleSavePassword()
-                    setIsEditingPassword(false)
+                    const ok = await handleSavePassword()
+                    if (ok) setIsEditingPassword(false)
                   }}
                   disabled={saving}
                 >
@@ -396,7 +420,7 @@ export const NetworkSettings: React.FC = () => {
                 {isEditingPassword && (
                   <button
                     className={styles.saveBtn}
-                    onClick={() => { setIsEditingPassword(false); setPasswordInput('') }}
+                    onClick={() => { setIsEditingPassword(false); setPasswordInput(''); setShowPassword(false) }}
                   >
                     取消
                   </button>

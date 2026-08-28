@@ -62,6 +62,9 @@ nohup python3 -m uvicorn backend.main:app \
     --host "$BACKEND_HOST" \
     --port 18080 \
     --reload \
+    --reload-exclude "conf/*" \
+    --reload-exclude "logs/*" \
+    --reload-exclude "data/*" \
     --log-level warning \
     > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!

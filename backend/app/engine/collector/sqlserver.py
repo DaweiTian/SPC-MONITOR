@@ -4,10 +4,11 @@ from typing import Dict, Any, List, Optional
 from .base import BaseCollector
 from .utils import parse_datetime, load_breakpoint, save_breakpoint, load_spec_limits, build_connection_string
 from backend.app.core.validation import validate_identifier
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 
-BREAKPOINT_FILE = "sqlserver_breakpoint.json"
+BREAKPOINT_FILE = get_conf_path("sqlserver_breakpoint.json")
 
 
 class SQLServerCollector(BaseCollector):
@@ -313,7 +314,10 @@ class SQLServerCollector(BaseCollector):
 
         if records:
             max_time = max(r['sample_time'] for r in records)
-            self._last_collect_time = datetime.fromisoformat(max_time)
+            parsed = parse_datetime(max_time)
+            if parsed:
+                self._last_collect_time = parsed
+                self._save_breakpoint()
 
         return {
             'new_records': saved_count,
@@ -527,8 +531,10 @@ class SQLServerCollector(BaseCollector):
         }
 
     def set_breakpoint(self, last_collect_time: str):
-        self._last_collect_time = datetime.fromisoformat(last_collect_time)
-        self._save_breakpoint()
+        parsed = parse_datetime(last_collect_time)
+        if parsed:
+            self._last_collect_time = parsed
+            self._save_breakpoint()
     
     def _build_column_list(self) -> List[str]:
         columns = [f"[{self.time_column}]", f"[{self.product_column}]"]
@@ -654,7 +660,7 @@ class SQLServerCollector(BaseCollector):
         ]
 
     def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
-        return load_spec_limits("spec_limits.json", product_code)
+        return load_spec_limits(get_conf_path("spec_limits.json"), product_code)
 
     def clear_cache(self):
         self._products_cache = None

@@ -149,12 +149,15 @@ frontend/node_modules/
 *.db-journal
 
 # Config files with sensitive data
-db_config.json
-mdb_config.json
-mdb_breakpoint.json
-instrument_config.json
-alias_config.json
-product_status.json
+backend/conf/db_config.json
+backend/conf/mdb_config.json
+backend/conf/mdb_breakpoint.json
+backend/conf/instrument_config.json
+backend/conf/alias_config.json
+backend/conf/product_status.json
+backend/conf/server_config.json
+backend/conf/devices.json
+backend/conf/fta_config.json
 
 # Data directory
 data/
@@ -169,16 +172,15 @@ launcher/target/
 .vite/
 
 # Spec limits config (runtime)
-spec_limits.json
+backend/conf/spec_limits.json
 
 # Other runtime configs
-alert_rules.json
-product_indicators.json
-product_status.json
-sqlserver_breakpoint.json
-monitor_start.json
+backend/conf/alert_rules.json
+backend/conf/product_indicators.json
+backend/conf/sqlserver_breakpoint.json
+backend/conf/monitor_start.json
 frontend/dist/
-runtime_config.json
+backend/conf/runtime_config.json
 
 # PyInstaller build artifacts
 backend/build/

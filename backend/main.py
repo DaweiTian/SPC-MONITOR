@@ -8,27 +8,27 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.core.auth import verify_api_key
-from backend.app.core.config import get_server_config, SERVER_CONFIG_FILE
+from backend.app.core.auth import verify_api_key, DEFAULT_API_KEY
+from backend.app.core.config import get_server_config, SERVER_CONFIG_FILE, get_conf_path
 from backend.app.core.exceptions import AppException, app_exception_handler, generic_exception_handler
 from datetime import datetime
 
 os.makedirs('logs', exist_ok=True)
-_log_handlers: list[logging.Handler] = [logging.StreamHandler()]
+_log_handlers: list[logging.Handler] = []
 try:
     from logging.handlers import RotatingFileHandler
     _log_handlers.append(RotatingFileHandler(
         'logs/backend.log', maxBytes=2 * 1024 * 1024, backupCount=3, encoding='utf-8'
     ))
 except OSError:
-    pass
+    # 文件日志不可用时回退到 stderr
+    _log_handlers.append(logging.StreamHandler())
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=_log_handlers,
 )
 # Windows: suppress noisy asyncio connection reset errors (WinError 10054)
-import sys
 if sys.platform == 'win32':
     class _WinResetFilter(logging.Filter):
         def filter(self, record):
@@ -125,7 +125,7 @@ storage.init_db()
 
 # 加载排除备注关键词（基准样等不参与SPC/过程能力计算）
 try:
-    _excl_file = "excluded_remarks.json"
+    _excl_file = get_conf_path("excluded_remarks.json")
     if os.path.exists(_excl_file):
         with open(_excl_file, 'r', encoding='utf-8') as f:
             storage.set_excluded_remarks(json.load(f))
@@ -142,10 +142,10 @@ collector = MockCollector(storage=storage)
 alert_engine = AlertEngine(storage=storage)
 
 # 监控开始时间：首次启动时记录，后续重启沿用，不清除已有预警
-MONITOR_START_FILE = "monitor_start.json"
+MONITOR_START_FILE = get_conf_path("monitor_start.json")
 if os.path.exists(MONITOR_START_FILE):
     try:
-        with open(MONITOR_START_FILE, 'r') as f:
+        with open(MONITOR_START_FILE, 'r', encoding='utf-8') as f:
             saved = json.load(f)
         alert_engine.monitoring_start = datetime.fromisoformat(saved['started_at'])
         logger.info(f"Monitoring resumed from {alert_engine.monitoring_start}")
@@ -159,7 +159,7 @@ else:
     if cleared > 0:
         logger.info(f"First start: cleared {cleared} historical alerts")
     try:
-        with open(MONITOR_START_FILE, 'w') as f:
+        with open(MONITOR_START_FILE, 'w', encoding='utf-8') as f:
             json.dump({'started_at': alert_engine.monitoring_start.isoformat()}, f)
     except OSError as e:
         logger.warning(f"写入监控开始时间失败: {e}")
@@ -172,7 +172,7 @@ _collector_lock = threading.Lock()
 def _run_cross_predictions(storage):
     """对最新采集的数据执行交叉预测（如 fat → saturated_fat）"""
     try:
-        with open("prediction_config.json", "r", encoding="utf-8") as f:
+        with open(get_conf_path("prediction_config.json"), "r", encoding="utf-8") as f:
             pred_config = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return
@@ -228,7 +228,7 @@ def collect_with_alert():
     # Load disabled products before collection
     try:
         from backend.app.api.config import _load_json_config
-        product_status = _load_json_config("product_status.json", {})
+        product_status = _load_json_config(get_conf_path("product_status.json"), {})
         disabled = {code for code, status in product_status.items() if status == "disabled"}
         storage.set_disabled_products(disabled)
     except Exception as e:
@@ -360,8 +360,8 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
         elif instrument_id == "ft1":
             # FT1 uses SQL Server with 4-table relational structure
             try:
-                db_config_file = "db_config.json"
-                mapping_file = "db_mapping.json"
+                db_config_file = get_conf_path("db_config.json")
+                mapping_file = get_conf_path("db_mapping.json")
 
                 if not os.path.exists(db_config_file):
                     return {"success": False, "message": "请先配置数据库连接（db_config.json 不存在）"}
@@ -399,7 +399,7 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
         elif instrument_id == "fta":
             # FTA uses Perten SQL Server database
             try:
-                fta_config_file = "fta_config.json"
+                fta_config_file = get_conf_path("fta_config.json")
 
                 if not os.path.exists(fta_config_file):
                     return {"success": False, "message": "请先配置 FTA 数据库连接（fta_config.json 不存在）"}
@@ -432,7 +432,7 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
         elif instrument_id == "ft120":
             # FT120 uses .mdb file
             try:
-                mdb_config_file = "mdb_config.json"
+                mdb_config_file = get_conf_path("mdb_config.json")
 
                 if not os.path.exists(mdb_config_file):
                     return {"success": False, "message": "请先配置 MDB 文件路径（mdb_config.json 不存在）"}
@@ -504,7 +504,7 @@ config_module._switch_collector_func = switch_collector
 # Auto-switch to configured instrument on startup
 def _auto_switch_on_startup():
     """Automatically switch to the configured instrument on startup."""
-    instrument_config_file = "instrument_config.json"
+    instrument_config_file = get_conf_path("instrument_config.json")
     if os.path.exists(instrument_config_file):
         try:
             with open(instrument_config_file, 'r', encoding='utf-8') as f:
@@ -611,14 +611,15 @@ def get_local_ip() -> str:
 
 
 @app.get("/api/network/config", dependencies=_auth)
-def get_network_config():
-    """获取网络配置。"""
+def get_network_config(request: Request):
+    """获取网络配置（本地请求返回密码，远程不返回）。"""
     config = get_server_config()
+    is_local = is_local_request(request)
     return {
         "host": config["host"],
         "port": config["port"],
         "local_ip": get_local_ip(),
-        "shared_password": "",  # 不返回明文密码
+        "shared_password": config.get("shared_password", "") if is_local else "",
         "password_enabled": bool(config.get("shared_password")),
     }
 
@@ -659,7 +660,7 @@ def update_network_config(request: Request, request_body: dict):
 
 # ---- 设备管理接口 ----
 
-DEVICES_FILE = os.path.join(os.getcwd(), "devices.json") if os.path.exists(os.path.join(os.getcwd(), "devices.json")) else os.path.join(os.path.dirname(__file__), "devices.json")
+DEVICES_FILE = get_conf_path("devices.json")
 
 
 def _load_devices() -> list:
@@ -690,9 +691,11 @@ def _save_devices(devices: list) -> None:
 
 
 @app.get("/api/devices", dependencies=_auth)
-async def list_devices():
-    """获取已保存的设备列表（不返回密码）"""
+async def list_devices(request: Request):
+    """获取已保存的设备列表（本地请求返回密码，远程不返回）"""
     devices = _load_devices()
+    if is_local_request(request):
+        return {"devices": devices}
     safe_devices = [{k: v for k, v in d.items() if k != "password"} for d in devices]
     return {"devices": safe_devices}
 
@@ -737,9 +740,11 @@ async def add_device(request: Request, body: dict):
     return {"success": True, "device": device}
 
 
-@app.delete("/api/devices/{ip}")
-async def remove_device(ip: str):
+@app.delete("/api/devices/{ip}", dependencies=_auth)
+async def remove_device(ip: str, request: Request):
     """删除设备"""
+    if not is_local_request(request):
+        raise HTTPException(status_code=403, detail="仅本机可删除设备")
     from urllib.parse import unquote
     ip = unquote(ip)
     if "://" in ip:
@@ -817,7 +822,7 @@ async def discover_devices():
             import urllib.request
             url = f"http://{ip}:18080/api/health"
             req = urllib.request.Request(url, method='GET')
-            req.add_header('X-API-Key', 'ft1-monitor-default-key')
+            req.add_header('X-API-Key', DEFAULT_API_KEY)
             with urllib.request.urlopen(req, timeout=1) as resp:
                 if resp.status == 200:
                     try:

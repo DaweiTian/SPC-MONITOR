@@ -390,3 +390,13 @@
 .firewallBtn svg {
   opacity: 0.8;
 }
+
+/* Focus-visible styles for keyboard navigation */
+.saveBtn:focus-visible,
+.eyeBtn:focus-visible,
+.copyBtn:focus-visible,
+.firewallBtn:focus-visible,
+.toggle:focus-visible {
+  outline: 2px solid var(--accent-cyan, #22d3ee);
+  outline-offset: 2px;
+}

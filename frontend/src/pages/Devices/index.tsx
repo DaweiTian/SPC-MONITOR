@@ -20,6 +20,8 @@ export default function DevicesPage() {
   const [newIp, setNewIp] = useState('')
   const [newName, setNewName] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showPw, setShowPw] = useState<Record<string, boolean>>({})
+  const [copied, setCopied] = useState<string | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function DevicesPage() {
   const loadDevices = async () => {
     try {
       const data = await api.getDevices()
-      setDevices(data.devices)
+      setDevices(data.devices ?? [])
     } catch {
       addToast({ title: '错误', message: '加载设备列表失败', severity: 'WARNING' })
     } finally {
@@ -37,11 +39,16 @@ export default function DevicesPage() {
     }
   }
 
+  const getDevicePw = (device: Device): string | null => {
+    if (device.password) return device.password
+    try { return localStorage.getItem(`ft1_device_pw:${device.ip}`) } catch { return null }
+  }
+
   const handleDiscover = async () => {
     setScanning(true)
     try {
       const data = await api.discoverDevices()
-      setDiscovered(data.devices)
+      setDiscovered(data.devices ?? [])
       if (data.devices.length === 0) {
         addToast({ title: '提示', message: '未发现其他共享设备', severity: 'INFO' })
       } else {
@@ -66,6 +73,9 @@ export default function DevicesPage() {
         password: newPassword.trim()
       })
       if (result.success) {
+        if (newPassword.trim()) {
+          try { localStorage.setItem(`ft1_device_pw:${newIp.trim()}`, newPassword.trim()) } catch { /* ignore */ }
+        }
         addToast({ title: '成功', message: '设备已添加', severity: 'INFO' })
         setNewIp('')
         setNewName('')
@@ -81,9 +91,11 @@ export default function DevicesPage() {
   }
 
   const handleRemove = async (ip: string) => {
-    if (!window.confirm('确认移除此设备？')) return
+    const device = devices.find(d => d.ip === ip)
+    if (!window.confirm(`确认移除设备「${device?.name || ip}」(${ip})？`)) return
     try {
       await api.removeDevice(ip)
+      try { localStorage.removeItem(`ft1_device_pw:${ip}`) } catch { /* ignore */ }
       addToast({ title: '成功', message: '设备已移除', severity: 'INFO' })
       loadDevices()
     } catch {
@@ -115,6 +127,19 @@ export default function DevicesPage() {
       }
     }
     window.open(url, '_blank')
+  }
+
+  const copyPassword = (device: Device) => {
+    const pw = getDevicePw(device)
+    if (!pw) return
+    navigator.clipboard.writeText(pw).then(() => {
+      setCopied(device.ip)
+      setTimeout(() => setCopied(null), 2000)
+      // 30秒后清除剪贴板中的密码
+      setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+    }).catch(() => {
+      addToast({ title: '提示', message: '复制失败，请手动复制', severity: 'WARNING' })
+    })
   }
 
   if (loading) return <div className={styles.loading}>加载中...</div>
@@ -168,28 +193,54 @@ export default function DevicesPage() {
           <div className={styles.empty}>暂无保存的设备，点击"扫描局域网"或"手动添加"</div>
         ) : (
           <div className={styles.deviceGrid}>
-            {devices.map(device => (
-              <div key={device.ip} className={styles.deviceCard}>
-                <div className={styles.deviceInfo}>
-                  <div className={styles.deviceName}>
-                    {device.name}
-                    {device.password && (
-                      <span className={styles.passwordBadge} title="已配置密码">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                      </span>
+            {devices.map(device => {
+              const pw = getDevicePw(device)
+              const visible = showPw[device.ip]
+              return (
+                <div key={device.ip} className={styles.deviceCard}>
+                  <div className={styles.deviceInfo}>
+                    <div className={styles.deviceName}>{device.name}</div>
+                    <div className={styles.deviceIp}>{device.ip}:{device.port}</div>
+                    {pw && (
+                      <div className={styles.passwordRow}>
+                        <span className={styles.passwordLabel}>密码:</span>
+                        <span className={styles.passwordValue}>
+                          {visible ? pw : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
+                        </span>
+                        <button
+                          onClick={() => setShowPw(p => ({ ...p, [device.ip]: !p[device.ip] }))}
+                          className={styles.pwToggle}
+                          title={visible ? '隐藏' : '显示'}
+                        >
+                          {visible ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                              <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => copyPassword(device)}
+                          className={styles.pwCopy}
+                          title={copied === device.ip ? '已复制' : '复制密码'}
+                        >
+                          {copied === device.ip ? '✓' : '复制'}
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <div className={styles.deviceIp}>{device.ip}:{device.port}</div>
+                  <div className={styles.deviceActions}>
+                    <button onClick={() => openDevice(device)} className={styles.btnOpen}>查看</button>
+                    <button onClick={() => handleRemove(device.ip)} className={styles.btnRemove}>移除</button>
+                  </div>
                 </div>
-                <div className={styles.deviceActions}>
-                  <button onClick={() => openDevice(device)} className={styles.btnOpen}>查看</button>
-                  <button onClick={() => handleRemove(device.ip)} className={styles.btnRemove}>移除</button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

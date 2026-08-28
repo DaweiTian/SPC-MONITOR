@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Callable
+from contextlib import contextmanager
 from datetime import datetime
 import json
 import logging
@@ -9,6 +10,7 @@ import sys
 import threading
 
 from backend.app.core.validation import validate_identifier, validate_mdb_path
+from backend.app.core.config import get_conf_path
 from backend.app.engine.collector.utils import build_connection_string
 from backend.app.models.requests import (
     DBConfigRequest,
@@ -25,6 +27,17 @@ from backend.app.models.requests import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/config", tags=["配置"])
+
+@contextmanager
+def _quiet_msys_init():
+    """Suppress access_parser MSysObjects errors during AccessParser() init only."""
+    ap_logger = logging.getLogger('access_parser')
+    prev_level = ap_logger.level
+    ap_logger.setLevel(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        ap_logger.setLevel(prev_level)
 
 # Collector swap callback (set by main.py)
 _switch_collector_func: Optional[Callable] = None
@@ -49,7 +62,7 @@ _source_status = {
     "instrument_type": "mock",
 }
 
-CONFIG_FILE = "runtime_config.json"
+CONFIG_FILE = get_conf_path("runtime_config.json")
 
 _default_config = {
     "default_frequency_minutes": 5,
@@ -61,10 +74,10 @@ _default_config = {
     "data_retention_days": 90,
 }
 
-DB_CONFIG_FILE = "db_config.json"
-DB_MAPPING_FILE = "db_mapping.json"
-MDB_CONFIG_FILE = "mdb_config.json"
-INSTRUMENT_CONFIG_FILE = "instrument_config.json"
+DB_CONFIG_FILE = get_conf_path("db_config.json")
+DB_MAPPING_FILE = get_conf_path("db_mapping.json")
+MDB_CONFIG_FILE = get_conf_path("mdb_config.json")
+INSTRUMENT_CONFIG_FILE = get_conf_path("instrument_config.json")
 
 _default_db_config = {
     "enabled": False,
@@ -126,16 +139,24 @@ _default_instrument_config = {
 def _load_json_config(filepath: str, default=None):
     if os.path.exists(filepath):
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
                 return json.load(f)
         except (json.JSONDecodeError, PermissionError, FileNotFoundError) as e:
             logger.warning(f"加载配置失败: {e}")
     return copy.deepcopy(default) if default is not None else {}
 
 def _save_json_config(filepath: str, data: dict) -> bool:
+    import tempfile
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        dir_name = os.path.dirname(filepath)
+        fd, tmp = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, filepath)
+        except BaseException:
+            os.unlink(tmp)
+            raise
         return True
     except Exception as e:
         logger.error(f"保存配置失败: {e}")
@@ -201,7 +222,7 @@ def test_db_connection(config: DBConfigRequest):
             return {"success": True, "message": "连接成功！(pymssql)"}
         except Exception as e:
             error_msg = _diagnose_pymssql_error(e, cfg)
-            logger.error(f"pymssql连接失败: {e}", exc_info=True)
+            logger.error(f"pymssql连接失败: {error_msg}")
             return {"success": False, "message": error_msg}
 
     # ODBC 模式
@@ -234,7 +255,7 @@ def test_db_connection(config: DBConfigRequest):
         elif "driver" in error_msg.lower():
             error_msg = "ODBC 驱动未安装，请安装对应的驱动"
 
-        logger.error(f"ODBC连接失败: {error_msg}", exc_info=True)
+        logger.error(f"ODBC连接失败: {error_msg}")
         return {"success": False, "message": error_msg}
 
 
@@ -321,8 +342,12 @@ def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
         database = cfg.get("database", "")
         return f"无法打开数据库 '{database}'，请检查数据库名称是否正确"
 
-    # Default
-    return f"连接失败: {error_str[:200]}"
+    # Default — sanitize raw error to avoid leaking credentials
+    safe_error = error_str[:200]
+    for sensitive in ['password', 'pwd', 'uid', 'user id']:
+        import re
+        safe_error = re.sub(rf'(?i){sensitive}\s*=\s*\S+', f'{sensitive}=***', safe_error)
+    return f"连接失败: {safe_error}"
 
 
 @router.post("/db/diagnose")
@@ -592,7 +617,7 @@ def get_source_status():
         _source_status["connected"] = True
         _source_status["instrument_type"] = "ft120"
 
-    return _source_status
+    return dict(_source_status)
 
 # ========== Instrument Configuration ==========
 
@@ -673,12 +698,13 @@ def test_mdb_connection(config: dict):
         return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
-        return {"success": False, "message": f"文件不存在: {mdb_path}"}
+        return {"success": False, "message": "MDB 文件不存在，请检查路径配置"}
     
     try:
         from access_parser import AccessParser
-        db = AccessParser(mdb_path)
-        
+        with _quiet_msys_init():
+            db = AccessParser(mdb_path)
+
         # Try to parse sample table to verify
         sample_table = config.get("sample_table", "Sample")
         db.parse_table(sample_table)
@@ -707,12 +733,13 @@ def explore_mdb_structure(config: dict):
         return {"success": False, "message": "MDB 路径无效，请检查配置"}
     
     if not os.path.exists(mdb_path):
-        return {"success": False, "message": f"文件不存在: {mdb_path}"}
+        return {"success": False, "message": "MDB 文件不存在，请检查路径配置"}
     
     try:
         from access_parser import AccessParser
-        db = AccessParser(mdb_path)
-        
+        with _quiet_msys_init():
+            db = AccessParser(mdb_path)
+
         tables = []
         for table_name in db.catalog:
             if table_name.startswith('MSys'):
@@ -759,8 +786,9 @@ def get_mdb_table_columns(table_name: str):
     
     try:
         from access_parser import AccessParser
-        db = AccessParser(mdb_path)
-        
+        with _quiet_msys_init():
+            db = AccessParser(mdb_path)
+
         raw_data = db.parse_table(table_name)
         if not raw_data:
             return {"success": True, "columns": []}
@@ -800,11 +828,11 @@ def get_mdb_init_status():
     
     try:
         from access_parser import AccessParser
-        
-        db = AccessParser(mdb_path)
+        with _quiet_msys_init():
+            db = AccessParser(mdb_path)
         
         # Load breakpoint
-        breakpoint_file = "mdb_breakpoint.json"
+        breakpoint_file = get_conf_path("mdb_breakpoint.json")
         breakpoint_info = None
         if os.path.exists(breakpoint_file):
             try:
@@ -818,9 +846,18 @@ def get_mdb_init_status():
         product_table = config.get("product_table", "Product")
         component_table = config.get("component_table", "Component")
         
-        samples = db.parse_table(sample_table)
-        products = db.parse_table(product_table)
-        components = db.parse_table(component_table)
+        try:
+            samples = db.parse_table(sample_table)
+        except Exception:
+            samples = {}
+        try:
+            products = db.parse_table(product_table)
+        except Exception:
+            products = {}
+        try:
+            components = db.parse_table(component_table)
+        except Exception:
+            components = {}
         
         total_samples = len(samples['SampNo']) if samples and 'SampNo' in samples else 0
         total_products = len(products['ProdNo']) if products and 'ProdNo' in products else 0
@@ -891,7 +928,7 @@ def _build_connection_string(config: dict) -> str:
 
 # ========== FTA Configuration ==========
 
-FTA_CONFIG_FILE = "fta_config.json"
+FTA_CONFIG_FILE = get_conf_path("fta_config.json")
 
 _default_fta_config = {
     "server": "",
@@ -979,7 +1016,7 @@ def get_db_init_status():
 
         # 断点信息
         breakpoint_info = None
-        bp_file = "sqlserver_breakpoint.json"
+        bp_file = get_conf_path("sqlserver_breakpoint.json")
         if os.path.exists(bp_file):
             try:
                 with open(bp_file, 'r', encoding='utf-8') as f:
@@ -1056,7 +1093,7 @@ def get_fta_init_status():
 
         # 断点信息
         breakpoint_info = None
-        bp_file = "fta_breakpoint.json"
+        bp_file = get_conf_path("fta_breakpoint.json")
         if os.path.exists(bp_file):
             try:
                 with open(bp_file, 'r', encoding='utf-8') as f:
@@ -1109,7 +1146,7 @@ def get_fta_init_status():
 
 # ========== Alias Configuration ==========
 
-ALIAS_CONFIG_FILE = "alias_config.json"
+ALIAS_CONFIG_FILE = get_conf_path("alias_config.json")
 
 _default_alias_config = {
     "products": {},  # { "product_code": "alias_name" }
@@ -1163,11 +1200,11 @@ def update_indicator_alias(indicator_code: str, body: dict):
 
 # ========== Product Status Configuration ==========
 
-PRODUCT_STATUS_FILE = "product_status.json"
+PRODUCT_STATUS_FILE = get_conf_path("product_status.json")
 
 _default_product_status = {}  # { "product_code": "enabled" | "disabled" }
 
-SPEC_LIMITS_FILE = "spec_limits.json"
+SPEC_LIMITS_FILE = get_conf_path("spec_limits.json")
 
 # Format: { "product_code": { "indicator_code": { "lsl": float, "usl": float } } }
 _default_spec_limits = {}
@@ -1204,7 +1241,7 @@ def update_single_product_status(product_code: str, body: dict):
 
 # ========== Excluded Remarks Configuration ==========
 
-EXCLUDED_REMARKS_FILE = "excluded_remarks.json"
+EXCLUDED_REMARKS_FILE = get_conf_path("excluded_remarks.json")
 _default_excluded_remarks: list[str] = ["基准样"]
 
 @router.get("/excluded-remarks")
@@ -1221,7 +1258,8 @@ def update_excluded_remarks(body: dict):
         return {"success": False, "message": "keywords 必须是数组"}
     success = _save_json_config(EXCLUDED_REMARKS_FILE, keywords)
     if success:
-        storage.set_excluded_remarks(keywords)
+        if storage is not None:
+            storage.set_excluded_remarks(keywords)
         return {"success": True, "message": "排除关键词已更新"}
     return {"success": False, "message": "保存失败"}
 
@@ -1230,7 +1268,9 @@ def update_excluded_remarks(body: dict):
 def get_recent_counts(days: int = Query(10, ge=1, le=365)):
     """获取最近N天每个品项/指标的采集数量（用于排序）"""
     try:
-        return storage.get_recent_collection_counts(days)
+        if storage is not None:
+            return storage.get_recent_collection_counts(days)
+        return {}
     except Exception as e:
         logger.warning(f"获取采集统计失败: {e}")
         return {"products": {}, "indicators": {}}
@@ -1324,7 +1364,7 @@ def update_single_spec_limit(indicator_code: str, body: dict):
 
 # ========== Alert Rules Configuration ==========
 
-ALERT_RULES_FILE = "alert_rules.json"
+ALERT_RULES_FILE = get_conf_path("alert_rules.json")
 
 _default_alert_rules = [
     {"id": 1, "rule": "规则1", "description": "1个点超出3σ控制限", "severity": "CRITICAL", "enabled": True, "rule_type": "nelson_1"},
@@ -1419,7 +1459,7 @@ def update_correction_values(product_code: str, body: dict):
 
 # ── 产品类别配置 ────────────────────────────────────────────
 
-PRODUCT_CATEGORIES_FILE = "product_categories.json"
+PRODUCT_CATEGORIES_FILE = get_conf_path("product_categories.json")
 
 PREDICTION_CATEGORIES = {
     "sterilized_milk": {"name": "灭菌乳", "k": 0.6277},
@@ -1467,7 +1507,7 @@ def get_prediction_categories():
 
 # ── 交叉预测配置 ────────────────────────────────────────────
 
-PREDICTION_CONFIG_FILE = "prediction_config.json"
+PREDICTION_CONFIG_FILE = get_conf_path("prediction_config.json")
 
 
 @router.get("/prediction-config")

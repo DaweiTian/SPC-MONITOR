@@ -128,6 +128,20 @@ impl ServiceManager {
         None
     }
 
+    /// 从后端 conf/server_config.json 读取监听地址（默认 "127.0.0.1"）
+    fn read_server_host(&self) -> String {
+        let config_path = if let Some(ref exe) = self.backend_exe {
+            exe.parent().unwrap_or(std::path::Path::new(".")).join("conf").join("server_config.json")
+        } else {
+            std::path::PathBuf::from("conf").join("server_config.json")
+        };
+        std::fs::read_to_string(&config_path)
+            .ok()
+            .and_then(|data| serde_json::from_str::<serde_json::Value>(&data).ok())
+            .and_then(|v| v.get("host").and_then(|h| h.as_str()).map(|s| s.to_string()))
+            .unwrap_or_else(|| "127.0.0.1".to_string())
+    }
+
     pub fn start_server(&self) -> Result<(), String> {
         let mut state = self.inner.write().unwrap_or_else(|e| e.into_inner());
 
@@ -165,12 +179,13 @@ impl ServiceManager {
             }
         }
 
+        let server_host = self.read_server_host();
         let mut cmd = if let Some(ref exe_path) = self.backend_exe {
             // 使用打包的后端 exe
             let mut c = Command::new(exe_path);
             c.args([
                 "--host",
-                "127.0.0.1",
+                &server_host,
                 "--port",
                 &self.server_port.to_string(),
             ]);
@@ -183,7 +198,7 @@ impl ServiceManager {
                 "uvicorn",
                 "backend.main:app",
                 "--host",
-                "127.0.0.1",
+                &server_host,
                 "--port",
                 &self.server_port.to_string(),
             ]);

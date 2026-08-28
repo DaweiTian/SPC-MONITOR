@@ -1,15 +1,30 @@
 import logging
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
 from .utils import parse_datetime, load_breakpoint, save_breakpoint, clear_breakpoint, load_spec_limits
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 
-# Suppress noisy access-parser warnings about MSysObjects
-logging.getLogger('access_parser').setLevel(logging.ERROR)
+@contextmanager
+def _quiet_msys_init():
+    """Temporarily suppress access_parser MSysObjects errors during AccessParser() init.
 
-BREAKPOINT_FILE = "mdb_breakpoint.json"
+    MSysObjects LvProp parsing fails on non-Access-created MDB files (e.g. FT120).
+    This only affects optional column-format metadata, not actual data reads.
+    Other access_parser errors remain visible.
+    """
+    ap_logger = logging.getLogger('access_parser')
+    prev_level = ap_logger.level
+    ap_logger.setLevel(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        ap_logger.setLevel(prev_level)
+
+BREAKPOINT_FILE = get_conf_path("mdb_breakpoint.json")
 
 def _fix_encoding(s):
     """Fix encoding for Chinese characters from .mdb files (typically GBK/GB2312)"""
@@ -97,14 +112,16 @@ class MDBCollector(BaseCollector):
     def db(self):
         if self._db is None:
             from access_parser import AccessParser
-            self._db = AccessParser(self.mdb_path)
+            with _quiet_msys_init():
+                self._db = AccessParser(self.mdb_path)
         return self._db
-    
+
     def test_connection(self) -> bool:
         """测试连接"""
         try:
             from access_parser import AccessParser
-            db = AccessParser(self.mdb_path)
+            with _quiet_msys_init():
+                db = AccessParser(self.mdb_path)
             # Try to parse a table to verify the file is valid
             db.parse_table(self.sample_table)
             return True
@@ -428,7 +445,7 @@ class MDBCollector(BaseCollector):
         ]
     
     def get_spec_limits(self, product_code: str = None) -> Dict[str, Dict[str, float]]:
-        return load_spec_limits("spec_limits.json", product_code)
+        return load_spec_limits(get_conf_path("spec_limits.json"), product_code)
     
     def clear_cache(self):
         """清除所有缓存"""

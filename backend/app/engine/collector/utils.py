@@ -48,7 +48,7 @@ def load_breakpoint(filepath: str) -> Optional[str]:
     """Load breakpoint timestamp from file."""
     if os.path.exists(filepath):
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get('last_timestamp') or data.get('last_collect_time')
         except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
@@ -58,10 +58,18 @@ def load_breakpoint(filepath: str) -> Optional[str]:
 
 
 def save_breakpoint(filepath: str, timestamp: str) -> None:
-    """Save breakpoint timestamp to file."""
+    """Save breakpoint timestamp to file (atomic write)."""
+    import tempfile
     try:
-        with open(filepath, 'w') as f:
-            json.dump({'last_timestamp': timestamp}, f)
+        dir_name = os.path.dirname(filepath)
+        fd, tmp = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump({'last_timestamp': timestamp}, f)
+            os.replace(tmp, filepath)
+        except:
+            os.unlink(tmp)
+            raise
     except (OSError, IOError) as e:
         logger.error(f"Failed to save breakpoint to {filepath}: {e}")
 

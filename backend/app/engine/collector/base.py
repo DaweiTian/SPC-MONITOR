@@ -2,25 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import json
 import os
-import sys
 import logging
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 
 
-def _resolve_data_file(filename: str) -> str:
-    """Resolve a data file path, checking exe directory first (for Nuitka/PyInstaller), then CWD."""
-    # For packaged app: check next to the executable
-    if getattr(sys, 'frozen', False) or '__compiled__' in globals():
-        exe_dir = os.path.dirname(sys.executable)
-        candidate = os.path.join(exe_dir, filename)
-        if os.path.exists(candidate):
-            return candidate
-    # Fallback: relative to current working directory
-    return filename
-
-
-SPEC_LIMITS_FILE = _resolve_data_file("spec_limits.json")
+SPEC_LIMITS_FILE = get_conf_path("spec_limits.json")
 
 
 class BaseCollector(ABC):

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 import logging
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/monitor", tags=["监控"])
@@ -201,26 +202,26 @@ def snapshot_product_indicators():
     """初始化时扫描数据库，保存每个品项有数据的指标编码（一次性操作）"""
     mapping = storage.get_all_product_indicator_codes()
     from backend.app.api.config import _save_json_config
-    _save_json_config("product_indicators.json", mapping)
+    _save_json_config(get_conf_path("product_indicators.json"), mapping)
     return {"success": True, "count": len(mapping), "mapping": mapping}
 
 @router.get("/products/saved-indicators")
 def get_saved_indicators():
     """读取已保存的品项指标配置"""
     from backend.app.api.config import _load_json_config
-    return _load_json_config("product_indicators.json", {})
+    return _load_json_config(get_conf_path("product_indicators.json"), {})
 
 @router.put("/products/saved-indicators/{product_code}")
 def update_saved_indicators(product_code: str, body: dict):
     """更新单个品项的指标编码列表"""
     codes = body.get("codes", [])
     from backend.app.api.config import _load_json_config, _save_json_config
-    mapping = _load_json_config("product_indicators.json", {})
+    mapping = _load_json_config(get_conf_path("product_indicators.json"), {})
     if codes:
         mapping[product_code] = codes
     else:
         mapping.pop(product_code, None)
-    _save_json_config("product_indicators.json", mapping)
+    _save_json_config(get_conf_path("product_indicators.json"), mapping)
     return {"success": True}
 
 @router.get("/indicators")

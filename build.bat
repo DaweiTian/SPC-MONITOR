@@ -36,8 +36,8 @@ REM 去除后端 exe 图标（避免任务栏出现两个图标）
 python -c "import pefile; pe=pefile.PE(r'ft1-backend-dist\run.dist\ft1-backend.exe'); d=pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']]; d.VirtualAddress=0;d.Size=0;pe.write(r'ft1-backend-dist\run.dist\ft1-backend.exe')" 2>nul
 xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul || (echo 后端复制失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
-REM 复制配置文件
-for %%f in (server_config.json instrument_config.json prediction_config.json db_mapping.json product_categories.json product_indicators.json product_status.json excluded_remarks.json alias_config.json alert_rules.json fta_config.json spec_limits.json db_config.json mdb_config.json) do copy /Y "!PROJECT_DIR!%%f" "%BACKEND_DIST%\" >nul 2>nul
+REM 复制配置文件（全部在 backend/conf/ 目录下）
+xcopy /E /I /Q /Y "!PROJECT_DIR!backend\conf" "%BACKEND_DIST%\conf" >nul 2>nul
 
 echo [4/5] 构建 Tauri...
 cd /d "%LAUNCHER_DIR%"

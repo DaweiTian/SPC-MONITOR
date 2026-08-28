@@ -1,9 +1,0 @@
-{
-  "server": "",
-  "database": "Pert_Application",
-  "auth_type": "sql",
-  "driver": "pymssql",
-  "username": "sa",
-  "password": "",
-  "timeout": 30
-}

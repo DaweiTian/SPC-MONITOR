@@ -3,10 +3,11 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
 from .utils import parse_datetime, load_breakpoint, save_breakpoint, build_connection_string
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 
-BREAKPOINT_FILE = "fta_breakpoint.json"
+BREAKPOINT_FILE = get_conf_path("fta_breakpoint.json")
 
 
 class FTACollector(BaseCollector):

@@ -5,6 +5,7 @@ import asyncio
 import logging
 
 from backend.app.core.cache import TTLCache
+from backend.app.core.config import get_conf_path
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/predict", tags=["prediction"])
 
 storage = None  # injected from main.py
 
-SPEC_LIMITS_FILE = "spec_limits.json"
+SPEC_LIMITS_FILE = get_conf_path("spec_limits.json")
 
 
 def _sanitize(obj):
@@ -161,7 +162,7 @@ def _calc_breach_time(predictions: list, upper: list, lower: list,
 def _get_spec_limits(product: str, indicator: str):
     """Load spec limits from spec_limits.json. Returns (usl, lsl) or (None, None)."""
     try:
-        with open(SPEC_LIMITS_FILE, "r", encoding="utf-8") as f:
+        with open(SPEC_LIMITS_FILE, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
         product_cfg = data.get(product, {})
         indicator_cfg = product_cfg.get(indicator, {})

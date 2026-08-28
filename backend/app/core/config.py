@@ -2,19 +2,51 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from pathlib import Path
 import json
+import os
 
-# 服务器配置文件路径（Nuitka编译后 __file__ 在 _internal/ 下，需要向上找到 exe 目录）
-_SERVER_CONFIG_CANDIDATES = [
-    Path.cwd() / "server_config.json",                       # exe 所在目录（run.py 设置了 cwd）
-    Path(__file__).parent.parent.parent / "server_config.json",  # 开发环境
-]
-SERVER_CONFIG_FILE = next((p for p in _SERVER_CONFIG_CANDIDATES if p.exists()), _SERVER_CONFIG_CANDIDATES[0])
+# ---- conf/ 目录路径解析 ----
+# 优先级：
+#   1. CWD/conf  （run.py 将 CWD 设为 exe 目录）
+#   2. __file__/../../conf  （开发环境：backend/app/core/ → backend/conf/）
+#   3. __file__/_internal 上溯 + conf  （Nuitka 编译后 __file__ 在 _internal 下）
+
+def _find_conf_dir() -> Path:
+    """定位 conf/ 配置目录。"""
+    candidates = [
+        Path.cwd() / "conf",                                    # 打包模式：CWD = exe 目录
+        Path(__file__).parent.parent.parent / "conf",           # 打包模式备选
+        Path(__file__).parent.parent / "conf",                  # 开发模式：backend/app/core → backend/conf
+    ]
+    for p in candidates:
+        if p.is_dir():
+            return p
+    import logging
+    logging.getLogger(__name__).warning(
+        f"conf/ directory not found in any candidate: {[str(p) for p in candidates]}"
+    )
+    return candidates[0]
+
+
+_CONF_DIR = _find_conf_dir()
+
+
+def get_conf_path(filename: str) -> str:
+    """返回 conf/<filename> 的绝对路径（str），供 open() 使用。"""
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise ValueError(f"Invalid config filename: {filename}")
+    return str(_CONF_DIR / filename)
+
+
+# ---- 服务器配置 ----
+
+SERVER_CONFIG_FILE = get_conf_path("server_config.json")
+
 
 class Settings(BaseSettings):
     app_name: str = "液奶过程监控系统"
     debug: bool = False
     database_url: str = "sqlite:///data/monitor.db"
-    
+
     # SQL Server 配置
     sqlserver_enabled: bool = False
     sqlserver_server: str = ""
@@ -24,18 +56,18 @@ class Settings(BaseSettings):
     sqlserver_driver: str = "pymssql"
     sqlserver_auth_type: str = "windows"
     sqlserver_timeout: int = 30
-    
+
     # 采集配置
     collect_interval_minutes: int = 5
     max_interval_minutes: int = 300
     spc_window_size: int = 30
     cpk_min_threshold: float = 1.33
     data_retention_days: int = 90
-    
+
     # 预警配置
     alert_sound_enabled: bool = True
     alert_popup_enabled: bool = True
-    
+
     class Config:
         env_file = ".env"
 
@@ -50,9 +82,9 @@ def get_server_config() -> dict:
     默认值: {"host": "127.0.0.1", "port": 18080, "shared_password": ""}
     """
     default_config = {"host": "127.0.0.1", "port": 18080, "shared_password": ""}
-    
+
     try:
-        if SERVER_CONFIG_FILE.exists():
+        if Path(SERVER_CONFIG_FILE).exists():
             with open(SERVER_CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
                 return {
@@ -63,5 +95,5 @@ def get_server_config() -> dict:
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning(f"读取 server_config.json 失败，使用默认配置: {e}")
-    
+
     return default_config
