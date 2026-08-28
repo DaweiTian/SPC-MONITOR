@@ -1,9 +1,20 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { api } from '../services/api'
+
+interface Permissions {
+  isLocal: boolean
+  restrictedModules: string[]
+  passwordRequired: boolean
+}
 
 interface AppState {
   currentProduct: string
   currentProductCode: string
   collectionFrequency: string
+  permissions: Permissions
+  isAuthenticated: boolean
+  canAccess: (moduleKey: string) => boolean
+  verifyPassword: (password: string) => Promise<boolean>
   setCurrentProduct: (name: string, code: string) => void
   setCollectionFrequency: (freq: string) => void
 }
@@ -20,6 +31,67 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [collectionFrequency, setCollectionFrequencyState] = useState(() => {
     try { return localStorage.getItem('app_collection_frequency') || 'L0 · 5min' } catch { return 'L0 · 5min' }
   })
+  const [permissions, setPermissions] = useState<Permissions>({ isLocal: true, restrictedModules: [], passwordRequired: false })
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // 本地访问无需密码验证
+    try { return sessionStorage.getItem('ft1_authenticated') === 'true' } catch { return false }
+  })
+
+  useEffect(() => {
+    // 检查 URL 参数中是否有 auth 密码
+    const urlParams = new URLSearchParams(window.location.search)
+    const authFromUrl = urlParams.get('auth')
+
+    api.getPermissions()
+      .then((data) => {
+        setPermissions({
+          isLocal: data.isLocal,
+          restrictedModules: data.restrictedModules,
+          passwordRequired: data.passwordRequired,
+        })
+        // 本地访问自动通过验证
+        if (data.isLocal || !data.passwordRequired) {
+          setIsAuthenticated(true)
+          sessionStorage.setItem('ft1_authenticated', 'true')
+        } else if (authFromUrl) {
+          // 如果 URL 中有密码，自动验证
+          api.verifyPassword(authFromUrl).then(result => {
+            if (result.success) {
+              setIsAuthenticated(true)
+              sessionStorage.setItem('ft1_authenticated', 'true')
+            }
+            // 清除 URL 中的密码参数
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete('auth')
+            window.history.replaceState({}, '', newUrl.toString())
+          })
+        }
+      })
+      .catch(() => {
+        // 默认允许访问所有模块
+        setPermissions({ isLocal: true, restrictedModules: [], passwordRequired: false })
+        setIsAuthenticated(true)
+      })
+  }, [])
+
+  const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
+    try {
+      const result = await api.verifyPassword(password)
+      if (result.success) {
+        setIsAuthenticated(true)
+        sessionStorage.setItem('ft1_authenticated', 'true')
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }, [])
+
+  const canAccess = useCallback((moduleKey: string) => {
+    if (permissions.isLocal) return true
+    return !permissions.restrictedModules.includes(moduleKey)
+  }, [permissions])
 
   const setCurrentProduct = useCallback((name: string, code: string) => {
     setCurrentProductState(name)
@@ -37,9 +109,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     currentProduct,
     currentProductCode,
     collectionFrequency,
+    permissions,
+    isAuthenticated,
+    canAccess,
+    verifyPassword,
     setCurrentProduct,
     setCollectionFrequency,
-  }), [currentProduct, currentProductCode, collectionFrequency, setCurrentProduct, setCollectionFrequency])
+  }), [currentProduct, currentProductCode, collectionFrequency, permissions, isAuthenticated, canAccess, verifyPassword, setCurrentProduct, setCollectionFrequency])
 
   return (
     <AppContext.Provider value={value}>

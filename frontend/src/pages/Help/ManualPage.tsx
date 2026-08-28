@@ -893,7 +893,7 @@ export const ManualPage: React.FC = () => {
             <tr><td style={{ color: '#f59e0b', fontWeight: 700 }}>C — 控制</td><td>固化改进成果</td><td>建立 SPC 实时监控系统，设定控制限报警</td><td>控制图、控制计划、标准化作业</td></tr>
           </tbody>
         </table>
-        <NoteBox><strong>本系统在 DMAIC 中的角色</strong>：FT1-MONITOR 主要服务于 M（测量）和 C（控制）阶段——通过 FT120 仪器自动采集数据、实时绘制控制图、自动应用 Nelson 规则判异，实现乳品质量的持续监控和早期预警。</NoteBox>
+        <NoteBox><strong>本系统在 DMAIC 中的角色</strong>：SPC-MONITOR 主要服务于 M（测量）和 C（控制）阶段——通过 FT120 仪器自动采集数据、实时绘制控制图、自动应用 Nelson 规则判异，实现乳品质量的持续监控和早期预警。</NoteBox>
       </SectionCard>
 
       {/* ─── 滑动窗口 ─── */}

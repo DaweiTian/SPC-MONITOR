@@ -662,8 +662,9 @@ export const ConfigPage: React.FC = () => {
     }
 
     // Persist spec limits to backend
+    // 保存所有启用的指标（包括用户清空值的情况，以便删除之前保存的规格限）
     const enabledSpecs = indicatorSpecs
-      .filter(s => s.enabled && (s.usl != null && s.usl !== '' || s.lsl != null && s.lsl !== ''))
+      .filter(s => s.enabled)
       .map(s => ({
         id: `${newProduct.code}-${s.indicator_code}`,
         product: newProduct.code,
@@ -678,7 +679,7 @@ export const ConfigPage: React.FC = () => {
     // Update local specs state
     setSpecs(prev => [
       ...prev.filter(s => s.product !== newProduct.code),
-      ...enabledSpecs.map(s => ({
+      ...enabledSpecs.filter(s => s.usl != null || s.lsl != null).map(s => ({
         ...s,
         usl: s.usl ?? 0,
         lsl: s.lsl ?? 0,
@@ -695,7 +696,9 @@ export const ConfigPage: React.FC = () => {
         if (spec.usl != null) limits.usl = spec.usl
         if (spec.target != null) limits.target = spec.target
         await api.updateSingleSpecLimit(spec.indicator_code, limits)
-        productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
+        if (spec.lsl != null || spec.usl != null) {
+          productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
+        }
       } catch (e) {
         console.error(`保存指标 ${spec.indicator_code} 规格限失败:`, e)
       }

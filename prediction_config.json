@@ -43,8 +43,8 @@
       "source_indicator": "fat",
       "coefficient": 0.6277,
       "enabled": true,
-      "alert_threshold": 0.1,
       "alert_enabled": true,
+      "alert_threshold": 0.1,
       "usl": null,
       "lsl": null,
       "target": null,
@@ -63,5 +63,6 @@
       "target": null,
       "unit": "g/100g"
     }
-  }
+  },
+  "梦幻盖金典纯牛奶": {}
 }

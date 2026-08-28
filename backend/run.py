@@ -46,9 +46,12 @@ import uvicorn
 from backend.main import app
 
 if __name__ == '__main__':
+    from backend.app.core.config import get_server_config
+    server_config = get_server_config()
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default='127.0.0.1')
-    parser.add_argument('--port', type=int, default=18080)
+    parser.add_argument('--host', default=server_config['host'])
+    parser.add_argument('--port', type=int, default=server_config['port'])
     args = parser.parse_args()
     try:
         uvicorn.run(app, host=args.host, port=args.port)

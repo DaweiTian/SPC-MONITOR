@@ -48,6 +48,11 @@ const navGroups: NavGroup[] = [
           <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       )},
+      { key: 'devices', path: '/devices', label: '其他设备', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      )},
     ],
   },
   {
@@ -71,6 +76,14 @@ const navGroups: NavGroup[] = [
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       )},
+      { key: 'network', path: '/settings', label: '网络设置', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+          <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+      )},
     ],
   },
   {
@@ -86,17 +99,19 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-const APP_VERSION = 'v1.6.1'
+const APP_VERSION = 'v1.6.2'
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
   '/spc': { cn: 'SPC控制图', en: 'SPC Control Chart' },
   '/capability': { cn: '过程能力', en: 'Process Capability' },
   '/prediction': { cn: '指标预测', en: 'Prediction' },
+  '/devices': { cn: '其他设备', en: 'Other Devices' },
   '/alerts': { cn: '预警中心', en: 'Alert Center' },
   '/correction': { cn: '修正值管理', en: 'Correction Values' },
   '/data': { cn: '数据管理', en: 'Data Management' },
   '/config': { cn: '配置管理', en: 'Configuration' },
+  '/settings': { cn: '网络设置', en: 'Network Settings' },
   '/help': { cn: '帮助说明', en: 'Help' },
 }
 
@@ -110,7 +125,7 @@ function formatTime(date: Date): string {
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { currentProduct, collectionFrequency } = useAppContext()
+  const { currentProduct, collectionFrequency, canAccess } = useAppContext()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
   const [collapsed, setCollapsed] = useState(() => {
@@ -198,13 +213,21 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
   const currentPage = pageTitleMap[location.pathname] || { cn: '页面', en: 'Page' }
 
-  // Update alerts badge dynamically
+  // Update alerts badge dynamically & filter by permissions
   const navGroupsWithBadge = navGroups.map(group => ({
     ...group,
-    items: group.items.map(item => 
+    items: group.items.map(item =>
       item.key === 'alerts' ? { ...item, badge: alertsCount > 0 ? alertsCount : undefined } : item
     )
   }))
+
+  // 远程用户隐藏受限模块
+  const filteredNavGroups = navGroupsWithBadge
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => canAccess(item.key)),
+    }))
+    .filter(group => group.items.length > 0)
 
   const getStatusDisplay = () => {
     if (!sourceStatus.backendReachable) {
@@ -241,7 +264,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
         </div>
         <nav className={styles.sidebarNav} role="navigation" aria-label="主导航">
-          {navGroupsWithBadge.map((group) => (
+          {filteredNavGroups.map((group) => (
             <React.Fragment key={group.title}>
               <div className={styles.navGroupTitle}>{group.title}</div>
               {group.items.map((item) => {
@@ -273,11 +296,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>EWMA控制图：指数加权移动平均，λ可调(0.05~0.5)，检测小偏移</li>
-                <li className={styles.versionTooltipItem}>Mann-Kendall趋势检验：非参数检验+Sen斜率，集成自动选模型</li>
-                <li className={styles.versionTooltipItem}>预测页面新增趋势分析KPI卡片（方向/p值/斜率）</li>
-                <li className={styles.versionTooltipItem}>EWMA越界点表替换Nelson规则表，显示越界详情</li>
-                <li className={styles.versionTooltipItem}>修复EWMA/I-MR切换崩溃、λ滑块刷屏、趋势数据空白等问题</li>
+                <li className={styles.versionTooltipItem}>网络共享：支持局域网内其他设备访问监控系统</li>
+                <li className={styles.versionTooltipItem}>共享密码：远程访问需密码验证，支持设备记忆密码</li>
+                <li className={styles.versionTooltipItem}>其他设备页面：发现和管理局域网内的监控实例</li>
+                <li className={styles.versionTooltipItem}>修复SQL Server中文主机名连接失败问题</li>
+                <li className={styles.versionTooltipItem}>修复规格限删除后未同步更新、表头滚动固定等问题</li>
               </ul>
             </div>
           </span>

@@ -263,6 +263,29 @@ def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
         host = parts[0]
         instance = parts[1]
 
+    # Error 20009: Server unavailable or does not exist (common with Chinese hostnames)
+    if "20009" in error_str:
+        # Check if hostname contains non-ASCII characters (Chinese, etc.)
+        has_non_ascii = any(ord(c) > 127 for c in host)
+        if has_non_ascii:
+            return (
+                f"连接失败：主机名 '{host}' 包含中文字符，pymssql/FreeTDS 无法正确解析。\n"
+                f"解决方案：\n"
+                f"1. 在服务器上查询 IP 地址（运行: ping {host}）\n"
+                f"2. 将主机名替换为 IP 地址（例如: 192.168.1.100）\n"
+                f"3. 如果使用实例名，格式为: IP地址\\实例名,端口"
+            )
+        # Non-Chinese hostname with 20009 error
+        if port:
+            return (
+                f"无法连接到 {server}。请检查：\n"
+                f"1. 服务器 {host} 是否可达（在命令行运行: ping {host}）\n"
+                f"2. SQL Server 是否在端口 {port} 监听\n"
+                f"3. 防火墙是否放行端口 {port}\n"
+                f"4. SQL Server 服务是否已启动"
+            )
+        return f"无法连接到 {server}，请检查服务器地址和 SQL Server 服务状态"
+
     # Error 20002: TCP connection failed (server unreachable)
     if "20002" in error_str:
         if port:
@@ -310,18 +333,27 @@ def diagnose_db_connection(config: DBConfigRequest):
     cfg = config.model_dump()
     server = cfg.get("server", "")
 
-    # Extract host and port
+    # 解析服务器字符串: 支持 "host\instance,port" / "host,port" / "host\instance" / "host"
     host = server
     port = None
-    if ':' in server:
-        parts = server.rsplit(':', 1)
+    instance = None
+
+    # 提取端口 (逗号后面)
+    if ',' in server:
+        parts = server.rsplit(',', 1)
         host = parts[0]
         try:
             port = int(parts[1])
         except ValueError:
             pass
 
-    results = {"host": host, "port": port, "checks": []}
+    # 提取实例 (反斜杠后面)
+    if '\\' in host:
+        parts = host.split('\\', 1)
+        host = parts[0]
+        instance = parts[1]
+
+    results = {"host": host, "port": port, "instance": instance, "checks": []}
 
     # Check 1: DNS resolution
     try:

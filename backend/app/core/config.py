@@ -1,5 +1,10 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pathlib import Path
+import json
+
+# 服务器配置文件路径
+SERVER_CONFIG_FILE = Path(__file__).parent.parent.parent / "server_config.json"
 
 class Settings(BaseSettings):
     app_name: str = "液奶过程监控系统"
@@ -33,3 +38,25 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+def get_server_config() -> dict:
+    """
+    从 server_config.json 读取服务器配置
+    返回: {"host": str, "port": int, "shared_password": str}
+    默认值: {"host": "127.0.0.1", "port": 18080, "shared_password": ""}
+    """
+    default_config = {"host": "127.0.0.1", "port": 18080, "shared_password": ""}
+    
+    try:
+        if SERVER_CONFIG_FILE.exists():
+            with open(SERVER_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                return {
+                    "host": config.get("host", default_config["host"]),
+                    "port": int(config.get("port", default_config["port"])),
+                    "shared_password": config.get("shared_password", default_config["shared_password"])
+                }
+    except Exception:
+        pass
+    
+    return default_config

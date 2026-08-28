@@ -219,4 +219,30 @@ export const api = {
   // 特征重要性
   getFeatureImportance: (product: string, indicator: string) =>
     http.get('/predict/feature/importance', { params: { product, indicator } }).then(r => r.data),
+
+  // 权限查询
+  getPermissions: () =>
+    http.get<{ isLocal: boolean; allowedModules: string; restrictedModules: string[]; passwordRequired: boolean }>('/permissions').then(r => r.data),
+
+  // 网络配置
+  getNetworkConfig: () =>
+    http.get<{ host: string; port: number; local_ip: string; shared_password: string; password_enabled: boolean }>('/network/config').then(r => r.data),
+  updateNetworkConfig: (config: { host?: string; shared_password?: string }) =>
+    http.put<{ success: boolean; message: string; host: string; port: number; local_ip: string; shared_password: string; password_enabled: boolean }>('/network/config', config).then(r => r.data),
+
+  // 密码验证
+  verifyPassword: (password: string) =>
+    http.post<{ success: boolean; message: string }>('/auth/verify', { password }).then(r => r.data),
+
+  // 设备管理
+  getDevices: () =>
+    http.get<{ devices: Array<{ ip: string; port: number; name: string; added_at?: string }> }>('/devices').then(r => r.data),
+  addDevice: (device: { ip: string; port?: number; name?: string; password?: string }) =>
+    http.post<{ success: boolean; message?: string; device?: any }>('/devices', device).then(r => r.data),
+  removeDevice: (ip: string) =>
+    http.delete(`/devices/${ip}`).then(r => r.data),
+  discoverDevices: () =>
+    http.get<{ devices: Array<{ ip: string; port: number; name: string }>; local_ip: string }>('/network/discover').then(r => r.data),
+  openFirewall: () =>
+    http.post<{ success: boolean; message: string }>('/network/open-firewall').then(r => r.data),
 }

@@ -5,10 +5,11 @@ import sys
 import logging
 import threading
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Security
+from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.auth import verify_api_key
+from backend.app.core.config import get_server_config, SERVER_CONFIG_FILE
 from backend.app.core.exceptions import AppException, app_exception_handler, generic_exception_handler
 from datetime import datetime
 
@@ -63,7 +64,7 @@ async def lifespan(app: FastAPI):
     _main_loop = asyncio.get_running_loop()
     yield
 
-app = FastAPI(title="液奶过程监控系统", version="1.6.1", lifespan=lifespan)
+app = FastAPI(title="液奶过程监控系统", version="1.6.2", lifespan=lifespan)
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
@@ -535,6 +536,277 @@ app.include_router(ws_router, prefix="/api")  # No auth dependency; WS uses quer
 def health():
     return {"status": "ok"}
 
+
+# ---- 权限查询接口 ----
+
+LOCAL_ONLY_MODULES: set[str] = {"correction", "data", "config", "network"}
+
+
+def is_local_request(request: Request) -> bool:
+    """判断请求是否来自本机（127.0.0.1 / ::1）。"""
+    client_host = request.client.host if request.client else ""
+    return client_host in ("127.0.0.1", "::1")
+
+
+def is_password_required() -> bool:
+    """检查是否设置了共享密码"""
+    config = get_server_config()
+    return bool(config.get("shared_password"))
+
+
+def verify_shared_password(password: str) -> bool:
+    """验证共享密码"""
+    config = get_server_config()
+    expected = config.get("shared_password", "")
+    if not expected:
+        return True  # 没有设置密码，直接通过
+    return password == expected
+
+
+@app.get("/api/permissions")
+def get_permissions(request: Request):
+    """根据客户端 IP 返回模块访问权限。"""
+    is_local = is_local_request(request)
+    password_required = is_password_required()
+
+    if is_local:
+        return {
+            "isLocal": True,
+            "allowedModules": "all",
+            "passwordRequired": password_required,
+        }
+    else:
+        return {
+            "isLocal": False,
+            "allowedModules": "restricted",
+            "restrictedModules": sorted(LOCAL_ONLY_MODULES),
+            "passwordRequired": password_required,
+        }
+
+
+@app.post("/api/auth/verify")
+def verify_password(body: dict):
+    """验证共享密码"""
+    password = body.get("password", "")
+    if verify_shared_password(password):
+        return {"success": True, "message": "密码正确"}
+    return {"success": False, "message": "密码错误"}
+
+
+# ---- 网络配置接口 ----
+
+def get_local_ip() -> str:
+    """获取本机局域网 IP 地址。"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(2)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+@app.get("/api/network/config")
+def get_network_config():
+    """获取网络配置。"""
+    config = get_server_config()
+    return {
+        "host": config["host"],
+        "port": config["port"],
+        "local_ip": get_local_ip(),
+        "shared_password": config.get("shared_password", ""),
+        "password_enabled": bool(config.get("shared_password")),
+    }
+
+
+@app.put("/api/network/config")
+def update_network_config(request_body: dict):
+    """更新网络配置（仅允许 host 为 127.0.0.1 或 0.0.0.0）。"""
+    new_host = request_body.get("host", "")
+    new_password = request_body.get("shared_password")
+
+    if new_host and new_host not in ("127.0.0.1", "0.0.0.0"):
+        raise HTTPException(status_code=400, detail="host 仅允许 127.0.0.1 或 0.0.0.0")
+
+    config = get_server_config()
+    if new_host:
+        config["host"] = new_host
+    if new_password is not None:
+        config["shared_password"] = new_password
+
+    try:
+        with open(SERVER_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存配置失败: {e}")
+
+    return {
+        "success": True,
+        "message": "网络配置已更新，重启服务后生效",
+        "host": config["host"],
+        "port": config["port"],
+        "local_ip": get_local_ip(),
+        "shared_password": config.get("shared_password", ""),
+        "password_enabled": bool(config.get("shared_password")),
+    }
+
+
+# ---- 设备管理接口 ----
+
+DEVICES_FILE = os.path.join(os.path.dirname(__file__), "devices.json")
+
+
+def _load_devices() -> list:
+    """加载已保存的设备列表"""
+    try:
+        if os.path.exists(DEVICES_FILE):
+            with open(DEVICES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+
+def _save_devices(devices: list) -> None:
+    """保存设备列表"""
+    with open(DEVICES_FILE, 'w', encoding='utf-8') as f:
+        json.dump(devices, f, ensure_ascii=False, indent=2)
+
+
+@app.get("/api/devices")
+async def list_devices():
+    """获取已保存的设备列表"""
+    return {"devices": _load_devices()}
+
+
+@app.post("/api/devices")
+async def add_device(body: dict):
+    """手动添加设备"""
+    ip_raw = body.get("ip", "").strip()
+    name = body.get("name", "").strip()
+    port = body.get("port", 18080)
+    password = body.get("password", "").strip()
+
+    if not ip_raw:
+        raise HTTPException(status_code=400, detail="IP 地址不能为空")
+
+    # 清理 IP：移除协议前缀和端口
+    ip = ip_raw
+    if "://" in ip:
+        ip = ip.split("://")[1]
+    if ":" in ip:
+        ip = ip.split(":")[0]
+    ip = ip.strip("/")
+
+    if not ip:
+        raise HTTPException(status_code=400, detail="IP 地址格式无效")
+
+    devices = _load_devices()
+    if any(d["ip"] == ip for d in devices):
+        return {"success": False, "message": "设备已存在"}
+
+    device = {
+        "ip": ip,
+        "port": port,
+        "name": name or ip,
+        "password": password,
+        "added_at": datetime.now().isoformat(),
+    }
+    devices.append(device)
+    _save_devices(devices)
+    return {"success": True, "device": device}
+
+
+@app.delete("/api/devices/{ip}")
+async def remove_device(ip: str):
+    """删除设备"""
+    from urllib.parse import unquote
+    ip = unquote(ip)
+    if "://" in ip:
+        ip = ip.split("://")[1]
+    if ":" in ip:
+        ip = ip.split(":")[0]
+    ip = ip.strip("/")
+
+    devices = _load_devices()
+    devices = [d for d in devices if d["ip"] != ip]
+    _save_devices(devices)
+    return {"success": True}
+
+
+@app.post("/api/network/open-firewall")
+async def open_firewall():
+    """尝试以管理员权限添加 Windows 防火墙放行规则。"""
+    import sys
+    if sys.platform != 'win32':
+        return {"success": False, "message": "仅支持 Windows 系统"}
+
+    try:
+        import ctypes
+        ps_cmd = (
+            'Start-Process cmd -ArgumentList '
+            '"/c netsh advfirewall firewall add rule '
+            'name=\'FT1-MONITOR (TCP 18080)\' dir=in action=allow protocol=TCP localport=18080 & '
+            'netsh advfirewall firewall add rule '
+            'name=\'FT1-MONITOR (UDP 18080)\' dir=in action=allow protocol=UDP localport=18080" '
+            '-Verb RunAs -WindowStyle Hidden'
+        )
+        rc = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", "powershell", f"-Command {ps_cmd}", None, 0
+        )
+        if rc <= 32:
+            return {"success": False, "message": f"无法请求管理员权限 (code {rc})"}
+        return {"success": True, "message": "已请求管理员权限，如UAC弹窗中点击[是]则放行成功"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@app.get("/api/network/discover")
+async def discover_devices():
+    """扫描局域网内开启共享的 FT1-MONITOR 服务"""
+    import socket
+    import concurrent.futures
+
+    local_ip = get_local_ip()
+    parts = local_ip.rsplit('.', 1)
+    if len(parts) != 2:
+        return {"devices": [], "local_ip": local_ip}
+    subnet = parts[0]
+
+    discovered = []
+
+    def check_host(ip: str) -> dict | None:
+        try:
+            import urllib.request
+            url = f"http://{ip}:18080/api/health"
+            req = urllib.request.Request(url, method='GET')
+            req.add_header('X-API-Key', 'ft1-monitor-default-key')
+            with urllib.request.urlopen(req, timeout=1) as resp:
+                if resp.status == 200:
+                    try:
+                        hostname = socket.gethostbyaddr(ip)[0]
+                    except Exception:
+                        hostname = ip
+                    return {"ip": ip, "port": 18080, "name": hostname}
+        except Exception:
+            pass
+        return None
+
+    ips = [f"{subnet}.{i}" for i in range(1, 255) if f"{subnet}.{i}" != local_ip]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(check_host, ip): ip for ip in ips}
+        for future in concurrent.futures.as_completed(futures, timeout=10):
+            result = future.result()
+            if result:
+                discovered.append(result)
+
+    return {"devices": discovered, "local_ip": local_ip}
+
+
 # SPA catch-all: serve index.html for any non-API GET request (browser refresh support)
 if _frontend_dist.exists():
     from starlette.responses import FileResponse as _FileResponse
@@ -552,4 +824,5 @@ if _frontend_dist.exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=18080)
+    config = get_server_config()
+    uvicorn.run(app, host=config["host"], port=config["port"])
