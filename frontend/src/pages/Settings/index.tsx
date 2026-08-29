@@ -62,13 +62,37 @@ export const NetworkSettings: React.FC = () => {
       const result = await api.updateNetworkConfig({ host: newHost })
       if (result.success) {
         setConfig(prev => prev ? { ...prev, host: newHost } : prev)
-        addToast({
-          title: '成功',
-          message: isShared
-            ? '已关闭局域网共享，重启后仅本机可访问'
-            : '已开启局域网共享，重启后局域网可访问',
-          severity: 'INFO',
-        })
+        // Tauri 模式下自动重启后端使配置生效
+        const isTauri = '__TAURI__' in window
+        if (isTauri) {
+          addToast({ title: '提示', message: '正在重启服务...', severity: 'INFO' })
+          try {
+            const { invoke } = await import('@tauri-apps/api/core')
+            await invoke('stop_server')
+            await new Promise(r => setTimeout(r, 1500))
+            await invoke('start_server')
+            await new Promise(r => setTimeout(r, 2000))
+            addToast({
+              title: '成功',
+              message: isShared ? '已关闭局域网共享' : '已开启局域网共享，局域网可访问',
+              severity: 'INFO',
+            })
+          } catch (restartErr) {
+            addToast({
+              title: '警告',
+              message: '配置已保存，请手动重启应用使网络共享生效',
+              severity: 'WARNING',
+            })
+          }
+        } else {
+          addToast({
+            title: '成功',
+            message: isShared
+              ? '已关闭局域网共享，请重启服务'
+              : '已开启局域网共享，请重启服务使配置生效',
+            severity: 'INFO',
+          })
+        }
       } else {
         addToast({ title: '错误', message: result.message || '更新失败', severity: 'WARNING' })
       }
