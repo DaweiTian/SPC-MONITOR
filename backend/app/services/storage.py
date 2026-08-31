@@ -340,6 +340,30 @@ class OnlineStorage:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_all_export_data(
+        self,
+        product_code: str | None = None,
+        indicator_code: str | None = None,
+        limit: int = 10000,
+    ) -> list[dict[str, Any]]:
+        """Export data with optional filters (no pagination)."""
+        with self._connection() as conn:
+            conditions = ["(is_voided = 0 OR is_voided IS NULL)"]
+            params: list[Any] = []
+            if product_code:
+                conditions.append("product_code = ?")
+                params.append(product_code)
+            if indicator_code:
+                conditions.append("indicator_code = ?")
+                params.append(indicator_code)
+            where = f"WHERE {' AND '.join(conditions)}"
+            params.append(limit)
+            cursor = conn.execute(
+                f"SELECT * FROM monitor_data {where} ORDER BY sample_time DESC LIMIT ?",
+                params,
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
     def get_all_data(
         self,
         page: int = 1,
@@ -676,7 +700,7 @@ class OnlineStorage:
 
     def update_record_fields(self, record_id: int, fields: dict[str, Any]) -> bool:
         """Update specific fields for a record (unit, upper_limit, lower_limit)."""
-        allowed_fields = {"unit", "upper_limit", "lower_limit"}
+        allowed_fields = {"unit", "upper_limit", "lower_limit", "sample_id", "remark"}
         updates = {k: v for k, v in fields.items() if k in allowed_fields}
         if not updates:
             return False

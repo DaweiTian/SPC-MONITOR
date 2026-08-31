@@ -1,6 +1,6 @@
 {
   "productName": "过程SPC监控平台",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -15,7 +15,8 @@
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "headerImage": "nsis/header.bmp",
-        "sidebarImage": "nsis/sidebar.bmp"
+        "sidebarImage": "nsis/sidebar.bmp",
+        "installerHooks": "./windows/hooks.nsh"
       }
     }
   },

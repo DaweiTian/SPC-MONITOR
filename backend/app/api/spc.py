@@ -7,6 +7,9 @@ from backend.app.engine.spc.rules import NelsonRules
 from backend.app.engine.spc.capability import ProcessCapability
 from backend.app.api.config import _get_merged_spec_limits
 from backend.app.core.cache import TTLCache
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["SPC"])
 
@@ -228,7 +231,12 @@ def get_cpk_data(
     
     values = np.array([d['value'] for d in data], dtype=float)
     spec_limits = collector.get_spec_limits(product_code=product_code).get(indicator_code, {})
-    
+    # Fallback to merged config spec limits (supports FTA and other sources)
+    if spec_limits.get('lsl') is None and spec_limits.get('usl') is None:
+        merged = _get_merged_spec_limits(product_code)
+        if merged:
+            spec_limits = merged.get(indicator_code, {})
+
     if spec_limits.get('lsl') is None and spec_limits.get('usl') is None:
         raise HTTPException(status_code=400, detail="未配置规格限")
     

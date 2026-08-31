@@ -22,6 +22,8 @@ interface FieldEdit {
   unit: string
   upper_limit: string
   lower_limit: string
+  sample_id: string
+  remark: string
 }
 
 export const DataPage: React.FC = () => {
@@ -170,6 +172,8 @@ export const DataPage: React.FC = () => {
       unit: row.unit || '',
       upper_limit: row.upper_limit?.toString() ?? '',
       lower_limit: row.lower_limit?.toString() ?? '',
+      sample_id: row.sample_id || '',
+      remark: row.remark || '',
     })
   }
 
@@ -181,6 +185,8 @@ export const DataPage: React.FC = () => {
       if (fieldEdit.unit) fields.unit = fieldEdit.unit
       if (fieldEdit.upper_limit) fields.upper_limit = parseFloat(fieldEdit.upper_limit)
       if (fieldEdit.lower_limit) fields.lower_limit = parseFloat(fieldEdit.lower_limit)
+      fields.sample_id = fieldEdit.sample_id || null
+      fields.remark = fieldEdit.remark || null
       const result = await api.updateDataRecord(fieldEdit.recordId, fields)
       if (result?.success) {
         setData(prev => prev.map(row => {
@@ -190,6 +196,8 @@ export const DataPage: React.FC = () => {
               unit: fieldEdit.unit || row.unit,
               upper_limit: fieldEdit.upper_limit ? parseFloat(fieldEdit.upper_limit) : row.upper_limit,
               lower_limit: fieldEdit.lower_limit ? parseFloat(fieldEdit.lower_limit) : row.lower_limit,
+              sample_id: fieldEdit.sample_id || null,
+              remark: fieldEdit.remark || null,
             }
           }
           return row
@@ -308,6 +316,8 @@ export const DataPage: React.FC = () => {
                 <th>采集值</th>
                 <th>修正值</th>
                 <th>最终值</th>
+                <th>样品编号</th>
+                <th>备注</th>
                 <th>单位</th>
                 <th>规格上限</th>
                 <th>规格下限</th>
@@ -317,11 +327,11 @@ export const DataPage: React.FC = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} className={styles.loadingRow}>加载中...</td></tr>
+                <tr><td colSpan={14} className={styles.loadingRow}>加载中...</td></tr>
               ) : !hasSearched ? (
-                <tr><td colSpan={12} className={styles.emptyRow}>请设置筛选条件后点击查询</td></tr>
+                <tr><td colSpan={14} className={styles.emptyRow}>请设置筛选条件后点击查询</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={12} className={styles.emptyRow}>暂无数据</td></tr>
+                <tr><td colSpan={14} className={styles.emptyRow}>暂无数据</td></tr>
               ) : data.map((row, idx) => {
                 const spec = getSpecLimit(row.product_code, row.indicator_code)
                 const usl = spec?.usl ?? row.upper_limit
@@ -348,12 +358,16 @@ export const DataPage: React.FC = () => {
                     <td className={styles.monoCell}>{row.value?.toFixed(4)}</td>
                     {isFieldEditing ? (
                       <>
+                        <td><input className={styles.inlineInput} value={fieldEdit.sample_id} onChange={e => setFieldEdit(prev => prev ? { ...prev, sample_id: e.target.value } : null)} placeholder="样品编号" /></td>
+                        <td><input className={styles.inlineInput} value={fieldEdit.remark} onChange={e => setFieldEdit(prev => prev ? { ...prev, remark: e.target.value } : null)} placeholder="备注" /></td>
                         <td><input className={styles.inlineInput} value={fieldEdit.unit} onChange={e => setFieldEdit(prev => prev ? { ...prev, unit: e.target.value } : null)} /></td>
                         <td><input className={styles.inlineInput} type="text" inputMode="decimal" value={fieldEdit.upper_limit} onChange={e => { const v = e.target.value.replace(/[^0-9.\-]/g, ''); setFieldEdit(prev => prev ? { ...prev, upper_limit: v } : null) }} /></td>
                         <td><input className={styles.inlineInput} type="text" inputMode="decimal" value={fieldEdit.lower_limit} onChange={e => { const v = e.target.value.replace(/[^0-9.\-]/g, ''); setFieldEdit(prev => prev ? { ...prev, lower_limit: v } : null) }} /></td>
                       </>
                     ) : (
                       <>
+                        <td>{row.sample_id || '-'}</td>
+                        <td>{row.remark || '-'}</td>
                         <td>{row.unit || '-'}</td>
                         <td>{usl != null ? usl.toFixed(4) : '-'}</td>
                         <td>{lsl != null ? lsl.toFixed(4) : '-'}</td>
@@ -378,7 +392,7 @@ export const DataPage: React.FC = () => {
                       ) : (
                         <div className={styles.actionBtns}>
                           <button className={styles.btnEditSmall} onClick={() => handleEditCorrection(row)} title="修改修正值">修</button>
-                          <button className={styles.btnEditSmall} onClick={() => handleEditFields(row)} title="修改单位和规格限">规</button>
+                          <button className={styles.btnEditSmall} onClick={() => handleEditFields(row)} title="编辑样品编号、备注、单位和规格限">编</button>
                           <button className={styles.btnVoidSmall} onClick={() => setVoidConfirmId(row.id)} title="作废此条记录">废</button>
                         </div>
                       )}

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.6.3] - 2026-08-24
+
+### Added
+
+- **数据管理页面**: 新增"样品编号"和"备注"列显示及在线编辑功能
+- **NSIS 安装预处理**: 安装前自动终止 `ft1-backend.exe` 进程，避免升级时文件被锁定
+- **启动重试机制**: `useProducts`、`useIndicators`、`useAppMetadata` 钩子及 Dashboard 元数据加载增加重试逻辑（3次，间隔2秒），解决后端刚启动时数据加载失败问题
+
+### Changed
+
+- 实时看板指标轮换现在仅显示品项管理中勾选的指标，与SPC控制图行为一致
+- SPC控制图品项下拉选项显示用户配置的品项别名
+- 过程控制能力页面品项下拉选项显示用户配置的品项和项目别名
+- SPC控制图页面初始化时优先使用品项管理中保存的指标列表
+- 切换品项时自动选择该品项下第一个已保存的指标
+- 数据管理页面"编辑"按钮功能扩展：支持编辑样品编号、备注、单位和规格限
+- 开发脚本 `stop.sh` 等待端口释放后才返回，超时则 SIGKILL 强杀
+- 开发脚本 `dev.sh` 启动前检查端口可用性，避免端口冲突
+- 版本号更新至 v1.6.3
+
+### Fixed
+
+- FTA 连接后过程控制能力页面无法加载数据（回退到配置文件中的规格限）
+- FTA 连接后排除备注关键词过滤不生效（`/monitor/data/recent` 端点应用排除规则）
+- 从其他页面切换到 SPC 控制图后图表不自动渲染
+- CSV 导出在未选择筛选条件时报"No data"错误（支持无条件导出全部数据）
+- 实时看板趋势数据未过滤排除备注关键词
+
 ## [1.6.2] - 2026-08-23
 
 ### Added

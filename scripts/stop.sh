@@ -25,6 +25,19 @@ if command -v fuser &> /dev/null; then
 fi
 pkill -f "uvicorn.*backend.main" 2>/dev/null && echo "后端服务已停止 (pkill)" || true
 
+# 等待端口 18080 释放，最多等 5 秒，超时则 SIGKILL 强杀
+for i in 1 2 3 4 5; do
+    if ! ss -tlnp | grep -q ":18080 "; then
+        break
+    fi
+    if [ $i -eq 5 ]; then
+        echo "端口 18080 未释放，强制终止..."
+        fuser -k -9 18080/tcp 2>/dev/null || true
+        pkill -9 -f "uvicorn.*backend.main" 2>/dev/null || true
+    fi
+    sleep 1
+done
+
 # 通过 PID 文件停止前端
 if [ -f "$LOG_DIR/frontend.pid" ]; then
     FRONTEND_PID=$(cat "$LOG_DIR/frontend.pid")

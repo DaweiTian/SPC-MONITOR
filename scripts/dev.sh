@@ -58,6 +58,22 @@ cd "$PROJECT_DIR"
 # 前端默认发送 'ft1-monitor-default-key'，本地开发需与之一致；生产环境请设置强随机密钥
 export FT1_API_KEY="${FT1_API_KEY:-ft1-monitor-default-key}"
 BACKEND_HOST=$(python3 -c "from backend.app.core.config import get_server_config; print(get_server_config()['host'])" 2>/dev/null || echo "0.0.0.0")
+
+# 等待端口 18080 完全释放（stop.sh 杀掉进程后，端口可能处于 TIME_WAIT 状态）
+WAIT_COUNT=0
+while ss -tlnp | grep -q ":18080 " && [ $WAIT_COUNT -lt 15 ]; do
+    if [ $WAIT_COUNT -eq 0 ]; then
+        echo "  等待端口 18080 释放..."
+    fi
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+done
+if ss -tlnp | grep -q ":18080 "; then
+    echo -e "${RED}错误: 端口 18080 仍被占用，请手动释放${NC}"
+    ss -tlnp | grep ":18080 "
+    exit 1
+fi
+
 nohup python3 -m uvicorn backend.main:app \
     --host "$BACKEND_HOST" \
     --port 18080 \

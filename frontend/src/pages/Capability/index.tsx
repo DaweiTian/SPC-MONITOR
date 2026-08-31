@@ -103,7 +103,7 @@ const CAP_CARDS: CapCardInfo[] = [
 export const CapabilityPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { productStatus, specLimits: allSpecLimits, getIndicatorName } = useAppMetadata()
+  const { productStatus, specLimits: allSpecLimits, getIndicatorName, aliases } = useAppMetadata()
   const [capabilityData, setCapabilityData] = useState<CapabilityData | null>(null)
   const [rawValues, setRawValues] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
@@ -443,7 +443,7 @@ export const CapabilityPage: React.FC = () => {
           onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
         >
           {capableProducts.map(p => (
-            <option key={p.code} value={p.code}>{p.name}</option>
+            <option key={p.code} value={p.code}>{aliases.products[p.code] || p.name}</option>
           ))}
         </select>
         <select

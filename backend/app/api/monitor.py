@@ -241,6 +241,7 @@ def get_recent_data(
     date_to: str = Query(None),
     remark: str = Query(None),
 ):
+    excl = None if remark else storage._excluded_remarks
     if date_from or date_to or remark:
         data = storage.get_filtered_data(
             indicator_code=indicator_code,
@@ -249,11 +250,13 @@ def get_recent_data(
             date_to=date_to,
             remark=remark,
             limit=limit,
+            exclude_remarks=excl,
         )
     else:
         data = storage.get_recent_data(
             indicator_code=indicator_code,
             product_code=product_code,
             limit=limit,
+            exclude_remarks=excl,
         )
     return {"data": data}

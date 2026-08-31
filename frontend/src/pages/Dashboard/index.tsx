@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { EChartsOption, LinearGradientObject, MarkLineComponentOption, DefaultLabelFormatterCallbackParams } from 'echarts'
 import { escapeHtml } from '../../utils/html'
+import { withRetry } from '../../utils/retry'
 import type { EChartsParam } from '../../types'
 import { api, websocketService } from '../../services'
 import { useChart, chartTheme, tooltipStyle } from '../../components/Charts'
@@ -82,6 +83,7 @@ export const Dashboard: React.FC = () => {
   const [capMatrix, setCapMatrix] = useState<CapabilityData[]>([])
   const [alertRules, setAlertRules] = useState<Record<string, { rule: string; description: string }>>({})
   const [collecting, setCollecting] = useState(false)
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   
@@ -154,6 +156,7 @@ export const Dashboard: React.FC = () => {
       setAlertRules(map)
     }).catch(() => { console.warn('获取预警规则失败，使用默认映射') })
     api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
+    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -176,11 +179,10 @@ export const Dashboard: React.FC = () => {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [p, i] = await Promise.all([
+      const [p, i] = await withRetry(() => Promise.all([
         api.getProducts(),
         api.getIndicators(),
-      ])
-
+      ]))
       setProducts(p.products)
       setIndicators(i.indicators)
     } catch (e) {
@@ -203,9 +205,15 @@ export const Dashboard: React.FC = () => {
     }
 
     try {
+      // 仅检查在品项管理中勾选的指标
+      const saved = savedIndicators[currentProduct.code]
+      const candidates = saved && saved.length > 0
+        ? indicators.filter(ind => saved.includes(ind.code))
+        : indicators
+
       // 检查每个指标是否有数据
       const indicatorChecks = await Promise.all(
-        indicators.map(async (ind) => {
+        candidates.map(async (ind) => {
           try {
             const result = await api.getRecentData({
               indicator_code: ind.code,
@@ -219,14 +227,14 @@ export const Dashboard: React.FC = () => {
           }
         })
       )
-      
+
       const active = indicatorChecks.filter(Boolean) as Indicator[]
       setActiveIndicators(active)
     } catch (e) {
       console.error('获取活跃指标失败:', e)
       setActiveIndicators(indicators) // fallback to all
     }
-  }, [currentProduct, indicators])
+  }, [currentProduct, indicators, savedIndicators])
 
   /* ── 获取趋势数据（限制30条） ── */
   const fetchTrend = useCallback(async () => {

@@ -99,7 +99,7 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-const APP_VERSION = 'v1.6.2'
+const APP_VERSION = 'v1.6.3'
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
@@ -296,11 +296,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>网络共享：支持局域网内其他设备访问监控系统</li>
-                <li className={styles.versionTooltipItem}>共享密码：远程访问需密码验证，支持设备记忆密码</li>
-                <li className={styles.versionTooltipItem}>其他设备页面：发现和管理局域网内的监控实例</li>
-                <li className={styles.versionTooltipItem}>修复SQL Server中文主机名连接失败问题</li>
-                <li className={styles.versionTooltipItem}>修复规格限删除后未同步更新、表头滚动固定等问题</li>
+                <li className={styles.versionTooltipItem}>数据管理：新增样品编号、备注列显示及编辑</li>
+                <li className={styles.versionTooltipItem}>看板/SPC/能力页面：品项下拉显示用户配置的别名</li>
+                <li className={styles.versionTooltipItem}>看板指标轮换：仅显示品项管理中勾选的指标</li>
+                <li className={styles.versionTooltipItem}>FTA：修复能力页面空白、排除备注不生效</li>
+                <li className={styles.versionTooltipItem}>修复SPC自动渲染、CSV导出、启动重试等问题</li>
+                <li className={styles.versionTooltipItem}>安装器：升级时自动停止旧版后端服务</li>
               </ul>
             </div>
           </span>

@@ -74,7 +74,10 @@ def export_data(
     product: str = Query(None),
     indicator: str = Query(None),
 ):
-    data = storage.get_recent_data(indicator_code=indicator, product_code=product, limit=10000)
+    if product and indicator:
+        data = storage.get_recent_data(indicator_code=indicator, product_code=product, limit=10000)
+    else:
+        data = storage.get_all_export_data(product_code=product, indicator_code=indicator, limit=10000)
     if not data:
         return {"success": False, "message": "No data"}
 

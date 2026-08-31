@@ -6,7 +6,7 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   过程SPC监控平台 v1.6.2 - 一键构建
+echo   过程SPC监控平台 v1.6.3 - 一键构建
 echo ==========================================
 
 echo [0/5] 清理旧构建产物...

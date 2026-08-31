@@ -12,11 +12,12 @@ export const SPCPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { productStatus, getIndicatorName } = useAppMetadata()
+  const { productStatus, getIndicatorName, aliases } = useAppMetadata()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
+  const [savedIndicatorsLoaded, setSavedIndicatorsLoaded] = useState(false)
   const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   const [filter, setFilter] = useState({
@@ -36,7 +37,7 @@ export const SPCPage: React.FC = () => {
 
   // Load saved indicators per product
   useEffect(() => {
-    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+    api.getSavedIndicators().then(data => { setSavedIndicators(data); setSavedIndicatorsLoaded(true) }).catch(() => setSavedIndicatorsLoaded(true))
     api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
   }, [])
 
@@ -71,21 +72,43 @@ export const SPCPage: React.FC = () => {
 
   // Set initial product/indicator: URL params > Dashboard saved > first enabled
   useEffect(() => {
-    if (initialized || enabledProducts.length === 0) return
+    if (initialized || enabledProducts.length === 0 || !savedIndicatorsLoaded) return
     const urlProduct = searchParams.get('product')
     const urlIndicator = searchParams.get('indicator')
     const dashboardProduct = (() => { try { return localStorage.getItem('dashboard_selected_product') } catch { return null } })()
     const productFromUrl = urlProduct && enabledProducts.find(p => p.code === urlProduct)
     const productFromDash = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
     const initProduct = productFromUrl ? productFromUrl.code : productFromDash ? productFromDash.code : enabledProducts[0].code
-    const indicatorFromUrl = urlIndicator && indicators.find(i => i.code === urlIndicator)
+
+    // Pick initial indicator: URL > saved indicators for product > first available
+    let initIndicator: string | undefined
+    if (urlIndicator && indicators.find(i => i.code === urlIndicator)) {
+      initIndicator = urlIndicator
+    } else {
+      const saved = savedIndicators[initProduct]
+      if (saved && saved.length > 0) {
+        initIndicator = saved[0]
+      } else if (indicators.length > 0) {
+        initIndicator = indicators[0].code
+      }
+    }
+
     setFilter(f => ({
       ...f,
       product_code: initProduct,
-      ...(indicatorFromUrl ? { indicator_code: indicatorFromUrl.code } : {}),
+      ...(initIndicator ? { indicator_code: initIndicator } : {}),
     }))
     setInitialized(true)
-  }, [enabledProducts, productStatus, indicators, initialized, searchParams])
+  }, [enabledProducts, productStatus, indicators, savedIndicators, savedIndicatorsLoaded, initialized, searchParams])
+
+  // When product changes, auto-select first saved indicator if current isn't in list
+  useEffect(() => {
+    if (!initialized || !filter.product_code) return
+    const saved = savedIndicators[filter.product_code]
+    if (saved && saved.length > 0 && !saved.includes(filter.indicator_code)) {
+      setFilter(f => ({ ...f, indicator_code: saved[0] }))
+    }
+  }, [initialized, filter.product_code, savedIndicators])
 
   // Auto-fetch when product or indicator changes (only after initialization)
   const fetchSPCData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string, chartTypeParam?: string, lambdaParam?: number) => {
@@ -478,7 +501,7 @@ export const SPCPage: React.FC = () => {
             onChange={e => setFilter(f => ({ ...f, product_code: e.target.value }))}
           >
             {enabledProducts.map((p, index) => (
-              <option key={`${p.code}-${index}`} value={p.code}>{p.name}</option>
+              <option key={`${p.code}-${index}`} value={p.code}>{aliases.products[p.code] || p.name}</option>
             ))}
           </select>
         </div>
