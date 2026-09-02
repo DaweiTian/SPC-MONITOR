@@ -198,6 +198,19 @@ class SQLServerCollector(BaseCollector):
                 logger.error(f"pymssql 连接失败: {e}")
                 return False
 
+        # 明确选择 ODBC 时，跳过 pymssql
+        if driver == "odbc":
+            try:
+                from sqlalchemy import text
+                with self.engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                self._use_pymssql = False
+                logger.info("SQL Server 连接成功 (ODBC)")
+                return True
+            except Exception as e:
+                logger.error(f"ODBC 连接失败: {e}")
+                return False
+
         # 其他情况：pymssql 优先，pyodbc 兜底
         try:
             conn = self._build_pymssql_connection(self._db_config)

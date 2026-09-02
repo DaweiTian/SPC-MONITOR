@@ -91,6 +91,7 @@ export const FTAConfig = React.memo(function FTAConfig(props: FTAConfigProps) {
               aria-label="ODBC 驱动"
             >
               <option value="pymssql">pymssql（无需安装驱动）</option>
+              <option value="odbc">ODBC（需安装 SQL Server 驱动）</option>
             </select>
           </div>
         </div>
