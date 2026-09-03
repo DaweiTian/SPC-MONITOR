@@ -202,8 +202,31 @@ def _run_cross_predictions(storage):
                 if latest.get("value") is None:
                     continue
 
+                prediction_method = cfg.get("prediction_method", "linear")
+                protein_val = None
+                acidity_val = None
+                sample_time = latest.get("sample_time")
+                product_category = cfg.get("product_category", "")
+                product_name = latest.get("product_name", "")
+
+                if prediction_method == "random_forest":
+                    # 获取最新蛋白质数据
+                    protein_recent = storage.get_recent_data("protein", product_code, limit=1)
+                    if protein_recent and protein_recent[0].get("value") is not None:
+                        protein_val = float(protein_recent[0]["value"])
+                    # 获取最新酸度数据
+                    acidity_recent = storage.get_recent_data("acidity", product_code, limit=1)
+                    if acidity_recent and acidity_recent[0].get("value") is not None:
+                        acidity_val = float(acidity_recent[0]["value"])
+
                 result = predict_cross_indicator(
-                    latest["value"], float(coefficient), source_code, target_code
+                    latest["value"], float(coefficient), source_code, target_code,
+                    prediction_method=prediction_method,
+                    product_category=product_category,
+                    product_name=product_name,
+                    protein=protein_val,
+                    acidity=acidity_val,
+                    sample_time=sample_time,
                 )
                 predicted_records.append({
                     "indicator_code": target_code,
