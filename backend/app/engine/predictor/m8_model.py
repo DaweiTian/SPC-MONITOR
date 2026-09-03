@@ -61,6 +61,11 @@ class FeatureMissingError(ValueError):
     pass
 
 
+# 缺失特征的默认值（基于训练数据统计）
+_DEFAULT_PROTEIN = 3.2   # 训练集蛋白质均值
+_DEFAULT_ACIDITY = 15.0  # 训练集酸度均值
+
+
 def _get_season(month: int) -> str:
     """根据月份返回季节编码中文名: 6/7/8=夏季, 12/1/2=冬季, 其他=春秋"""
     if month in (6, 7, 8):
@@ -186,11 +191,14 @@ class M8ModelEngine:
         season_cn = _get_season(month)
         season_encoded = int(self._season_encoder.transform([season_cn])[0])
 
-        # --- 校验必要特征 ---
+        # --- 缺失特征兜底 ---
+        used_defaults = []
         if protein is None:
-            raise FeatureMissingError("蛋白质数据缺失")
+            protein = _DEFAULT_PROTEIN
+            used_defaults.append("protein")
         if acidity is None:
-            raise FeatureMissingError("酸度数据缺失")
+            acidity = _DEFAULT_ACIDITY
+            used_defaults.append("acidity")
 
         # --- 构造特征向量: [脂肪, 品项编码, 季节编码, 蛋白质, 酸度] ---
         features = np.array([[fat_value, product_encoded, season_encoded, protein, acidity]])
@@ -207,6 +215,7 @@ class M8ModelEngine:
                 "protein": protein,
                 "acidity": acidity,
             },
+            "used_defaults": used_defaults,
         }
 
 

@@ -176,6 +176,7 @@ def predict_cross_indicator(
                 "target_unit": meta["unit"],
                 "method": "random_forest",
                 "features": m8_result.get("features", {}),
+                "used_defaults": m8_result.get("used_defaults", []),
             }
             return result
         except (ImportError, RuntimeError) as exc:
