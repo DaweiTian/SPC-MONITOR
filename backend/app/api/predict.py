@@ -1033,8 +1033,22 @@ def get_cross_indicator_prediction(
     meta = TARGET_INDICATOR_META.get(target, {"name": target, "unit": ""})
     source_meta = SOURCE_INDICATOR_META.get(source, {"name": source})
 
+    prediction_method = target_cfg.get("prediction_method", "linear")
+    product_category = target_cfg.get("product_category", "")
+
     source_data = _get_data(source, product, limit=limit)
     source_data.reverse()
+
+    # M8模式：获取蛋白质和酸度数据（循环外获取一次）
+    protein_val = None
+    acidity_val = None
+    if prediction_method == "random_forest":
+        protein_recent = storage.get_recent_data("protein", product, limit=1)
+        if protein_recent and protein_recent[0].get("value") is not None:
+            protein_val = float(protein_recent[0]["value"])
+        acidity_recent = storage.get_recent_data("acidity", product, limit=1)
+        if acidity_recent and acidity_recent[0].get("value") is not None:
+            acidity_val = float(acidity_recent[0]["value"])
 
     predicted_data = []
     latest_predicted = None
@@ -1044,10 +1058,18 @@ def get_cross_indicator_prediction(
         src_val = d.get("value")
         if src_val is None:
             continue
-        result = predict_cross_indicator(float(src_val), float(coefficient), source, target)
+        result = predict_cross_indicator(
+            float(src_val), float(coefficient), source, target,
+            prediction_method=prediction_method,
+            product_category=product_category,
+            protein=protein_val,
+            acidity=acidity_val,
+            sample_time=d.get("sample_time"),
+        )
         predicted_data.append({
             "value": result["predicted_value"],
             "sample_time": d.get("sample_time", ""),
+            "method": result.get("method", "linear"),
         })
         latest_predicted = result["predicted_value"]
         latest_sample_id = d.get("sample_id")
