@@ -18,7 +18,7 @@ export const SPCPage: React.FC = () => {
   const [initialized, setInitialized] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [savedIndicatorsLoaded, setSavedIndicatorsLoaded] = useState(false)
-  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string } | null } | null>(null)
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string; model_version?: string | null; model_metrics?: Record<string, number> | null } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   const [filter, setFilter] = useState({
     product_code: '',

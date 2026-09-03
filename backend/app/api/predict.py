@@ -1033,7 +1033,7 @@ def get_cross_indicator_prediction(
     meta = TARGET_INDICATOR_META.get(target, {"name": target, "unit": ""})
     source_meta = SOURCE_INDICATOR_META.get(source, {"name": source})
 
-    prediction_method = target_cfg.get("prediction_method", "linear")
+    prediction_method = target_cfg.get("prediction_method", "random_forest")
     product_category = target_cfg.get("product_category", "")
 
     source_data = _get_data(source, product, limit=limit)

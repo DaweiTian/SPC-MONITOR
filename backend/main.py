@@ -202,7 +202,7 @@ def _run_cross_predictions(storage):
                 if latest.get("value") is None:
                     continue
 
-                prediction_method = cfg.get("prediction_method", "linear")
+                prediction_method = cfg.get("prediction_method", "random_forest")
                 protein_val = None
                 acidity_val = None
                 sample_time = latest.get("sample_time")

@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
   const [alertRules, setAlertRules] = useState<Record<string, { rule: string; description: string }>>({})
   const [collecting, setCollecting] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
-  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string } | null } | null>(null)
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string; model_version?: string | null; model_metrics?: Record<string, number> | null } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   
   /* ── 品项选择状态（从 localStorage 恢复） ── */
