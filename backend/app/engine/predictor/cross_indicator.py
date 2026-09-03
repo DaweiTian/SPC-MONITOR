@@ -171,10 +171,11 @@ def predict_cross_indicator(
             result = {
                 "predicted_value": m8_result["predicted_value"],
                 "coefficient": round(coefficient, 6),
-                "formula": f"{meta['name']} = M8随机森林({source_meta['name']})",
+                "formula": f"{meta['name']} = {m8_result.get('model_name', 'M8')}({source_meta['name']})",
                 "target_name": meta["name"],
                 "target_unit": meta["unit"],
                 "method": "random_forest",
+                "model_name": m8_result.get("model_name", "M8"),
                 "features": m8_result.get("features", {}),
                 "used_defaults": m8_result.get("used_defaults", []),
             }

@@ -1129,8 +1129,9 @@ def get_cross_indicator_prediction(
 
     # Determine actual method from the latest prediction
     actual_method = predicted_data[-1].get("method", "linear") if predicted_data else "linear"
+    model_name = predicted_data[-1].get("model_name", "") if predicted_data else ""
     method_label = {
-        "random_forest": "M8随机森林",
+        "random_forest": model_name or "M8随机森林",
         "linear_fallback": "线性K值(M8降级)",
         "linear": "线性K值",
     }.get(actual_method, actual_method)
