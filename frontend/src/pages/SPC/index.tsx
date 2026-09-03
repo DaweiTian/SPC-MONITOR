@@ -18,7 +18,7 @@ export const SPCPage: React.FC = () => {
   const [initialized, setInitialized] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [savedIndicatorsLoaded, setSavedIndicatorsLoaded] = useState(false)
-  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   const [filter, setFilter] = useState({
     product_code: '',
@@ -247,7 +247,7 @@ export const SPCPage: React.FC = () => {
           const remarkInfo = pt?.remark ? `<br/>备注: ${escapeHtml(pt.remark)}` : ''
           const violation = pt?.is_violation ? '<br/><span style="color:#ef4444;font-weight:bold">⚠ 违规点</span>' : ''
           const predInfo = (showPrediction && predValues[idx] != null)
-            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}: <b>${predValues[idx]?.toFixed(4)}</b></span>`
+            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}(${predData?.model_info?.method_label || ''}): <b>${predValues[idx]?.toFixed(4)}</b></span>`
             : ''
           return `<b>${escapeHtml(pt?.time ?? '')}</b>${sampleInfo}${remarkInfo}<br/>值: <b>${escapeHtml(String(p.value))}</b>${violation}${predInfo}`
         },
@@ -293,7 +293,7 @@ export const SPCPage: React.FC = () => {
         data: [ucl, cl, lcl, ...(usl != null ? [usl] : []), ...(lsl != null ? [lsl] : [])],
         silent: true,
       }, ...(showPrediction ? [{
-        name: predData?.model_info?.target_name || '预测值',
+        name: `${predData?.model_info?.target_name || '预测值'}(${predData?.model_info?.method_label || ''})`,
         type: 'line' as const,
         yAxisIndex: 1,
         symbol: 'emptyCircle' as const,
