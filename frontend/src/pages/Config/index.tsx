@@ -201,7 +201,7 @@ export const ConfigPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
-  const [predictionMethod, setPredictionMethod] = useState<'linear' | 'random_forest'>('linear')
+  const [predictionMethod, setPredictionMethod] = useState<'linear' | 'random_forest'>('random_forest')
   const [alertEnabled, setAlertEnabled] = useState(false)
   const [alertThreshold, setAlertThreshold] = useState('10')
   const [predUsl, setPredUsl] = useState('')
@@ -2046,44 +2046,49 @@ export const ConfigPage: React.FC = () => {
                           <span>随机森林 (M8)</span>
                         </label>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span>预测系数 (k):</span>
-                        <input
-                          type="number"
-                          step="0.0001"
-                          className={styles.formInput}
-                          style={{ width: '100px', padding: '4px 8px' }}
-                          value={predCoefficient}
-                          onChange={e => setPredCoefficient(e.target.value)}
-                          placeholder="例: 0.6278"
-                        />
-                        {selectedCategory && predictionCategories[selectedCategory] && (
-                          <button
-                            className={styles.btnEdit}
-                            style={{ fontSize: '11px', padding: '2px 8px' }}
-                            onClick={() => setPredCoefficient(predictionCategories[selectedCategory].k.toFixed(4))}
-                          >
-                            恢复默认
-                          </button>
-                        )}
-                      </div>
-                      {predictionMethod === 'linear' ? (
-                        <div style={{ color: 'var(--text-muted)' }}>
-                          公式: 饱和脂肪 = 脂肪 × {predCoefficient || '____'}
-                          {selectedCategory && predictionCategories[selectedCategory] && (
-                            <span> (类别推荐值: {predictionCategories[selectedCategory].k.toFixed(4)})</span>
-                          )}
-                        </div>
-                      ) : (
+                      {predictionMethod === 'linear' && (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span>预测系数 (k):</span>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              className={styles.formInput}
+                              style={{ width: '100px', padding: '4px 8px' }}
+                              value={predCoefficient}
+                              onChange={e => setPredCoefficient(e.target.value)}
+                              placeholder="例: 0.6278"
+                            />
+                            {selectedCategory && predictionCategories[selectedCategory] && (
+                              <button
+                                className={styles.btnEdit}
+                                style={{ fontSize: '11px', padding: '2px 8px' }}
+                                onClick={() => setPredCoefficient(predictionCategories[selectedCategory].k.toFixed(4))}
+                              >
+                                恢复默认
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ color: 'var(--text-muted)' }}>
+                            公式: 饱和脂肪 = 脂肪 × {predCoefficient || '____'}
+                            {selectedCategory && predictionCategories[selectedCategory] && (
+                              <span> (类别推荐值: {predictionCategories[selectedCategory].k.toFixed(4)})</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      {predictionMethod === 'random_forest' && (
                         <div style={{ color: 'var(--text-muted)' }}>
                           模型: M8随机森林 (脂肪 + 蛋白质 + 酸度 + 品项 + 季节)
                           <br />
                           <span style={{ fontSize: '11px' }}>精度: MAPE≈2.4%, R²≈0.9946 | 蛋白质/酸度缺失时自动降级为线性公式</span>
                         </div>
                       )}
-                      <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
-                        系数值可在帮助说明页面查阅参考
-                      </div>
+                      {predictionMethod === 'linear' && (
+                        <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+                          系数值可在帮助说明页面查阅参考
+                        </div>
+                      )}
 
                       {/* Prediction Spec Limits - Editable */}
                       <div style={{
