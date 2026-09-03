@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.0] - 2026-09-03
+
+### Added
+
+- **M8随机森林预测模型**: 饱和脂肪跨指标预测新增M8随机森林模型，替代原有单一线性K值公式
+- **双模型自动切换**: 有酸度数据时使用M8完整模型(5特征, MAPE≈2.4%)，无酸度时自动切换M8-Lite模型(4特征, MAPE≈3.0%)
+- **品项管理预测方式切换**: 预测指标区域新增"线性公式/M8随机森林"切换，默认M8随机森林
+- **图表模型标注**: 实时看板和SPC控制图的预测曲线在图例和tooltip中显示模型名称(M8/M8-Lite/线性K值)
+- **M8-Lite轻量模型**: 基于4特征(脂肪+品项+季节+蛋白质)训练的降级模型，覆盖无酸度数据的品项
+- **数据对齐优化**: 跨指标预测优先使用同批次(sample_id)的蛋白质/酸度数据，其次同日数据，最后最新数据
+
+### Changed
+
+- 跨指标预测配置新增 `prediction_method` 和 `product_category` 字段，默认预测方式为随机森林
+- 缺失蛋白质时使用训练集均值(3.2)兜底，缺失酸度时自动降级到M8-Lite模型
+- 图表预测曲线标签从"预测值"改为"饱和脂肪(M8)"等含模型名的标签
+- 版本号更新至 v1.7.0
+
 ## [1.6.3] - 2026-08-24
 
 ### Added

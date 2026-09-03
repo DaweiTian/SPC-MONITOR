@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     _main_loop = asyncio.get_running_loop()
     yield
 
-app = FastAPI(title="液奶过程监控系统", version="1.6.3", lifespan=lifespan)
+app = FastAPI(title="液奶过程监控系统", version="1.7.0", lifespan=lifespan)
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
