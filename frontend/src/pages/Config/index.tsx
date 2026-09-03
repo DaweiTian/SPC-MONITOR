@@ -201,6 +201,7 @@ export const ConfigPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
+  const [predictionMethod, setPredictionMethod] = useState<'linear' | 'random_forest'>('linear')
   const [alertEnabled, setAlertEnabled] = useState(false)
   const [alertThreshold, setAlertThreshold] = useState('10')
   const [predUsl, setPredUsl] = useState('')
@@ -588,6 +589,7 @@ export const ConfigPage: React.FC = () => {
     // Load alert settings
     setAlertEnabled(satFatCfg?.alert_enabled ?? false)
     setAlertThreshold(satFatCfg?.alert_threshold != null ? (satFatCfg.alert_threshold * 100).toString() : '10')
+    setPredictionMethod((satFatCfg as any)?.prediction_method || 'linear')
     // Load prediction spec limits
     setPredUsl(satFatCfg?.usl?.toString() || '')
     setPredLsl(satFatCfg?.lsl?.toString() || '')
@@ -714,12 +716,14 @@ export const ConfigPage: React.FC = () => {
     }
 
     // Save prediction config (source→target with user-configured coefficient)
-    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }> = {}
+    const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; prediction_method?: string; product_category?: string; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }> = {}
     if (predictSaturatedFat) {
       predIndicators.saturated_fat = {
         source_indicator: 'fat',
         coefficient: parseFloat(predCoefficient) || 0.6278,
         enabled: true,
+        prediction_method: predictionMethod,
+        product_category: selectedCategory || '',
         alert_enabled: alertEnabled,
         alert_threshold: parseFloat(alertThreshold) / 100 || 0.10,
         usl: predUsl !== '' ? parseFloat(predUsl) : null,
@@ -2020,6 +2024,28 @@ export const ConfigPage: React.FC = () => {
                       background: 'var(--bg-secondary)', borderRadius: '6px',
                       border: '1px solid var(--border-color)',
                     }}>
+                      {/* 预测方式选择 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>预测方式:</span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                          <input
+                            type="radio"
+                            name="predMethod"
+                            checked={predictionMethod === 'linear'}
+                            onChange={() => setPredictionMethod('linear')}
+                          />
+                          <span>线性公式 (k值)</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                          <input
+                            type="radio"
+                            name="predMethod"
+                            checked={predictionMethod === 'random_forest'}
+                            onChange={() => setPredictionMethod('random_forest')}
+                          />
+                          <span>随机森林 (M8)</span>
+                        </label>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span>预测系数 (k):</span>
                         <input
@@ -2041,12 +2067,20 @@ export const ConfigPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      <div style={{ color: 'var(--text-muted)' }}>
-                        公式: 饱和脂肪 = 脂肪 × {predCoefficient || '____'}
-                        {selectedCategory && predictionCategories[selectedCategory] && (
-                          <span> (类别推荐值: {predictionCategories[selectedCategory].k.toFixed(4)})</span>
-                        )}
-                      </div>
+                      {predictionMethod === 'linear' ? (
+                        <div style={{ color: 'var(--text-muted)' }}>
+                          公式: 饱和脂肪 = 脂肪 × {predCoefficient || '____'}
+                          {selectedCategory && predictionCategories[selectedCategory] && (
+                            <span> (类别推荐值: {predictionCategories[selectedCategory].k.toFixed(4)})</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--text-muted)' }}>
+                          模型: M8随机森林 (脂肪 + 蛋白质 + 酸度 + 品项 + 季节)
+                          <br />
+                          <span style={{ fontSize: '11px' }}>精度: MAPE≈2.4%, R²≈0.9946 | 蛋白质/酸度缺失时自动降级为线性公式</span>
+                        </div>
+                      )}
                       <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
                         系数值可在帮助说明页面查阅参考
                       </div>
