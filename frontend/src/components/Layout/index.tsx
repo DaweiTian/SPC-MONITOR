@@ -296,12 +296,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>数据管理：新增样品编号、备注列显示及编辑</li>
-                <li className={styles.versionTooltipItem}>看板/SPC/能力页面：品项下拉显示用户配置的别名</li>
-                <li className={styles.versionTooltipItem}>看板指标轮换：仅显示品项管理中勾选的指标</li>
-                <li className={styles.versionTooltipItem}>FTA：修复能力页面空白、排除备注不生效</li>
-                <li className={styles.versionTooltipItem}>修复SPC自动渲染、CSV导出、启动重试等问题</li>
-                <li className={styles.versionTooltipItem}>安装器：升级时自动停止旧版后端服务</li>
+                <li className={styles.versionTooltipItem}>跨指标预测：M8随机森林双模型替代线性K值(MAPE 5.1%→2.4%)</li>
+                <li className={styles.versionTooltipItem}>M8-Lite模型：无酸度时自动切换4特征模型(MAPE≈3.0%)</li>
+                <li className={styles.versionTooltipItem}>品项管理：新增预测方式切换(线性/M8)，默认M8随机森林</li>
+                <li className={styles.versionTooltipItem}>图表标注：预测曲线显示模型名称(M8/M8-Lite/线性K值)</li>
+                <li className={styles.versionTooltipItem}>数据对齐：优先使用同批次蛋白质/酸度数据</li>
               </ul>
             </div>
           </span>
