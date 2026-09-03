@@ -53,11 +53,7 @@ TRAINED_CATEGORIES = {
     "乳味饮料", "乳饮料", "植物蛋白饮品",
 }
 
-# ---------------------------------------------------------------------------
-# 默认特征值 (用于缺失特征的兜底)
-# ---------------------------------------------------------------------------
-_DEFAULT_PROTEIN = 3.2
-_DEFAULT_ACIDITY = 15.0
+
 
 
 class FeatureMissingError(ValueError):
@@ -190,9 +186,11 @@ class M8ModelEngine:
         season_cn = _get_season(month)
         season_encoded = int(self._season_encoder.transform([season_cn])[0])
 
-        # --- 兜底值 ---
-        protein = protein if protein is not None else _DEFAULT_PROTEIN
-        acidity = acidity if acidity is not None else _DEFAULT_ACIDITY
+        # --- 校验必要特征 ---
+        if protein is None:
+            raise FeatureMissingError("蛋白质数据缺失")
+        if acidity is None:
+            raise FeatureMissingError("酸度数据缺失")
 
         # --- 构造特征向量: [脂肪, 品项编码, 季节编码, 蛋白质, 酸度] ---
         features = np.array([[fat_value, product_encoded, season_encoded, protein, acidity]])

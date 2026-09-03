@@ -42,6 +42,77 @@ CATEGORY_DEFAULT_K = {
 }
 
 
+def fetch_cooccurring_features(storage, product_code: str, sample_id: str = None, sample_time: str = None) -> dict:
+    """
+    尝试获取与脂肪同批次的蛋白质和酸度数据。
+
+    优先级:
+      1. 同 sample_id 的蛋白质/酸度（同一样品）
+      2. 同日内的最新蛋白质/酸度（当天数据）
+      3. 最近一条蛋白质/酸度（兜底）
+
+    Returns:
+        {"protein": float|None, "acidity": float|None, "source": str}
+        source 说明数据来源: "same_sample" / "same_day" / "latest" / "missing"
+    """
+    result = {"protein": None, "acidity": None, "source": "missing"}
+
+    def _find_by_sample_id(indicator_code):
+        if not sample_id:
+            return None
+        rows = storage.get_recent_data(indicator_code, product_code, limit=20)
+        for r in rows:
+            if r.get("sample_id") == sample_id and r.get("value") is not None:
+                return float(r["value"])
+        return None
+
+    def _find_by_same_day(indicator_code):
+        if not sample_time:
+            return None
+        day = str(sample_time)[:10]  # "2026-09-03"
+        rows = storage.get_recent_data(indicator_code, product_code, limit=20)
+        for r in rows:
+            r_day = str(r.get("sample_time", ""))[:10]
+            if r_day == day and r.get("value") is not None:
+                return float(r["value"])
+        return None
+
+    def _find_latest(indicator_code):
+        rows = storage.get_recent_data(indicator_code, product_code, limit=1)
+        if rows and rows[0].get("value") is not None:
+            return float(rows[0]["value"])
+        return None
+
+    # 逐级查找蛋白质
+    protein = _find_by_sample_id("protein")
+    if protein is not None:
+        result["source"] = "same_sample"
+    else:
+        protein = _find_by_same_day("protein")
+        if protein is not None:
+            result["source"] = "same_day"
+        else:
+            protein = _find_latest("protein")
+            if protein is not None:
+                result["source"] = "latest"
+
+    # 酸度用同样逻辑
+    acidity = _find_by_sample_id("acidity")
+    if acidity is None:
+        acidity = _find_by_same_day("acidity")
+    if acidity is None:
+        acidity = _find_latest("acidity")
+
+    result["protein"] = protein
+    result["acidity"] = acidity
+
+    # 如果两个都找不到
+    if protein is None and acidity is None:
+        result["source"] = "missing"
+
+    return result
+
+
 def get_default_coefficient(category_code: str = None) -> float:
     """获取类别的默认推荐系数"""
     if category_code and category_code in CATEGORY_DEFAULT_K:

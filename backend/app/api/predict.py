@@ -1039,16 +1039,16 @@ def get_cross_indicator_prediction(
     source_data = _get_data(source, product, limit=limit)
     source_data.reverse()
 
-    # M8模式：获取蛋白质和酸度数据（循环外获取一次）
+    # M8模式：获取蛋白质和酸度数据
     protein_val = None
     acidity_val = None
+    m8_features_source = None
     if prediction_method == "random_forest":
-        protein_recent = storage.get_recent_data("protein", product, limit=1)
-        if protein_recent and protein_recent[0].get("value") is not None:
-            protein_val = float(protein_recent[0]["value"])
-        acidity_recent = storage.get_recent_data("acidity", product, limit=1)
-        if acidity_recent and acidity_recent[0].get("value") is not None:
-            acidity_val = float(acidity_recent[0]["value"])
+        from backend.app.engine.predictor.cross_indicator import fetch_cooccurring_features
+        features = fetch_cooccurring_features(storage, product)
+        protein_val = features["protein"]
+        acidity_val = features["acidity"]
+        m8_features_source = features["source"]
 
     predicted_data = []
     latest_predicted = None

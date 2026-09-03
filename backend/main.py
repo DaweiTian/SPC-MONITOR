@@ -210,14 +210,16 @@ def _run_cross_predictions(storage):
                 product_name = latest.get("product_name", "")
 
                 if prediction_method == "random_forest":
-                    # 获取最新蛋白质数据
-                    protein_recent = storage.get_recent_data("protein", product_code, limit=1)
-                    if protein_recent and protein_recent[0].get("value") is not None:
-                        protein_val = float(protein_recent[0]["value"])
-                    # 获取最新酸度数据
-                    acidity_recent = storage.get_recent_data("acidity", product_code, limit=1)
-                    if acidity_recent and acidity_recent[0].get("value") is not None:
-                        acidity_val = float(acidity_recent[0]["value"])
+                    from backend.app.engine.predictor.cross_indicator import fetch_cooccurring_features
+                    features = fetch_cooccurring_features(
+                        storage, product_code,
+                        sample_id=latest.get("sample_id"),
+                        sample_time=sample_time,
+                    )
+                    protein_val = features["protein"]
+                    acidity_val = features["acidity"]
+                    if features["source"] == "missing":
+                        logger.info(f"M8降级: {product_code} 蛋白质/酸度数据均缺失，使用线性预测")
 
                 result = predict_cross_indicator(
                     latest["value"], float(coefficient), source_code, target_code,
