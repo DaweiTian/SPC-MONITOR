@@ -2083,9 +2083,8 @@ export const ConfigPage: React.FC = () => {
                       )}
                       {predictionMethod === 'random_forest' && (
                         <div style={{ color: 'var(--text-muted)' }}>
-                          模型: M8随机森林 (脂肪 + 蛋白质 + 酸度 + 品项 + 季节)
-                          <br />
-                          <span style={{ fontSize: '11px' }}>精度: MAPE≈2.4%, R²≈0.9946 | 蛋白质/酸度缺失时自动降级为线性公式</span>
+                          <div>有酸度 → M8 (MAPE≈2.4%) | 无酸度 → M8-Lite (MAPE≈3.0%)</div>
+                          <span style={{ fontSize: '11px' }}>蛋白质缺失时使用默认值 | 模型不可用时降级为线性K值</span>
                         </div>
                       )}
                       {predictionMethod === 'linear' && (
