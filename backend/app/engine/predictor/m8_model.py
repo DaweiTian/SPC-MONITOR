@@ -8,7 +8,6 @@
 酸度缺失 → M8-Lite  (MAPE≈3.0%，仍远优于线性K值 MAPE≈5.1%)
 """
 
-import copy
 import logging
 import os
 import threading

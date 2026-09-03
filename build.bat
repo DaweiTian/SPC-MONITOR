@@ -41,7 +41,7 @@ xcopy /E /I /Q /Y "!PROJECT_DIR!backend\conf" "%BACKEND_DIST%\conf" >nul 2>nul
 REM 复制 M8 模型文件（pkl，Nuitka 不自动包含非 Python 数据文件）
 REM 注意: _resolve_model_dir() 用 __file__ 上溯3级解析路径，保留 backend/ 层级
 if not exist "%BACKEND_DIST%\backend\models" mkdir "%BACKEND_DIST%\backend\models"
-xcopy /I /Q /Y "!PROJECT_DIR!backend\models\*.pkl" "%BACKEND_DIST%\backend\models\" >nul 2>nul
+xcopy /I /Q /Y "!PROJECT_DIR!backend\models\*.pkl" "%BACKEND_DIST%\backend\models\" >nul || echo   WARNING: M8 model files (*.pkl) not found - prediction will fallback to linear K-value
 
 echo [4/5] 构建 Tauri...
 cd /d "%LAUNCHER_DIR%"

@@ -1161,7 +1161,7 @@ def get_cross_indicator_prediction(
         except Exception as e:
             logger.warning("Failed to get M8 model info: %s", e)
 
-    return {
+    return _sanitize({
         "enabled": True,
         "source_indicator": source,
         "target_indicator": target,
@@ -1176,7 +1176,7 @@ def get_cross_indicator_prediction(
             "model_metrics": m8_metrics,
         },
         "alert": alert,
-    }
+    })
 
 
 # ---------------------------------------------------------------------------

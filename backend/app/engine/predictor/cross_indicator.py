@@ -176,6 +176,7 @@ def predict_cross_indicator(
                 "target_unit": meta["unit"],
                 "method": "random_forest",
                 "model_name": m8_result.get("model_name", "M8"),
+                "model_key": m8_result.get("model_key", "full"),
                 "features": m8_result.get("features", {}),
                 "used_defaults": m8_result.get("used_defaults", []),
             }
