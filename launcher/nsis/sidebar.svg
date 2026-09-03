@@ -69,7 +69,7 @@
   </g>
   <!-- Version -->
   <rect x="54" y="280" width="56" height="18" rx="4" fill="rgba(0,212,255,0.08)" stroke="rgba(0,212,255,0.15)" stroke-width="0.5"/>
-  <text x="82" y="293" font-family="monospace" font-size="9" fill="#00d4ff" text-anchor="middle" opacity="0.8">v1.6.3</text>
+  <text x="82" y="293" font-family="monospace" font-size="9" fill="#00d4ff" text-anchor="middle" opacity="0.8">v1.7.0</text>
   <!-- Bottom dots decoration -->
   <circle cx="62" cy="308" r="1" fill="#00d4ff" opacity="0.2"/>
   <circle cx="82" cy="308" r="1" fill="#00d4ff" opacity="0.3"/>

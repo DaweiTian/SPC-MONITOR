@@ -17,6 +17,8 @@
       "source_indicator": "fat",
       "coefficient": 0.623,
       "enabled": true,
+      "prediction_method": "random_forest",
+      "product_category": "milk_drink",
       "alert_enabled": true,
       "alert_threshold": 0.1,
       "usl": null,
@@ -30,6 +32,8 @@
       "source_indicator": "fat",
       "coefficient": 0.6277,
       "enabled": true,
+      "prediction_method": "random_forest",
+      "product_category": "sterilized_milk",
       "alert_enabled": true,
       "alert_threshold": 0.1,
       "usl": 1.1,
@@ -73,6 +77,34 @@
       "alert_enabled": true,
       "alert_threshold": 0.1,
       "usl": 5.7,
+      "lsl": null,
+      "target": null,
+      "unit": null
+    }
+  },
+  "植选豆奶巧克力味": {
+    "saturated_fat": {
+      "source_indicator": "fat",
+      "coefficient": 0.1742,
+      "enabled": true,
+      "alert_enabled": true,
+      "alert_threshold": 0.1,
+      "usl": null,
+      "lsl": null,
+      "target": null,
+      "unit": null
+    }
+  },
+  "砖香草冰淇淋味学生奶": {
+    "saturated_fat": {
+      "source_indicator": "fat",
+      "coefficient": 0.623,
+      "enabled": true,
+      "prediction_method": "random_forest",
+      "product_category": "milk_drink",
+      "alert_enabled": true,
+      "alert_threshold": 0.1,
+      "usl": null,
       "lsl": null,
       "target": null,
       "unit": null
