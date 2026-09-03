@@ -1042,13 +1042,11 @@ def get_cross_indicator_prediction(
     # M8模式：获取蛋白质和酸度数据
     protein_val = None
     acidity_val = None
-    m8_features_source = None
     if prediction_method == "random_forest":
         from backend.app.engine.predictor.cross_indicator import fetch_cooccurring_features
         features = fetch_cooccurring_features(storage, product)
         protein_val = features["protein"]
         acidity_val = features["acidity"]
-        m8_features_source = features["source"]
 
     predicted_data = []
     latest_predicted = None
@@ -1070,6 +1068,7 @@ def get_cross_indicator_prediction(
             "value": result["predicted_value"],
             "sample_time": d.get("sample_time", ""),
             "method": result.get("method", "linear"),
+            "model_name": result.get("model_name", ""),
         })
         latest_predicted = result["predicted_value"]
         latest_sample_id = d.get("sample_id")
@@ -1136,6 +1135,11 @@ def get_cross_indicator_prediction(
         "linear": "线性K值",
     }.get(actual_method, actual_method)
 
+    if actual_method == "random_forest":
+        formula = f"{meta['name']} = {method_label}({source_meta['name']})"
+    else:
+        formula = f"{meta['name']} = {source_meta['name']} × {coefficient:.4f}"
+
     return {
         "enabled": True,
         "source_indicator": source,
@@ -1144,7 +1148,7 @@ def get_cross_indicator_prediction(
         "model_info": {
             "target_name": meta["name"],
             "coefficient": coefficient,
-            "formula": f"{meta['name']} = {source_meta['name']} × {coefficient:.4f}",
+            "formula": formula,
             "method": actual_method,
             "method_label": method_label,
         },

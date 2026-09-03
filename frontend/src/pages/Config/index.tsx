@@ -718,9 +718,13 @@ export const ConfigPage: React.FC = () => {
     // Save prediction config (source→target with user-configured coefficient)
     const predIndicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; prediction_method?: string; product_category?: string; alert_threshold?: number; alert_enabled?: boolean; usl?: number | null; lsl?: number | null; target?: number | null; unit?: string | null }> = {}
     if (predictSaturatedFat) {
+      // 系数：用户填入 > 类别推荐值 > 全局默认值（线性降级时使用）
+      const defaultK = selectedCategory && predictionCategories[selectedCategory]
+        ? predictionCategories[selectedCategory].k
+        : 0.6278
       predIndicators.saturated_fat = {
         source_indicator: 'fat',
-        coefficient: parseFloat(predCoefficient) || 0.6278,
+        coefficient: parseFloat(predCoefficient) || defaultK,
         enabled: true,
         prediction_method: predictionMethod,
         product_category: selectedCategory || '',

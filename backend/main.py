@@ -219,7 +219,7 @@ def _run_cross_predictions(storage):
                     protein_val = features["protein"]
                     acidity_val = features["acidity"]
                     if features["source"] == "missing":
-                        logger.info(f"M8降级: {product_code} 蛋白质/酸度数据均缺失，使用线性预测")
+                        logger.info(f"M8数据缺失: {product_code} 蛋白质/酸度均无历史数据，使用模型默认值")
 
                 result = predict_cross_indicator(
                     latest["value"], float(coefficient), source_code, target_code,
