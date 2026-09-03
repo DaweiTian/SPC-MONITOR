@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
   const [alertRules, setAlertRules] = useState<Record<string, { rule: string; description: string }>>({})
   const [collecting, setCollecting] = useState(false)
   const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
-  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string } | null } | null>(null)
+  const [predData, setPredData] = useState<{ enabled: boolean; data: Array<{ value: number; sample_time: string }>; model_info: { target_name: string; coefficient: number; formula: string; method?: string; method_label?: string } | null } | null>(null)
   const [predictionConfig, setPredictionConfig] = useState<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean }>>>({})
   
   /* ── 品项选择状态（从 localStorage 恢复） ── */
@@ -499,13 +499,13 @@ export const Dashboard: React.FC = () => {
           const sampleInfo = d?.sample_id ? `<br/>样品编码: ${escapeHtml(d.sample_id)}` : ''
           const remarkInfo = d?.remark ? `<br/>备注: ${escapeHtml(d.remark)}` : ''
           const predInfo = (showPrediction && predValues[idx] != null)
-            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}: <b>${predValues[idx]?.toFixed(4)}</b></span>`
+            ? `<br/><span style="color:#f59e0b">● ${predData?.model_info?.target_name || '预测'}(${predData?.model_info?.method_label || ''}): <b>${predValues[idx]?.toFixed(4)}</b></span>`
             : ''
           return `<b>${escapeHtml(d?.sample_time ? new Date(d.sample_time).toLocaleString('zh-CN') : '')}</b>${sampleInfo}${remarkInfo}<br/>${escapeHtml(currentIndicator.name)}: <b>${escapeHtml(String(p.value))}</b>${predInfo}`
         },
       },
       legend: {
-        data: [currentIndicator.name, ...(showPrediction ? [predData?.model_info?.target_name || '预测值'] : [])],
+        data: [currentIndicator.name, ...(showPrediction ? [`${predData?.model_info?.target_name || '预测值'}(${predData?.model_info?.method_label || ''})`] : [])],
         textStyle: { color: '#8b95a7' },
         top: 0,
         right: 10,
@@ -558,7 +558,7 @@ export const Dashboard: React.FC = () => {
           silent: true,
         },
         ...(showPrediction ? [{
-          name: predData?.model_info?.target_name || '预测值',
+          name: `${predData?.model_info?.target_name || '预测值'}(${predData?.model_info?.method_label || ''})`,
           type: 'line' as const,
           yAxisIndex: 1,
           smooth: true,

@@ -1127,6 +1127,14 @@ def get_cross_indicator_prediction(
             except Exception:
                 pass
 
+    # Determine actual method from the latest prediction
+    actual_method = predicted_data[-1].get("method", "linear") if predicted_data else "linear"
+    method_label = {
+        "random_forest": "M8随机森林",
+        "linear_fallback": "线性K值(M8降级)",
+        "linear": "线性K值",
+    }.get(actual_method, actual_method)
+
     return {
         "enabled": True,
         "source_indicator": source,
@@ -1136,6 +1144,8 @@ def get_cross_indicator_prediction(
             "target_name": meta["name"],
             "coefficient": coefficient,
             "formula": f"{meta['name']} = {source_meta['name']} × {coefficient:.4f}",
+            "method": actual_method,
+            "method_label": method_label,
         },
         "alert": alert,
     }
