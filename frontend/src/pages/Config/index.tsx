@@ -202,6 +202,18 @@ export const ConfigPage: React.FC = () => {
   const [predictSaturatedFat, setPredictSaturatedFat] = useState(false)
   const [predCoefficient, setPredCoefficient] = useState('')
   const [predictionMethod, setPredictionMethod] = useState<'linear' | 'random_forest'>('random_forest')
+  // M8 模型训练覆盖的品项类别（有训练数据，预测精度高）
+  const M8_TRAINED_CATEGORIES = new Set([
+    'sterilized_milk', 'fermented_milk', 'flavored_drink', 'modified_milk',
+    'milk_flavored_drink', 'milk_drink', 'plant_protein',
+  ])
+  const [m8ModelInfo, setM8ModelInfo] = useState<{
+    m8_available: boolean
+    models: {
+      full?: { version?: string; metrics?: Record<string, number> } | null
+      lite?: { version?: string; metrics?: Record<string, number> } | null
+    }
+  } | null>(null)
   const [alertEnabled, setAlertEnabled] = useState(false)
   const [alertThreshold, setAlertThreshold] = useState('10')
   const [predUsl, setPredUsl] = useState('')
@@ -244,6 +256,11 @@ export const ConfigPage: React.FC = () => {
         if (data) setFtaConfig({ ...DEFAULT_FTA_CONFIG, ...data })
       })
       .catch(() => { /* use defaults */ })
+
+    // Fetch M8 model info
+    api.getM8ModelInfo()
+      .then((data) => { if (data) setM8ModelInfo(data) })
+      .catch(() => { /* ignore */ })
 
     // Fetch products from API
     fetchProducts()
@@ -589,7 +606,7 @@ export const ConfigPage: React.FC = () => {
     // Load alert settings
     setAlertEnabled(satFatCfg?.alert_enabled ?? false)
     setAlertThreshold(satFatCfg?.alert_threshold != null ? (satFatCfg.alert_threshold * 100).toString() : '10')
-    setPredictionMethod((satFatCfg as any)?.prediction_method || 'linear')
+    setPredictionMethod((satFatCfg as any)?.prediction_method || 'random_forest')
     // Load prediction spec limits
     setPredUsl(satFatCfg?.usl?.toString() || '')
     setPredLsl(satFatCfg?.lsl?.toString() || '')
@@ -2035,19 +2052,19 @@ export const ConfigPage: React.FC = () => {
                           <input
                             type="radio"
                             name="predMethod"
-                            checked={predictionMethod === 'linear'}
-                            onChange={() => setPredictionMethod('linear')}
+                            checked={predictionMethod === 'random_forest'}
+                            onChange={() => setPredictionMethod('random_forest')}
                           />
-                          <span>线性公式 (k值)</span>
+                          <span>随机森林 (M8)</span>
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
                           <input
                             type="radio"
                             name="predMethod"
-                            checked={predictionMethod === 'random_forest'}
-                            onChange={() => setPredictionMethod('random_forest')}
+                            checked={predictionMethod === 'linear'}
+                            onChange={() => setPredictionMethod('linear')}
                           />
-                          <span>随机森林 (M8)</span>
+                          <span>线性公式 (k值)</span>
                         </label>
                       </div>
                       {predictionMethod === 'linear' && (
@@ -2085,6 +2102,28 @@ export const ConfigPage: React.FC = () => {
                         <div style={{ color: 'var(--text-muted)' }}>
                           <div>有酸度 → M8 (MAPE≈2.4%) | 无酸度 → M8-Lite (MAPE≈3.0%)</div>
                           <span style={{ fontSize: '11px' }}>蛋白质缺失时使用默认值 | 模型不可用时降级为线性K值</span>
+                          {m8ModelInfo?.m8_available && (
+                            <div style={{ marginTop: '4px', fontSize: '11px', opacity: 0.8 }}>
+                              {m8ModelInfo.models.full && (
+                                <span>M8: v{m8ModelInfo.models.full.version || '未标注'}
+                                  {m8ModelInfo.models.full.metrics?.r2 != null && ` · R²=${m8ModelInfo.models.full.metrics.r2.toFixed(4)}`}
+                                  {m8ModelInfo.models.full.metrics?.mape != null && ` · MAPE=${m8ModelInfo.models.full.metrics.mape.toFixed(2)}%`}
+                                </span>
+                              )}
+                              {m8ModelInfo.models.full && m8ModelInfo.models.lite && <span> | </span>}
+                              {m8ModelInfo.models.lite && (
+                                <span>M8-Lite: v{m8ModelInfo.models.lite.version || '未标注'}
+                                  {m8ModelInfo.models.lite.metrics?.r2 != null && ` · R²=${m8ModelInfo.models.lite.metrics.r2.toFixed(4)}`}
+                                  {m8ModelInfo.models.lite.metrics?.mape != null && ` · MAPE=${m8ModelInfo.models.lite.metrics.mape.toFixed(2)}%`}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {selectedCategory && !M8_TRAINED_CATEGORIES.has(selectedCategory) && (
+                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#f59e0b' }}>
+                              ⚠ 当前品项「{predictionCategories[selectedCategory]?.name || selectedCategory}」不在M8训练集内，预测精度可能较低，建议选择线性公式
+                            </div>
+                          )}
                         </div>
                       )}
                       {predictionMethod === 'linear' && (

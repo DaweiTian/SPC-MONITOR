@@ -117,7 +117,7 @@ def get_default_coefficient(category_code: str = None) -> float:
     """获取类别的默认推荐系数"""
     if category_code and category_code in CATEGORY_DEFAULT_K:
         return CATEGORY_DEFAULT_K[category_code]
-    return 0.6278
+    return 0.6277
 
 
 def predict_cross_indicator(

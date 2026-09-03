@@ -1029,7 +1029,7 @@ def get_cross_indicator_prediction(
         return {"enabled": False, "data": [], "model_info": None}
 
     source = target_cfg.get("source_indicator", "")
-    coefficient = target_cfg.get("coefficient", 0.6278)
+    coefficient = target_cfg.get("coefficient", 0.6277)
     meta = TARGET_INDICATOR_META.get(target, {"name": target, "unit": ""})
     source_meta = SOURCE_INDICATOR_META.get(source, {"name": source})
 
@@ -1039,12 +1039,17 @@ def get_cross_indicator_prediction(
     source_data = _get_data(source, product, limit=limit)
     source_data.reverse()
 
-    # M8模式：获取蛋白质和酸度数据
+    # M8模式：获取蛋白质和酸度数据（优先匹配最新一条源数据的样品/日期）
     protein_val = None
     acidity_val = None
     if prediction_method == "random_forest":
         from backend.app.engine.predictor.cross_indicator import fetch_cooccurring_features
-        features = fetch_cooccurring_features(storage, product)
+        latest_src = source_data[-1] if source_data else {}
+        features = fetch_cooccurring_features(
+            storage, product,
+            sample_id=latest_src.get("sample_id"),
+            sample_time=latest_src.get("sample_time"),
+        )
         protein_val = features["protein"]
         acidity_val = features["acidity"]
 
@@ -1069,6 +1074,7 @@ def get_cross_indicator_prediction(
             "sample_time": d.get("sample_time", ""),
             "method": result.get("method", "linear"),
             "model_name": result.get("model_name", ""),
+            "model_key": result.get("model_key", ""),
         })
         latest_predicted = result["predicted_value"]
         latest_sample_id = d.get("sample_id")
@@ -1140,6 +1146,21 @@ def get_cross_indicator_prediction(
     else:
         formula = f"{meta['name']} = {source_meta['name']} × {coefficient:.4f}"
 
+    # M8 模型版本信息
+    m8_version = None
+    m8_metrics = None
+    if actual_method == "random_forest":
+        try:
+            from backend.app.engine.predictor.m8_model import get_m8_model_info
+            mi = get_m8_model_info()
+            model_key = predicted_data[-1].get("model_key", "full") if predicted_data else "full"
+            meta_info = mi.get(model_key) or mi.get("full") or mi.get("lite")
+            if meta_info:
+                m8_version = meta_info.get("version")
+                m8_metrics = meta_info.get("metrics")
+        except Exception as e:
+            logger.warning("Failed to get M8 model info: %s", e)
+
     return {
         "enabled": True,
         "source_indicator": source,
@@ -1151,6 +1172,26 @@ def get_cross_indicator_prediction(
             "formula": formula,
             "method": actual_method,
             "method_label": method_label,
+            "model_version": m8_version,
+            "model_metrics": m8_metrics,
         },
         "alert": alert,
     }
+
+
+# ---------------------------------------------------------------------------
+# 模型元信息端点
+# ---------------------------------------------------------------------------
+
+@router.get("/model-info")
+def get_model_info():
+    """返回当前加载的 M8 模型版本和性能信息"""
+    try:
+        from backend.app.engine.predictor.m8_model import get_m8_model_info, is_m8_available
+        return {
+            "m8_available": is_m8_available(),
+            "models": get_m8_model_info(),
+        }
+    except Exception as e:
+        logger.warning("Failed to get model info: %s", e)
+        return {"m8_available": False, "models": {}, "error": "模型信息加载失败"}

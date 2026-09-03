@@ -219,6 +219,9 @@ export const api = {
   // 特征重要性
   getFeatureImportance: (product: string, indicator: string) =>
     http.get('/predict/feature/importance', { params: { product, indicator } }).then(r => r.data),
+  // M8 模型元信息
+  getM8ModelInfo: () =>
+    http.get<{ m8_available: boolean; models: { full?: { version?: string; metrics?: Record<string, number> } | null; lite?: { version?: string; metrics?: Record<string, number> } | null } }>('/predict/model-info').then(r => r.data),
 
   // 权限查询
   getPermissions: () =>

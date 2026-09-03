@@ -21,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 跨指标预测配置新增 `prediction_method` 和 `product_category` 字段，默认预测方式为随机森林
 - 缺失蛋白质时使用训练集均值(3.2)兜底，缺失酸度时自动降级到M8-Lite模型
 - 图表预测曲线标签从"预测值"改为"饱和脂肪(M8)"等含模型名的标签
-- 版本号更新至 v1.7.0
 
 ## [1.6.3] - 2026-08-24
 

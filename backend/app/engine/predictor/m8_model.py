@@ -8,8 +8,10 @@
 酸度缺失 → M8-Lite  (MAPE≈3.0%，仍远优于线性K值 MAPE≈5.1%)
 """
 
+import copy
 import logging
 import os
+import threading
 from datetime import datetime
 
 import joblib
@@ -53,6 +55,7 @@ TRAINED_CATEGORIES = {
 }
 
 _DEFAULT_PROTEIN = 3.2
+_DEFAULT_ACIDITY = 15.0  # 训练集灭菌乳均值酸度
 
 
 class FeatureMissingError(ValueError):
@@ -81,11 +84,14 @@ class M8ModelEngine:
     """
 
     _instance = None
+    _lock = threading.Lock()
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
@@ -96,6 +102,8 @@ class M8ModelEngine:
         self._model_lite = None   # 4特征
         self._product_encoder = None
         self._season_encoder = None
+        self._full_meta = {}      # version, metrics 等元信息
+        self._lite_meta = {}
         self._load_models()
 
     # ------------------------------------------------------------------
@@ -109,26 +117,41 @@ class M8ModelEngine:
         full_path = os.path.join(model_dir, "m8_saturated_fat.pkl")
         try:
             data = joblib.load(full_path)
-            self._model_full = data["model"]
-            self._product_encoder = data["le_type"]
-            self._season_encoder = data["le_season"]
-            logger.info("M8 完整模型加载成功 (5特征)")
+            if not isinstance(data, dict) or "model" not in data:
+                logger.error("M8 完整模型 pkl 结构异常: 期望 dict 含 'model' 键，实际: %s",
+                             list(data.keys()) if isinstance(data, dict) else type(data).__name__)
+            else:
+                self._model_full = data["model"]
+                self._product_encoder = data["le_type"]
+                self._season_encoder = data["le_season"]
+                self._full_meta = {
+                    "version": data.get("version", ""),
+                    "metrics": data.get("metrics", {}),
+                }
+                logger.info("M8 完整模型加载成功 (5特征) version=%s", self._full_meta["version"] or "unknown")
         except Exception as exc:
-            logger.warning("M8 完整模型加载失败: %s", exc)
+            logger.warning("M8 完整模型加载失败: %r", exc)
 
         # Lite模型 (4特征)
         lite_path = os.path.join(model_dir, "m8_lite_saturated_fat.pkl")
         try:
             data = joblib.load(lite_path)
-            self._model_lite = data["model"]
-            # Lite模型的编码器应与完整模型一致（同一份数据训练）
-            if self._product_encoder is None:
-                self._product_encoder = data["le_type"]
-            if self._season_encoder is None:
-                self._season_encoder = data["le_season"]
-            logger.info("M8-Lite 模型加载成功 (4特征)")
+            if not isinstance(data, dict) or "model" not in data:
+                logger.error("M8-Lite 模型 pkl 结构异常: 期望 dict 含 'model' 键，实际: %s",
+                             list(data.keys()) if isinstance(data, dict) else type(data).__name__)
+            else:
+                self._model_lite = data["model"]
+                if self._product_encoder is None:
+                    self._product_encoder = data["le_type"]
+                if self._season_encoder is None:
+                    self._season_encoder = data["le_season"]
+                self._lite_meta = {
+                    "version": data.get("version", ""),
+                    "metrics": data.get("metrics", {}),
+                }
+                logger.info("M8-Lite 模型加载成功 (4特征) version=%s", self._lite_meta["version"] or "unknown")
         except Exception as exc:
-            logger.warning("M8-Lite 模型加载失败: %s", exc)
+            logger.warning("M8-Lite 模型加载失败: %r", exc)
 
     @property
     def is_available(self) -> bool:
@@ -141,6 +164,22 @@ class M8ModelEngine:
     @property
     def has_lite_model(self) -> bool:
         return self._model_lite is not None
+
+    @property
+    def model_info(self) -> dict:
+        """返回当前加载模型的版本和性能信息 (返回副本，不暴露内部状态)"""
+        info = {"full": None, "lite": None}
+        if self._model_full is not None:
+            info["full"] = {
+                "version": self._full_meta.get("version", ""),
+                "metrics": dict(self._full_meta.get("metrics", {})),
+            }
+        if self._model_lite is not None:
+            info["lite"] = {
+                "version": self._lite_meta.get("version", ""),
+                "metrics": dict(self._lite_meta.get("metrics", {})),
+            }
+        return info
 
     # ------------------------------------------------------------------
     # 预测
@@ -213,7 +252,7 @@ class M8ModelEngine:
             model_name = "M8-Lite"
         else:
             # 只有完整模型可用，用默认酸度
-            acidity = 15.0
+            acidity = _DEFAULT_ACIDITY
             used_defaults.append("acidity")
             features = np.array([[fat_value, product_encoded, season_encoded, protein, acidity]])
             predicted = float(self._model_full.predict(features)[0])
@@ -223,6 +262,7 @@ class M8ModelEngine:
             "predicted_value": round(predicted, 4),
             "method": "random_forest",
             "model_name": model_name,
+            "model_key": "lite" if model_name == "M8-Lite" else "full",
             "features": {
                 "fat": fat_value,
                 "product_type": category_cn,
@@ -259,3 +299,8 @@ def predict_m8(
 
 def is_m8_available() -> bool:
     return M8ModelEngine().is_available
+
+
+def get_m8_model_info() -> dict:
+    """获取当前加载的 M8 模型版本和性能信息"""
+    return M8ModelEngine().model_info
