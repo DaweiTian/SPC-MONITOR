@@ -81,7 +81,7 @@ if defined NSIS_ZIP (
         echo   "platforms": {
         echo     "windows-x86_64": {
         echo       "signature": "!SIGNATURE!",
-        echo       "url": "http://localhost:9090/!ZIP_NAME!"
+        echo       "url": "http://106.13.77.213:9090/!ZIP_NAME!"
         echo     }
         echo   }
         echo }
