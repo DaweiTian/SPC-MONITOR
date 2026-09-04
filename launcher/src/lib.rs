@@ -83,7 +83,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_updater::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().dangerously_allow_insecure(true).build())
         .setup(move |app| {
             log::warn!("进入 setup 闭包");
             // 设置 AppUserModelID，使任务栏图标与后端进程区分开
