@@ -18,7 +18,7 @@ pub struct PendingUpdate {
 /// 前端调用：检查是否有可用更新
 #[tauri::command(async)]
 pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let update = app.updater()?.check().await.map_err(|e| e.to_string())?;
+    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
     Ok(update.map(|u| UpdateInfo {
         version: u.version.clone(),
         notes: u.body.clone(),
@@ -29,7 +29,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
 #[tauri::command(async)]
 pub async fn download_update(app: AppHandle) -> Result<UpdateInfo, String> {
     let update = app
-        .updater()?
+        .updater().map_err(|e| e.to_string())?
         .check()
         .await
         .map_err(|e| e.to_string())?
@@ -39,7 +39,7 @@ pub async fn download_update(app: AppHandle) -> Result<UpdateInfo, String> {
     let notes = update.body.clone();
 
     let bytes = update
-        .download(|_chunk, _total| {})
+        .download(|_chunk, _total| {}, || {})
         .await
         .map_err(|e| e.to_string())?;
 
@@ -68,7 +68,6 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
 /// 启动后台定时检查任务（每 3 天一次，首次延迟 60 秒）
 pub fn spawn_periodic_check(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        // 启动后等待 60 秒再做首次检查，避免拖慢启动
         tokio::time::sleep(Duration::from_secs(60)).await;
 
         loop {
@@ -92,7 +91,7 @@ pub fn spawn_periodic_check(app: AppHandle) {
 
 /// 内部：检查更新 → 下载 → 暂存
 async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let update = app.updater()?.check().await.map_err(|e| e.to_string())?;
+    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
 
     let Some(update) = update else {
         return Ok(None);
@@ -102,7 +101,7 @@ async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, S
     let notes = update.body.clone();
 
     let bytes = update
-        .download(|_chunk, _total| {})
+        .download(|_chunk, _total| {}, || {})
         .await
         .map_err(|e| e.to_string())?;
 
