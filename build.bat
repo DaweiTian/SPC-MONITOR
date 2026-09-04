@@ -40,8 +40,8 @@ REM 复制配置文件（全部在 backend/conf/ 目录下）
 if not exist "!PROJECT_DIR!backend\conf" (echo 错误: backend\conf 目录不存在 & pause & exit /b 1)
 xcopy /E /I /Q /Y "!PROJECT_DIR!backend\conf" "%BACKEND_DIST%\conf" >nul || (echo 配置文件复制失败 & pause & exit /b 1)
 REM 验证关键配置文件已复制
-if not exist "%BACKEND_DIST%\conf\spec_limits.json" (echo 错误: conf\spec_limits.json 未复制到构建目录 & pause & exit /b 1)
-if not exist "%BACKEND_DIST%\conf\db_config.json" (echo 错误: conf\db_config.json 未复制到构建目录 & pause & exit /b 1)
+if not exist "%BACKEND_DIST%\conf\spec_limits.json" (echo   WARNING: conf\spec_limits.json 不存在，将使用默认规格限)
+if not exist "%BACKEND_DIST%\conf\db_config.json" (echo   WARNING: conf\db_config.json 不存在，将使用默认数据库配置)
 REM 复制 M8 模型文件（pkl，Nuitka 不自动包含非 Python 数据文件）
 REM 注意: _resolve_model_dir() 用 __file__ 上溯3级解析路径，保留 backend/ 层级
 if not exist "%BACKEND_DIST%\backend\models" mkdir "%BACKEND_DIST%\backend\models"
