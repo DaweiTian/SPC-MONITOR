@@ -20,7 +20,7 @@ fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
     if let Ok(log_file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
         let _ = CombinedLogger::init(vec![WriteLogger::new(
-            log::LevelFilter::Info,
+            log::LevelFilter::Warn,
             Config::default(),
             log_file,
         )]);
@@ -49,13 +49,13 @@ pub fn run() {
         eprintln!("{}", full);
     }));
 
-    log::info!("=== 应用启动 ===");
+    log::warn!("=== 应用启动 ===");
 
     let config = AppConfig::load();
     let api_key = config.api_key.clone();
     let service_manager = Arc::new(ServiceManager::new(&config));
 
-    log::info!("配置加载完成，auto_start={}", config.auto_start);
+    log::warn!("配置加载完成，auto_start={}", config.auto_start);
 
     if config.auto_start {
         if let Err(e) = service_manager.start_server() {
@@ -68,7 +68,7 @@ pub fn run() {
     let shutdown_flag = Arc::new(AtomicBool::new(false));
     let shutdown_for_thread = shutdown_flag.clone();
 
-    log::info!("正在初始化 Tauri 运行时...");
+    log::warn!("正在初始化 Tauri 运行时...");
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -85,7 +85,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::default().build())
         .setup(move |app| {
-            log::info!("进入 setup 闭包");
+            log::warn!("进入 setup 闭包");
             // 设置 AppUserModelID，使任务栏图标与后端进程区分开
             #[cfg(target_os = "windows")]
             {
@@ -182,7 +182,7 @@ pub fn run() {
                 }
             });
 
-            log::info!("setup 闭包完成");
+            log::warn!("setup 闭包完成");
             Ok(())
         })
         .manage(service_manager)
@@ -203,9 +203,9 @@ pub fn run() {
             updater::install_update,
         ]);
 
-    log::info!("正在启动 Tauri 应用...");
+    log::warn!("正在启动 Tauri 应用...");
     match builder.run(tauri::generate_context!()) {
-        Ok(_) => log::info!("Tauri 应用正常退出"),
+        Ok(_) => log::warn!("Tauri 应用正常退出"),
         Err(e) => {
             log::error!("Tauri 应用启动失败: {:?}", e);
             // 在日志目录写入错误文件，方便排查
