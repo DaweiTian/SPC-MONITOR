@@ -5,7 +5,8 @@ $LAUNCHER_DIR = Join-Path $PROJECT_DIR "launcher"
 $BACKEND_DIST = Join-Path $LAUNCHER_DIR "ft1-backend"
 $OUTPUT_DIR = Join-Path $PROJECT_DIR "dist"
 
-# Create output directory
+# Clean output directory
+if (Test-Path $OUTPUT_DIR) { Remove-Item -Recurse -Force $OUTPUT_DIR }
 New-Item -ItemType Directory -Force -Path $OUTPUT_DIR | Out-Null
 
 # Portable version
