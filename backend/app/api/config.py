@@ -254,8 +254,8 @@ def test_db_connection(config: DBConfigRequest):
             error_msg = "找不到服务器，请检查服务器地址"
         elif "driver" in error_msg.lower():
             error_msg = (
-                "ODBC 驱动未安装，请下载安装 Microsoft ODBC Driver 17 for SQL Server：\n"
-                "https://learn.microsoft.com/zh-cn/sql/connect/odbc/download-odbc-driver-for-sql-server"
+                f"ODBC 连接失败: {error_msg}\n"
+                f"如果提示驱动未安装，请下载安装: https://learn.microsoft.com/zh-cn/sql/connect/odbc/download-odbc-driver-for-sql-server"
             )
 
         logger.error(f"ODBC连接失败: {error_msg}")

@@ -111,7 +111,30 @@ def _detect_odbc_driver() -> str:
     if _detected_odbc_driver is not None:
         return _detected_odbc_driver
 
-    # 优先用 winreg 直接读注册表（无弹窗）
+    # 方法1: pyodbc 直接列出驱动（最可靠）
+    try:
+        import pyodbc
+        available = pyodbc.drivers()
+        logger.info(f"pyodbc 可用驱动: {available}")
+        sql_drivers = [d for d in available if 'sql' in d.lower()]
+        for d in sql_drivers:
+            if '17' in d:
+                _detected_odbc_driver = d
+                logger.info(f"检测到 ODBC 驱动: {d}")
+                return _detected_odbc_driver
+        for d in sql_drivers:
+            if '18' in d:
+                _detected_odbc_driver = d
+                logger.info(f"检测到 ODBC 驱动: {d}")
+                return _detected_odbc_driver
+        if sql_drivers:
+            _detected_odbc_driver = sql_drivers[0]
+            logger.info(f"检测到 ODBC 驱动: {sql_drivers[0]}")
+            return _detected_odbc_driver
+    except Exception as e:
+        logger.debug(f"pyodbc.drivers() 失败: {e}")
+
+    # 方法2: winreg 读注册表
     try:
         import winreg
         base_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\ODBC\ODBCINST.INI")
@@ -120,26 +143,23 @@ def _detect_odbc_driver() -> str:
         while True:
             try:
                 name = winreg.EnumKey(base_key, i)
-                if 'sql' in name.lower() or 'SQL' in name:
-                    drivers.append(name)
+                drivers.append(name)
                 i += 1
             except OSError:
                 break
         winreg.CloseKey(base_key)
-        # 优先选17，其次18，最后取第一个
-        for d in drivers:
+        logger.info(f"注册表 ODBC 驱动列表: {drivers}")
+        sql_drivers = [d for d in drivers if 'sql' in d.lower()]
+        for d in sql_drivers:
             if '17' in d:
                 _detected_odbc_driver = d
-                logger.info(f"检测到 ODBC 驱动: {d}")
                 return _detected_odbc_driver
-        for d in drivers:
+        for d in sql_drivers:
             if '18' in d:
                 _detected_odbc_driver = d
-                logger.info(f"检测到 ODBC 驱动: {d}")
                 return _detected_odbc_driver
-        if drivers:
-            _detected_odbc_driver = drivers[0]
-            logger.info(f"检测到 ODBC 驱动: {drivers[0]}")
+        if sql_drivers:
+            _detected_odbc_driver = sql_drivers[0]
             return _detected_odbc_driver
     except Exception as e:
         logger.debug(f"winreg 检测 ODBC 驱动失败: {e}")
