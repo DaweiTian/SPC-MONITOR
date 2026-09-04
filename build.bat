@@ -6,7 +6,7 @@ set LAUNCHER_DIR=%PROJECT_DIR%launcher
 set OUTPUT_DIR=%PROJECT_DIR%dist
 
 echo ==========================================
-echo   过程SPC监控平台 v1.7.1 - 一键构建
+echo   过程SPC监控平台 v1.7.2 - 一键构建
 echo ==========================================
 
 echo [0/6] 清理旧构建产物...
@@ -66,8 +66,8 @@ copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul |
 echo [6/6] 生成更新清单 latest.json...
 set "SETUP_EXE="
 set "SETUP_SIG="
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.1*-setup.exe") do set "SETUP_EXE=%%f"
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.1*-setup.exe.sig") do set "SETUP_SIG=%%f"
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.2*-setup.exe") do set "SETUP_EXE=%%f"
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.2*-setup.exe.sig") do set "SETUP_SIG=%%f"
 
 if defined SETUP_SIG (
     copy /Y "!SETUP_SIG!" "%OUTPUT_DIR%\" >nul
@@ -76,11 +76,11 @@ if defined SETUP_SIG (
     REM 获取安装包文件名
     for %%n in ("!SETUP_EXE!") do set "EXE_NAME=%%~nxn"
     REM 从 CHANGELOG.md 提取更新日志
-    for /f "delims=" %%n in ('powershell -Command "$lines = Get-Content '%PROJECT_DIR%CHANGELOG.md' -Encoding utf8; $in = $false; $notes = @(); foreach ($l in $lines) { if ($l -match '^## \[1\.7\.1\]') { $in = $true; continue }; if ($in -and $l -match '^## \[') { break }; if ($in -and $l -match '^- ') { $notes += $l.Substring(2) } }; if ($notes.Count -gt 0) { $notes -join '; ' } else { 'v1.7.1 更新' }"') do set "NOTES=%%n"
+    for /f "delims=" %%n in ('powershell -Command "$lines = Get-Content '%PROJECT_DIR%CHANGELOG.md' -Encoding utf8; $in = $false; $notes = @(); foreach ($l in $lines) { if ($l -match '^## \[1\.7\.2\]') { $in = $true; continue }; if ($in -and $l -match '^## \[') { break }; if ($in -and $l -match '^- ') { $notes += $l.Substring(2) } }; if ($notes.Count -gt 0) { $notes -join '; ' } else { 'v1.7.2 更新' }"') do set "NOTES=%%n"
 
     (
         echo {
-        echo   "version": "1.7.1",
+        echo   "version": "1.7.2",
         echo   "notes": "!NOTES!",
         echo   "pub_date": "%date:~0,4%-%date:~5,2%-%date:~8,2%T00:00:00Z",
         echo   "platforms": {

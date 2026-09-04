@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.2] - 2026-09-05
+
+### Fixed
+
+- **修复 HTTP 更新端点**: 添加 `dangerousInsecureTransportProtocol` 配置，允许内网 HTTP 更新服务器
+- **添加诊断日志**: 自定义 panic handler 和启动阶段日志，便于排查启动问题
+
 ## [1.7.1] - 2026-09-04
 
 ### Added
