@@ -418,7 +418,18 @@ export const PredictionPage: React.FC = () => {
 
     return {
       ...chartTheme,
-      tooltip: { trigger: 'axis' as const, ...tooltipStyle },
+      tooltip: {
+        trigger: 'axis' as const,
+        ...tooltipStyle,
+        formatter: (params: unknown) => {
+          if (!Array.isArray(params)) return ''
+          const items = (params as Array<{seriesName?: string; marker?: string; value?: number | string | null}>)
+            .filter(p => p.seriesName && p.value != null)
+            .map(p => `${p.marker ?? ''} ${p.seriesName}: <b>${p.value}</b>`)
+            .join('<br/>')
+          return items
+        },
+      },
       legend: { data: ['历史数据', '预测曲线', '95%置信区间'], textStyle: { color: '#8b95a7' }, top: 0 },
       grid: { left: 50, right: 30, top: 40, bottom: 30 },
       xAxis: {
