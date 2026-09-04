@@ -30,9 +30,32 @@ fn init_logging() {
 pub fn run() {
     init_logging();
 
+    // 自定义 panic handler：将 panic 信息写入日志文件
+    let panic_log_path = AppConfig::log_dir().join("panic.log");
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else {
+            "Unknown panic".to_string()
+        };
+        let location = info.location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "unknown location".to_string());
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let full = format!("PANIC: {}\nLocation: {}\nBacktrace:\n{}\n", msg, location, backtrace);
+        let _ = std::fs::write(&panic_log_path, &full);
+        eprintln!("{}", full);
+    }));
+
+    log::info!("=== 应用启动 ===");
+
     let config = AppConfig::load();
     let api_key = config.api_key.clone();
     let service_manager = Arc::new(ServiceManager::new(&config));
+
+    log::info!("配置加载完成，auto_start={}", config.auto_start);
 
     if config.auto_start {
         if let Err(e) = service_manager.start_server() {
@@ -45,7 +68,9 @@ pub fn run() {
     let shutdown_flag = Arc::new(AtomicBool::new(false));
     let shutdown_for_thread = shutdown_flag.clone();
 
-    tauri::Builder::default()
+    log::info!("正在初始化 Tauri 运行时...");
+
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
@@ -60,6 +85,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::default().build())
         .setup(move |app| {
+            log::info!("进入 setup 闭包");
             // 设置 AppUserModelID，使任务栏图标与后端进程区分开
             #[cfg(target_os = "windows")]
             {
@@ -156,6 +182,7 @@ pub fn run() {
                 }
             });
 
+            log::info!("setup 闭包完成");
             Ok(())
         })
         .manage(service_manager)
@@ -174,9 +201,18 @@ pub fn run() {
             updater::check_for_update,
             updater::download_update,
             updater::install_update,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        ]);
+
+    log::info!("正在启动 Tauri 应用...");
+    match builder.run(tauri::generate_context!()) {
+        Ok(_) => log::info!("Tauri 应用正常退出"),
+        Err(e) => {
+            log::error!("Tauri 应用启动失败: {:?}", e);
+            // 在日志目录写入错误文件，方便排查
+            let err_path = AppConfig::log_dir().join("tauri-error.log");
+            let _ = std::fs::write(&err_path, format!("Tauri 启动失败: {:?}", e));
+        }
+    }
     // Drop 自动清理后端进程（ServiceManager::Drop）
 }
 
