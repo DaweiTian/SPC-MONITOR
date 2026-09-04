@@ -1171,6 +1171,7 @@ export const ConfigPage: React.FC = () => {
                   aria-label="数据库驱动"
                 >
                   <option value="pymssql">pymssql（无需安装驱动）</option>
+                  <option value="odbc">ODBC（需安装 SQL Server 驱动）</option>
                 </select>
               </div>
             </div>
@@ -1325,6 +1326,7 @@ export const ConfigPage: React.FC = () => {
                   aria-label="数据库驱动"
                 >
                   <option value="pymssql">pymssql（无需安装驱动）</option>
+                  <option value="odbc">ODBC（需安装 SQL Server 驱动）</option>
                 </select>
               </div>
             </div>
