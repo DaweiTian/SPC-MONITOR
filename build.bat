@@ -75,11 +75,13 @@ if defined SETUP_SIG (
     set /p SIGNATURE=<!SETUP_SIG!
     REM 获取安装包文件名
     for %%n in ("!SETUP_EXE!") do set "EXE_NAME=%%~nxn"
+    REM 从 CHANGELOG.md 提取更新日志
+    for /f "delims=" %%n in ('powershell -Command "$lines = Get-Content '%PROJECT_DIR%CHANGELOG.md' -Encoding utf8; $in = $false; $notes = @(); foreach ($l in $lines) { if ($l -match '^## \[1\.7\.1\]') { $in = $true; continue }; if ($in -and $l -match '^## \[') { break }; if ($in -and $l -match '^- ') { $notes += $l.Substring(2) } }; if ($notes.Count -gt 0) { $notes -join '; ' } else { 'v1.7.1 更新' }"') do set "NOTES=%%n"
 
     (
         echo {
         echo   "version": "1.7.1",
-        echo   "notes": "请填写更新日志",
+        echo   "notes": "!NOTES!",
         echo   "pub_date": "%date:~0,4%-%date:~5,2%-%date:~8,2%T00:00:00Z",
         echo   "platforms": {
         echo     "windows-x86_64": {
