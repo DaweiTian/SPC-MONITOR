@@ -296,11 +296,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>跨指标预测：M8随机森林双模型替代线性K值(MAPE 5.1%→2.4%)</li>
-                <li className={styles.versionTooltipItem}>M8-Lite模型：无酸度时自动切换4特征模型(MAPE≈3.0%)</li>
-                <li className={styles.versionTooltipItem}>品项管理：新增预测方式切换(线性/M8)，默认M8随机森林</li>
-                <li className={styles.versionTooltipItem}>图表标注：预测曲线显示模型名称(M8/M8-Lite/线性K值)</li>
-                <li className={styles.versionTooltipItem}>数据对齐：优先使用同批次蛋白质/酸度数据</li>
+                <li className={styles.versionTooltipItem}>自动更新：启动时+每3天检查更新，静默下载后提示安装</li>
+                <li className={styles.versionTooltipItem}>版本号统一：修复Cargo.toml版本号与其他文件不同步问题</li>
               </ul>
             </div>
           </span>
