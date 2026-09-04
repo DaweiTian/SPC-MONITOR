@@ -423,11 +423,18 @@ export const PredictionPage: React.FC = () => {
         ...tooltipStyle,
         formatter: (params: unknown) => {
           if (!Array.isArray(params)) return ''
-          const items = (params as Array<{seriesName?: string; marker?: string; value?: number | string | null}>)
-            .filter(p => p.seriesName && p.value != null)
-            .map(p => `${p.marker ?? ''} ${p.seriesName}: <b>${p.value}</b>`)
-            .join('<br/>')
-          return items
+          const arr = params as Array<{seriesName?: string; marker?: string; value?: number | string | null}>
+          const ciUpper = arr.find(p => p.seriesName === '95%置信区间' && p.value != null)
+          const ciLower = arr.find(p => p.seriesName === '' && p.value != null)
+          const others = arr.filter(p => p.seriesName && p.seriesName !== '' && p.seriesName !== '95%置信区间' && p.value != null)
+          const lines: string[] = []
+          if (ciUpper && ciLower) {
+            lines.push(`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8b5cf6;margin-right:5px;"></span> 95%置信区间: <b>${ciLower.value}</b> ~ <b>${ciUpper.value}</b>`)
+          } else if (ciUpper) {
+            lines.push(`${ciUpper.marker ?? ''} 95%置信区间: <b>${ciUpper.value}</b>`)
+          }
+          others.forEach(p => lines.push(`${p.marker ?? ''} ${p.seriesName}: <b>${p.value}</b>`))
+          return lines.join('<br/>')
         },
       },
       legend: { data: ['历史数据', '预测曲线', '95%置信区间'], textStyle: { color: '#8b95a7' }, top: 0 },
