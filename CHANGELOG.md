@@ -161,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **Cpk sigma=0时inf**: 返回`None`替代`float('inf')`
 - **JSON序列化NaN/inf**: 新增`_sanitize()`递归替换为`None`
 
-## [1.5.5] - 2025-08-24
+## [1.5.5] - 2026-08-24
 
 ### Added
 
@@ -207,7 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 10轮审查覆盖后端API、存储层、前端Config/SPC/Dashboard/Help页面
 - 发现并修复6个CRITICAL、8个WARNING、7个INFO级别问题
 
-## [1.5.1] - 2025-08-23
+## [1.5.1] - 2026-08-23
 
 ### Highlights
 
@@ -262,7 +262,7 @@ This is the first production release of the FT1-MONITOR platform. It migrates th
 - CSP configured for Tauri asset protocol and localhost origins
 - WebSocket uses query-param API key (no auth dependency on WS router)
 
-## [1.0.0] - 2025-08-14
+## [1.0.0] - 2026-08-14
 
 ### Added
 
