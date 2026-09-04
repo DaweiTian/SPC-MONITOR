@@ -53,6 +53,11 @@ pub async fn download_update(app: AppHandle) -> Result<UpdateInfo, String> {
 /// 前端调用：安装已下载的更新（会退出应用）
 #[tauri::command(async)]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    // 安装前显式停止后端进程（install() 内部调用 process::exit 会绕过 Drop）
+    if let Some(sm) = app.try_state::<std::sync::Arc<crate::service::ServiceManager>>() {
+        let _ = sm.stop_server();
+    }
+
     let pending = app
         .state::<Mutex<Option<PendingUpdate>>>()
         .lock()
@@ -73,11 +78,11 @@ pub fn spawn_periodic_check(app: AppHandle) {
         loop {
             match try_check_and_download(&app).await {
                 Ok(Some(info)) => {
-                    log::info!("发现新版本 {}，已静默下载", info.version);
+                    log::warn!("发现新版本 {}，已静默下载", info.version);
                     app.emit("update-ready", &info).ok();
                 }
                 Ok(None) => {
-                    log::info!("当前已是最新版本");
+                    log::warn!("当前已是最新版本");
                 }
                 Err(e) => {
                     log::warn!("检查更新失败: {}", e);

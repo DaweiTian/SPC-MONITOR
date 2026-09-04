@@ -45,7 +45,9 @@ pub fn run() {
             .unwrap_or_else(|| "unknown location".to_string());
         let backtrace = std::backtrace::Backtrace::force_capture();
         let full = format!("PANIC: {}\nLocation: {}\nBacktrace:\n{}\n", msg, location, backtrace);
-        let _ = std::fs::write(&panic_log_path, &full);
+        let _ = std::fs::OpenOptions::new().create(true).append(true).write(true)
+            .open(&panic_log_path)
+            .and_then(|mut f| { use std::io::Write; f.write_all(full.as_bytes()) });
         eprintln!("{}", full);
     }));
 
