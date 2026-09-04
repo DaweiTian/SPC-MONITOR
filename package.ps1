@@ -51,8 +51,12 @@ if (Test-Path $nsisDir) {
 }
 
 # Generate update artifacts (latest.json + *.exe.sig)
-$setupSig = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
-$setupExe = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '\.sig$' } | Select-Object -First 1
+# Read version from tauri.conf.json first
+$tauriConf = Get-Content (Join-Path $LAUNCHER_DIR "tauri.conf.json") -Raw | ConvertFrom-Json
+$version = $tauriConf.version
+
+$setupSig = Get-ChildItem -Path $nsisDir -Filter "*$version*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
+$setupExe = Get-ChildItem -Path $nsisDir -Filter "*$version*-setup.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '\.sig$' } | Select-Object -First 1
 
 if ($setupSig) {
     Copy-Item $setupSig.FullName $OUTPUT_DIR
@@ -62,10 +66,6 @@ if ($setupSig) {
     $signature = (Get-Content $setupSig.FullName -Raw).Trim()
     $exeName = if ($setupExe) { $setupExe.Name } else { "setup.exe" }
     $pubDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-
-    # Read version from tauri.conf.json
-    $tauriConf = Get-Content (Join-Path $LAUNCHER_DIR "tauri.conf.json") -Raw | ConvertFrom-Json
-    $version = $tauriConf.version
 
     $latestJson = @"
 {

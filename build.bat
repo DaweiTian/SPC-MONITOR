@@ -66,8 +66,8 @@ copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul |
 echo [6/6] 生成更新清单 latest.json...
 set "SETUP_EXE="
 set "SETUP_SIG="
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*-setup.exe") do set "SETUP_EXE=%%f"
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*-setup.exe.sig") do set "SETUP_SIG=%%f"
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.1*-setup.exe") do set "SETUP_EXE=%%f"
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*1.7.1*-setup.exe.sig") do set "SETUP_SIG=%%f"
 
 if defined SETUP_SIG (
     copy /Y "!SETUP_SIG!" "%OUTPUT_DIR%\" >nul
