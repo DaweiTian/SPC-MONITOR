@@ -18,7 +18,7 @@ pub struct PendingUpdate {
 /// 前端调用：检查是否有可用更新
 #[tauri::command(async)]
 pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let update = app.updater().check().await.map_err(|e| e.to_string())?;
+    let update = app.updater()?.check().await.map_err(|e| e.to_string())?;
     Ok(update.map(|u| UpdateInfo {
         version: u.version.clone(),
         notes: u.body.clone(),
@@ -29,7 +29,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
 #[tauri::command(async)]
 pub async fn download_update(app: AppHandle) -> Result<UpdateInfo, String> {
     let update = app
-        .updater()
+        .updater()?
         .check()
         .await
         .map_err(|e| e.to_string())?
@@ -92,7 +92,7 @@ pub fn spawn_periodic_check(app: AppHandle) {
 
 /// 内部：检查更新 → 下载 → 暂存
 async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let update = app.updater().check().await.map_err(|e| e.to_string())?;
+    let update = app.updater()?.check().await.map_err(|e| e.to_string())?;
 
     let Some(update) = update else {
         return Ok(None);

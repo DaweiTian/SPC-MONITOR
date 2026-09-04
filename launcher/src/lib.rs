@@ -58,7 +58,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_updater::init())
+        .plugin(tauri_plugin_updater::Builder::default().build())
         .setup(move |app| {
             // 设置 AppUserModelID，使任务栏图标与后端进程区分开
             #[cfg(target_os = "windows")]
