@@ -430,7 +430,7 @@ export const PredictionPage: React.FC = () => {
       yAxis: { type: 'value' as const, ...chartTheme.yAxis, scale: true },
       series: [
         { name: '95%置信区间', type: 'line' as const, symbol: 'none', data: upperBand, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(139,92,246,0.12)' }, stack: 'ci', silent: true },
-        { name: '95%置信区间', type: 'line' as const, symbol: 'none', data: lowerBand, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(139,92,246,0)' }, stack: 'ci', silent: true },
+        { name: '', type: 'line' as const, symbol: 'none', data: lowerBand, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(139,92,246,0)' }, stack: 'ci', silent: true },
         {
           name: '历史数据', type: 'line' as const, smooth: true, symbol: 'none', data: histData,
           lineStyle: { color: '#00d4ff', width: 2 },
