@@ -49,17 +49,17 @@ if (Test-Path $nsisDir) {
     Write-Host "Warning: NSIS directory not found at $nsisDir"
 }
 
-# Generate update artifacts (latest.json + .nsis.zip + .nsis.zip.sig)
-$nsisZip = Get-ChildItem -Path $nsisDir -Filter "*.nsis.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
-$nsisSig = Get-ChildItem -Path $nsisDir -Filter "*.nsis.zip.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
+# Generate update artifacts (latest.json + *.exe.sig)
+$setupSig = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
+$setupExe = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '\.sig$' } | Select-Object -First 1
 
-if ($nsisZip -and $nsisSig) {
-    Copy-Item $nsisZip.FullName $OUTPUT_DIR
-    Copy-Item $nsisSig.FullName $OUTPUT_DIR
-    Write-Host "Update package: $($nsisZip.Name)"
+if ($setupSig) {
+    Copy-Item $setupSig.FullName $OUTPUT_DIR
+    if ($setupExe) { Copy-Item $setupExe.FullName $OUTPUT_DIR }
+    Write-Host "Updater signature: $($setupSig.Name)"
 
-    $signature = (Get-Content $nsisSig.FullName -Raw).Trim()
-    $zipName = $nsisZip.Name
+    $signature = (Get-Content $setupSig.FullName -Raw).Trim()
+    $exeName = if ($setupExe) { $setupExe.Name } else { "setup.exe" }
     $pubDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
     # Read version from tauri.conf.json
@@ -74,16 +74,16 @@ if ($nsisZip -and $nsisSig) {
   "platforms": {
     "windows-x86_64": {
       "signature": "$signature",
-      "url": "http://106.13.77.213:9090/$zipName"
+      "url": "http://106.13.77.213:9090/$exeName"
     }
   }
 }
 "@
     $latestJson | Out-File -Encoding utf8 (Join-Path $OUTPUT_DIR "latest.json")
     Write-Host "latest.json generated (version: $version)"
-    Write-Host "Upload to server: scp $OUTPUT_DIR\latest.json $OUTPUT_DIR\*.nsis.zip $OUTPUT_DIR\*.nsis.zip.sig root@106.13.77.213:/var/www/spc-monitor-updates/"
+    Write-Host "Upload to server: scp $OUTPUT_DIR\latest.json $OUTPUT_DIR\*-setup.exe $OUTPUT_DIR\*-setup.exe.sig root@106.13.77.213:/var/www/spc-monitor-updates/"
 } else {
-    Write-Host "Warning: NSIS update package not found, skipping latest.json"
+    Write-Host "Warning: Updater signature not found, skipping latest.json"
 }
 
 # List outputs

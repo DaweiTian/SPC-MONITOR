@@ -64,18 +64,17 @@ rmdir /s /q "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul || (echo 复制安装包失败 & pause & exit /b 1)
 
 echo [6/6] 生成更新清单 latest.json...
-set "NSIS_ZIP="
-set "NSIS_SIG="
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*.nsis.zip") do set "NSIS_ZIP=%%f"
-for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*.nsis.zip.sig") do set "NSIS_SIG=%%f"
+set "SETUP_EXE="
+set "SETUP_SIG="
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*-setup.exe") do set "SETUP_EXE=%%f"
+for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*-setup.exe.sig") do set "SETUP_SIG=%%f"
 
-if defined NSIS_ZIP (
-    copy /Y "!NSIS_ZIP!" "%OUTPUT_DIR%\" >nul
-    copy /Y "!NSIS_SIG!" "%OUTPUT_DIR%\" >nul
+if defined SETUP_SIG (
+    copy /Y "!SETUP_SIG!" "%OUTPUT_DIR%\" >nul
     REM 读取签名内容
-    set /p SIGNATURE=<!NSIS_SIG!
-    REM 获取文件名
-    for %%n in ("!NSIS_ZIP!") do set "ZIP_NAME=%%~nxn"
+    set /p SIGNATURE=<!SETUP_SIG!
+    REM 获取安装包文件名
+    for %%n in ("!SETUP_EXE!") do set "EXE_NAME=%%~nxn"
 
     (
         echo {
@@ -85,7 +84,7 @@ if defined NSIS_ZIP (
         echo   "platforms": {
         echo     "windows-x86_64": {
         echo       "signature": "!SIGNATURE!",
-        echo       "url": "http://106.13.77.213:9090/!ZIP_NAME!"
+        echo       "url": "http://106.13.77.213:9090/!EXE_NAME!"
         echo     }
         echo   }
         echo }
@@ -93,7 +92,7 @@ if defined NSIS_ZIP (
 
     echo   latest.json 已生成，请将 %OUTPUT_DIR% 目录下的文件上传到更新服务器
 ) else (
-    echo   WARNING: 未找到 NSIS 更新包，跳过 latest.json 生成
+    echo   WARNING: 未找到更新签名文件，跳过 latest.json 生成
 )
 
 echo.
