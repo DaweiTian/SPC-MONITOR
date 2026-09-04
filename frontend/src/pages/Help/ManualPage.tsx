@@ -1026,10 +1026,10 @@ export const ManualPage: React.FC = () => {
           <table className={s.table}>
             <thead><tr><th>方法</th><th>R²</th><th>平均误差(MAE)</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td><b>线性公式（当前采用）</b></td><td><b>0.985</b></td><td><b>0.071</b></td><td>饱和脂肪 = 脂肪 × 0.6278</td></tr>
+              <tr><td><b>线性公式（可选方案一）</b></td><td><b>0.985</b></td><td><b>0.071</b></td><td>饱和脂肪 = 脂肪 × 0.6278</td></tr>
               <tr><td>线性+截距</td><td>0.985</td><td>0.071</td><td>饱和脂肪 = 0.6187×脂肪 + 0.036</td></tr>
-              <tr><td>随机森林(ML)</td><td>0.986</td><td>0.068</td><td>仅提升0.001，不值得增加复杂度</td></tr>
-              <tr><td>梯度提升(ML)</td><td>0.986</td><td>0.068</td><td>同上</td></tr>
+              <tr><td><b>M8随机森林（可选方案二）</b></td><td><b>0.986</b></td><td><b>0.068</b></td><td>MAPE≈2.4%，多特征联合建模</td></tr>
+              <tr><td>梯度提升(ML)</td><td>0.986</td><td>0.068</td><td>同随机森林，但模型更复杂</td></tr>
             </tbody>
           </table>
           <p>线性公式已是该场景的最优解。机器学习方法仅提升0.1%的R²，但增加了模型复杂度和维护成本。</p>
@@ -1053,17 +1053,52 @@ export const ManualPage: React.FC = () => {
           <h4>植物蛋白饮品</h4>
           <p>所有方法R²均为负值。23个样本，ratio从0.14到0.36跨度太大。建议该类型不做预测，或仅作极粗略参考。</p>
 
-          <h4>为什么不用机器学习？</h4>
+          <h4>线性公式 vs M8随机森林</h4>
           <table className={s.table}>
-            <thead><tr><th>维度</th><th>线性公式</th><th>机器学习</th></tr></thead>
+            <thead><tr><th>维度</th><th>线性公式</th><th>M8随机森林</th></tr></thead>
             <tbody>
-              <tr><td>乳制品R²</td><td>0.985</td><td>0.986（仅+0.001）</td></tr>
-              <tr><td>可解释性</td><td>公式直观，可手工验算</td><td>黑盒，无法手工验证</td></tr>
-              <tr><td>计算开销</td><td>一次乘法，&lt;1ms</td><td>需加载模型，~10ms</td></tr>
+              <tr><td>乳制品R²</td><td>0.985</td><td>0.986（+0.001）</td></tr>
+              <tr><td>MAPE</td><td>≈5.1%</td><td>≈2.4%（提升53%）</td></tr>
+              <tr><td>可解释性</td><td>公式直观，可手工验算</td><td>多特征联合，需工具辅助</td></tr>
+              <tr><td>输入特征</td><td>仅脂肪1个</td><td>脂肪+品项+季节+蛋白质+酸度</td></tr>
+              <tr><td>无酸度数据时</td><td>不受影响</td><td>自动降级M8-Lite（4特征，MAPE≈3.0%）</td></tr>
+              <tr><td>计算开销</td><td>一次乘法，&lt;1ms</td><td>加载pkl模型，~10ms</td></tr>
               <tr><td>维护成本</td><td>改系数即可</td><td>需重新训练、版本管理</td></tr>
             </tbody>
           </table>
-          <p>当单指标线性关系已经很强（R²&gt;0.98）时，ML方法的边际收益极小，但引入的复杂度显著增加。线性公式是实时生产环境的最佳选择。</p>
+          <p>两种方案均可在品项管理页面切换。线性公式适合快速部署和简单场景；M8随机森林在MAPE上有显著优势（5.1%→2.4%），适合追求更高精度的场景。</p>
+        </Concept>
+
+        <Concept id="predict-m8" title="M8 随机森林模型详解" tag="预测" tagClass={s.tagStat}>
+          <h4>模型架构</h4>
+          <p>M8 是基于 scikit-learn RandomForestRegressor 训练的饱和脂肪预测模型，采用<b>双模型自动切换</b>机制：</p>
+          <table className={s.table}>
+            <thead><tr><th>模型</th><th>特征数</th><th>输入特征</th><th>MAPE</th><th>适用条件</th></tr></thead>
+            <tbody>
+              <tr><td><b>M8 完整模型</b></td><td>5</td><td>脂肪 + 品项编码 + 季节 + 蛋白质 + 酸度</td><td>≈2.4%</td><td>有酸度数据时自动使用</td></tr>
+              <tr><td><b>M8-Lite 轻量模型</b></td><td>4</td><td>脂肪 + 品项编码 + 季节 + 蛋白质</td><td>≈3.0%</td><td>无酸度数据时自动降级</td></tr>
+            </tbody>
+          </table>
+
+          <h4>特征说明</h4>
+          <table className={s.table}>
+            <thead><tr><th>特征</th><th>类型</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td><b>脂肪</b></td><td>数值</td><td>FT1/FT120 实时采集的脂肪含量（g/100g）</td></tr>
+              <tr><td><b>品项编码</b></td><td>类别</td><td>LabelEncoder 编码的产品类别（灭菌乳、发酵乳等）</td></tr>
+              <tr><td><b>季节</b></td><td>类别</td><td>采集月份映射的季节（1-4：春/夏/秋/冬）</td></tr>
+              <tr><td><b>蛋白质</b></td><td>数值</td><td>同批次蛋白质含量，缺失时用训练集均值(3.2)兜底</td></tr>
+              <tr><td><b>酸度</b></td><td>数值</td><td>同批次酸度，仅M8完整模型使用</td></tr>
+            </tbody>
+          </table>
+
+          <h4>已训练品项</h4>
+          <p>M8 模型已覆盖以下产品类别：灭菌乳、调制乳、发酵乳、乳饮料、乳味饮料、超滤纯牛奶。未覆盖的品项将回退到线性公式。</p>
+
+          <h4>数据对齐策略</h4>
+          <p>跨指标预测时，蛋白质和酸度数据的获取优先级：同批次(sample_id) → 同日数据 → 最新数据。确保使用最相关的特征值。</p>
+
+          <NoteBox><strong>切换方式</strong>：在配置管理 → 品项管理中，找到目标品项的"预测指标"区域，可在线性公式和M8随机森林之间切换。选择品项类别后自动填入推荐系数。</NoteBox>
         </Concept>
 
         <Concept id="predict-future" title="未来提升方向" tag="展望" tagClass={s.tagStat}>

@@ -51,6 +51,7 @@ const tocItems = [
   { id: 'config-frequency', title: '采集频率配置' },
   { id: 'config-alias', title: '别名与排除配置' },
   { id: 'config-prediction', title: '交叉预测配置' },
+  { id: 'config-network', title: '网络共享配置' },
   { id: 'page-dashboard', title: '实时看板' },
   { id: 'page-spc', title: 'SPC 控制图' },
   { id: 'page-capability', title: '过程能力分析' },
@@ -314,18 +315,80 @@ export const UserGuidePage: React.FC = () => {
 
         {/* ─── 交叉预测配置 ─── */}
         <Section id="config-prediction" icon={svgTrend} title="交叉预测配置" subtitle="配置脂肪→饱和脂肪酸的交叉预测参数" tag="配置" tagClass={s.tagBlue}>
-          <p>系统支持基于脂肪含量预测饱和脂肪酸含量的交叉预测功能。在品项编辑弹窗中配置：</p>
+          <p>系统支持基于脂肪含量预测饱和脂肪酸含量的交叉预测功能，提供两种预测方式：</p>
+
+          <h3 className={s.h3}>预测方式切换</h3>
+          <table className={s.table}>
+            <thead><tr><th>方式</th><th>说明</th><th>MAPE</th><th>适用场景</th></tr></thead>
+            <tbody>
+              <tr><td><strong>线性公式</strong></td><td>饱和脂肪 = 脂肪 × 系数(k)</td><td>≈5.1%</td><td>快速部署，简单场景</td></tr>
+              <tr><td><strong>M8 随机森林</strong></td><td>多特征联合建模（脂肪+品项+季节+蛋白质+酸度）</td><td>≈2.4%</td><td>追求更高精度</td></tr>
+            </tbody>
+          </table>
+          <p>M8 模型在有酸度数据时使用完整5特征模型，无酸度时自动降级为 M8-Lite 4特征模型（MAPE≈3.0%）。未覆盖的品项自动回退到线性公式。</p>
+
+          <h3 className={s.h3}>配置项</h3>
           <table className={s.table}>
             <thead><tr><th>配置项</th><th>说明</th><th>默认值</th></tr></thead>
             <tbody>
               <tr><td><strong>启用交叉预测</strong></td><td>开关：是否对该品项启用脂肪→饱和脂肪酸预测</td><td>关闭</td></tr>
-              <tr><td><strong>预测系数</strong></td><td>线性回归系数 k，饱和脂肪酸 = k × 脂肪</td><td>根据样品类别自动填充</td></tr>
+              <tr><td><strong>预测方式</strong></td><td>线性公式 / M8 随机森林</td><td>M8 随机森林</td></tr>
+              <tr><td><strong>预测系数</strong></td><td>线性回归系数 k（仅线性公式模式）</td><td>根据样品类别自动填充</td></tr>
+              <tr><td><strong>品项类别</strong></td><td>产品类别，影响 M8 模型选择和线性系数推荐值</td><td>—</td></tr>
               <tr><td><strong>预测告警</strong></td><td>是否对预测值启用越限告警</td><td>关闭</td></tr>
               <tr><td><strong>告警阈值</strong></td><td>预测偏差超过此百分比时触发告警</td><td>10%</td></tr>
               <tr><td><strong>预测规格限</strong></td><td>预测值的 USL/LSL/目标值（独立于实测值规格限）</td><td>—</td></tr>
             </tbody>
           </table>
-          <Note>预测系数会根据所选的样品类别自动填充推荐值。不同产品类别的系数不同，可在配置中微调。</Note>
+          <Note>选择品项类别后，系统会自动填入推荐的线性系数和 M8 模型。M8 已训练的类别：灭菌乳、调制乳、发酵乳、乳饮料、乳味饮料、超滤纯牛奶。</Note>
+        </Section>
+
+        {/* ─── 网络共享配置 ─── */}
+        <Section id="config-network" icon={svgGear} title="网络共享配置" subtitle="局域网访问、密码保护与防火墙配置" tag="配置" tagClass={s.tagBlue}>
+          <p>系统支持局域网共享，同一网络内的其他设备可通过浏览器访问监控数据。在网络设置页面配置：</p>
+
+          <h3 className={s.h3}>局域网共享</h3>
+          <ul className={s.bulletList}>
+            <li><strong>共享开关</strong>：开启后，同一局域网内的设备可通过 <code>http://本机IP:18080</code> 访问系统</li>
+            <li><strong>访问地址</strong>：页面显示当前设备的局域网访问地址，可一键复制分享</li>
+            <li><strong>重启生效</strong>：切换共享开关后需重启应用使配置生效</li>
+          </ul>
+
+          <h3 className={s.h3}>共享密码保护</h3>
+          <ul className={s.bulletList}>
+            <li><strong>设置密码</strong>：开启密码保护后，远程设备首次访问时需输入密码验证</li>
+            <li><strong>密码验证</strong>：密码验证通过后，当前浏览器会话内无需重复输入</li>
+            <li><strong>清除密码</strong>：可随时清除密码，恢复无密码访问模式</li>
+            <li><strong>安全提示</strong>：建议开启共享时设置密码，防止非授权访问</li>
+          </ul>
+
+          <h3 className={s.h3}>防火墙配置</h3>
+          <ul className={s.bulletList}>
+            <li><strong>一键放行</strong>：点击"一键放行防火墙端口"按钮，自动添加 Windows 防火墙入站规则（需管理员权限）</li>
+            <li><strong>手动放行</strong>：如自动放行失败，可手动以管理员身份运行项目目录下的 <code>scripts/open-firewall.bat</code> 脚本</li>
+            <li><strong>放行端口</strong>：TCP 18080 端口</li>
+          </ul>
+
+          <h3 className={s.h3}>远程访问权限</h3>
+          <p>远程用户（非本机访问）的权限受限，以下模块不可访问：</p>
+          <ul className={s.bulletList}>
+            <li>配置管理</li>
+            <li>数据管理</li>
+            <li>修正值管理</li>
+            <li>网络设置</li>
+            <li>其他设备</li>
+          </ul>
+
+          <Step title="配置步骤">
+            <ol className={s.stepList}>
+              <li>进入"网络设置"页面</li>
+              <li>开启"局域网共享"开关</li>
+              <li>建议设置共享密码</li>
+              <li>点击"一键放行防火墙端口"</li>
+              <li>复制访问地址分享给局域网内的同事</li>
+            </ol>
+          </Step>
+          <Tip>开启共享后，可通过"其他设备"页面扫描局域网内已安装本系统的设备，方便发现和管理。</Tip>
         </Section>
 
         {/* ═══════════════════ 功能页面 ═══════════════════ */}
@@ -437,7 +500,7 @@ export const UserGuidePage: React.FC = () => {
         <Section id="page-prediction" icon={svgTrend} title="智能预测" subtitle="时序预测、风险监测与深度分析" tag="分析" tagClass={s.tagPurple}>
           <p>智能预测页面内置多模型预测引擎，提供趋势预测、风险预警和深度分析能力。</p>
 
-          <h3 className={s.h3}>预测模型</h3>
+          <h3 className={s.h3}>时序预测模型</h3>
           <table className={s.table}>
             <thead><tr><th>模型</th><th>全称</th><th>适用场景</th></tr></thead>
             <tbody>
@@ -447,6 +510,17 @@ export const UserGuidePage: React.FC = () => {
             </tbody>
           </table>
           <p>系统通过 ADF 平稳性检验自动选择最优模型，以 MASE 指标对比各模型预测精度。预测结果包含点预测值和 95% 置信区间。</p>
+
+          <h3 className={s.h3}>跨指标预测（M8 随机森林）</h3>
+          <p>除时序预测外，系统还支持跨指标预测，通过 M8 随机森林模型利用脂肪含量实时预测饱和脂肪：</p>
+          <table className={s.table}>
+            <thead><tr><th>模型</th><th>特征数</th><th>MAPE</th><th>条件</th></tr></thead>
+            <tbody>
+              <tr><td><strong>M8 完整模型</strong></td><td>5（脂肪+品项+季节+蛋白质+酸度）</td><td>≈2.4%</td><td>有酸度数据</td></tr>
+              <tr><td><strong>M8-Lite</strong></td><td>4（脂肪+品项+季节+蛋白质）</td><td>≈3.0%</td><td>无酸度数据时自动降级</td></tr>
+              <tr><td><strong>线性公式</strong></td><td>1（脂肪）</td><td>≈5.1%</td><td>M8 未覆盖的品项自动回退</td></tr>
+            </tbody>
+          </table>
 
           <h3 className={s.h3}>风险监测面板</h3>
           <ul className={s.bulletList}>
@@ -460,7 +534,7 @@ export const UserGuidePage: React.FC = () => {
             <li><strong>Pearson 相关性热力图</strong>：展示各指标间的相关系数矩阵</li>
             <li><strong>GBDT 特征重要性</strong>：基于梯度提升树模型，排序各指标对目标指标的影响权重</li>
             <li><strong>Mann-Kendall 趋势检验</strong>：非参数趋势检测，输出趋势方向、p 值和 Sen 斜率</li>
-            <li><strong>跨指标预测</strong>：利用指标间相关性进行交叉预测（如脂肪→饱和脂肪酸）</li>
+            <li><strong>跨指标预测</strong>：M8 随机森林或线性公式，实时预测饱和脂肪（详见"交叉预测配置"章节）</li>
           </ul>
 
           <Step title="操作步骤">
