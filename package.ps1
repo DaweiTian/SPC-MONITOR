@@ -55,6 +55,21 @@ if (Test-Path $nsisDir) {
 $tauriConf = Get-Content (Join-Path $LAUNCHER_DIR "tauri.conf.json") -Raw | ConvertFrom-Json
 $version = $tauriConf.version
 
+# Extract changelog notes for this version from CHANGELOG.md
+$changelogPath = Join-Path $PROJECT_DIR "CHANGELOG.md"
+$notes = "版本 $version 更新"
+if (Test-Path $changelogPath) {
+    $lines = Get-Content $changelogPath -Encoding utf8
+    $inSection = $false
+    $noteLines = @()
+    foreach ($line in $lines) {
+        if ($line -match "^## \[$version\]") { $inSection = $true; continue }
+        if ($inSection -and $line -match "^## \[") { break }
+        if ($inSection -and $line -match "^- ") { $noteLines += $line.Substring(2) }
+    }
+    if ($noteLines.Count -gt 0) { $notes = $noteLines -join "; " }
+}
+
 $setupSig = Get-ChildItem -Path $nsisDir -Filter "*$version*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
 $setupExe = Get-ChildItem -Path $nsisDir -Filter "*$version*-setup.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '\.sig$' } | Select-Object -First 1
 
@@ -70,7 +85,7 @@ if ($setupSig) {
     $latestJson = @"
 {
   "version": "$version",
-  "notes": "请填写更新日志",
+  "notes": "$notes",
   "pub_date": "$pubDate",
   "platforms": {
     "windows-x86_64": {
