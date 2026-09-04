@@ -104,7 +104,7 @@ conn.execute(
 
 - [ ] **Step 4: Verify the backend starts without errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python3 -c "from backend.app.services.storage import OnlineStorage; s = OnlineStorage('/tmp/test_spc.db'); s.init_db(); print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python3 -c "from backend.app.services.storage import OnlineStorage; s = OnlineStorage('/tmp/test_spc.db'); s.init_db(); print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 5: Commit**
@@ -209,7 +209,7 @@ Note: Flat mode doesn't have a remark column in the current schema, so `remark` 
 
 - [ ] **Step 5: Verify no import errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python3 -c "from backend.app.engine.collector.sqlserver import SQLServerCollector; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python3 -c "from backend.app.engine.collector.sqlserver import SQLServerCollector; print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 6: Commit**
@@ -299,7 +299,7 @@ record = {
 
 - [ ] **Step 5: Verify no import errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python3 -c "from backend.app.engine.collector.mdb import MDBCollector; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python3 -c "from backend.app.engine.collector.mdb import MDBCollector; print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 6: Commit**
@@ -380,7 +380,7 @@ Note: `sample_number` is already extracted at line 170 but was previously discar
 
 - [ ] **Step 4: Verify no import errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python3 -c "from backend.app.engine.collector.fta import FTACollector; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python3 -c "from backend.app.engine.collector.fta import FTACollector; print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 5: Commit**
@@ -433,7 +433,7 @@ for i, (ts, val) in enumerate(zip(timestamps, values)):
 
 - [ ] **Step 2: Verify the backend starts without errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python3 -c "from backend.app.api.spc import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python3 -c "from backend.app.api.spc import router; print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 3: Commit**
@@ -522,7 +522,7 @@ formatter: (params: DefaultLabelFormatterCallbackParams | DefaultLabelFormatterC
 
 - [ ] **Step 4: Verify frontend builds without errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx tsc --noEmit 2>&1 | head -20`
 Expected: No TypeScript errors related to our changes
 
 - [ ] **Step 5: Commit**

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Upgrade the FT1-MONITOR prediction module from broken R²/MAPE metrics + point-value risk to MASE/direction-accuracy metrics + probabilistic risk assessment + auto model selection + CUSUM + GBDT.
+**Goal:** Upgrade the spc-monitor prediction module from broken R²/MAPE metrics + point-value risk to MASE/direction-accuracy metrics + probabilistic risk assessment + auto model selection + CUSUM + GBDT.
 
 **Architecture:** All changes flow through `backend/app/api/predict.py` (prediction engine) and `frontend/src/pages/Prediction/index.tsx` (UI). New API endpoints are added to the same router. P2 adds 3 SQLite tables. P3 adds sklearn dependency and feature engineering modules.
 
@@ -136,7 +136,7 @@ And same for the full-data forecast (lines 173-178):
 
 - [ ] **Step 6: Verify backend starts without errors**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -c "from backend.app.api.predict import router; print('OK')"`
 Expected: `OK`
 
 ---
@@ -228,7 +228,7 @@ Replace the `modelLabels` and `modelEvalRows`:
 
 - [ ] **Step 5: Verify frontend builds**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2>&1 | tail -5`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite build 2>&1 | tail -5`
 Expected: Build succeeds with no TypeScript errors
 
 ---
@@ -344,7 +344,7 @@ Then add `"risk": risk_data` to the response dict (after `"accuracy": accuracy`)
 
 - [ ] **Step 6: Verify backend starts**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -c "from backend.app.api.predict import router; print('OK')"`
 Expected: `OK`
 
 ---
@@ -423,7 +423,7 @@ Replace the hardcoded "暂无越限风险" with dynamic risk display:
 
 - [ ] **Step 5: Verify frontend builds**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2>&1 | tail -5`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite build 2>&1 | tail -5`
 
 ---
 
@@ -549,7 +549,7 @@ Then add `auto_selected` and `select_reason` to the response data dict:
 
 - [ ] **Step 6: Verify backend**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -c "from backend.app.api.predict import router; print('OK')"`
 
 ---
 
@@ -746,7 +746,7 @@ def risk_breach(
 
 - [ ] **Step 5: Verify backend**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -c "from backend.app.api.predict import router; print('OK')"`
 
 ---
 
@@ -900,7 +900,7 @@ Add the chart panel in the JSX (after residual panel, before the closing `</div>
 
 - [ ] **Step 6: Verify frontend builds**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2>&1 | tail -5`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite build 2>&1 | tail -5`
 
 ---
 
@@ -931,7 +931,7 @@ Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2
 
 - [ ] **Step 2: Verify TypeScript compilation**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx tsc --noEmit 2>&1 | head -20`
 
 ---
 
@@ -1165,7 +1165,7 @@ In the `forecast` endpoint, after computing risk, add:
 
 - [ ] **Step 7: Verify backend**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -c "from backend.app.api.predict import router; print('OK')"`
 
 ---
 
@@ -1366,7 +1366,7 @@ Add after the model comparison panel:
 
 - [ ] **Step 4: Verify frontend builds**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2>&1 | tail -5`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite build 2>&1 | tail -5`
 
 ---
 
@@ -1500,7 +1500,7 @@ def feature_importance(
 
 - [ ] **Step 4: Verify backend with new dependencies**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/backend && pip install scikit-learn pandas --quiet && python -c "from backend.app.api.predict import router; print('OK')"`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/backend && pip install scikit-learn pandas --quiet && python -c "from backend.app.api.predict import router; print('OK')"`
 
 ---
 
@@ -1604,7 +1604,7 @@ Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/backend && pip install sciki
 
 - [ ] **Step 5: Verify frontend builds**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2>&1 | tail -5`
+Run: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite build 2>&1 | tail -5`
 
 ---
 
@@ -1614,7 +1614,7 @@ Run: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite build 2
 
 - [ ] **Step 1: Start backend and verify all endpoints**
 
-Run: `cd /home/erribaba/git-workstation/FT1-MONITOR && python -m backend.run &`
+Run: `cd /home/erribaba/git-workstation/spc-monitor && python -m backend.run &`
 
 Wait for startup, then test:
 ```bash
@@ -1646,7 +1646,7 @@ curl -s "http://127.0.0.1:18080/api/predict/feature/importance?product=P001&indi
 
 - [ ] **Step 5: Verify frontend renders correctly**
 
-Start dev server: `cd /home/erribaba/git-workstation/FT1-MONITOR/frontend && npx vite dev`
+Start dev server: `cd /home/erribaba/git-workstation/spc-monitor/frontend && npx vite dev`
 
 Open browser to `http://localhost:5173`, navigate to Prediction page, verify:
 - KPI cards show MASE and direction accuracy (not R²)

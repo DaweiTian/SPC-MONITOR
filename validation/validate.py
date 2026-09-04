@@ -312,7 +312,7 @@ def validate_cpk_trend(values, usl, lsl, window=30, horizon=12):
 # ============================================================
 def main():
     print("=" * 70)
-    print("  FT1-MONITOR 预测模块优化验证报告")
+    print("  spc-monitor 预测模块优化验证报告")
     print("  验证日期：2026-08-22")
     print("  数据来源：data/monitor.db（真实采集数据）")
     print("=" * 70)

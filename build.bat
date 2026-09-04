@@ -49,7 +49,7 @@ cargo tauri build || (echo Tauri 构建失败 & pause & exit /b 1)
 
 echo [5/6] 打包免安装版...
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-set PORTABLE=%OUTPUT_DIR%\FT1-MONITOR-Portable
+set PORTABLE=%OUTPUT_DIR%\spc-monitor-Portable
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
 mkdir "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\SPC-Monitor.exe" "%PORTABLE%\过程SPC监控平台.exe" >nul || (echo 复制主程序失败 & pause & exit /b 1)

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix all critical, important, and minor issues identified in the comprehensive code review of FT1-MONITOR.
+**Goal:** Fix all critical, important, and minor issues identified in the comprehensive code review of spc-monitor.
 
 **Architecture:** Three-phase approach: (1) Security & Stability, (2) Code Quality, (3) Robustness. Each phase builds on the previous. Parallel subagents handle independent tasks within each phase.
 

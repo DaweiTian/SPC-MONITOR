@@ -7,7 +7,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 FT1-MONITOR 启动器从 Tauri v1 升级到 v2，实现 Mica 窗口特效、桌面半透明小组件、启动等待动画，后端打包从 PyInstaller 切换到 Nuitka。
+**Goal:** 将 spc-monitor 启动器从 Tauri v1 升级到 v2，实现 Mica 窗口特效、桌面半透明小组件、启动等待动画，后端打包从 PyInstaller 切换到 Nuitka。
 
 **Architecture:** Tauri v2 多窗口架构（splash + main + widget），window-vibrancy 实现 Mica/Blur 窗口特效，Nuitka 编译 Python 后端为原生 exe，独立进程管理后端生命周期。
 
@@ -716,7 +716,7 @@ cargo tauri build || (echo Tauri 构建失败 & pause & exit /b 1)
 
 echo [5/5] 打包免安装版...
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-set PORTABLE=%OUTPUT_DIR%\FT1-MONITOR-Portable
+set PORTABLE=%OUTPUT_DIR%\spc-monitor-Portable
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
 mkdir "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\ft1-monitor-launcher.exe" "%PORTABLE%\" >nul

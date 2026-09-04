@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **设备管理页面** (`/devices`): 局域网设备扫描、手动添加/移除设备、设备列表管理
 - **密码验证对话框** (`PasswordDialog`): 远程访问时弹出密码输入框，支持 sessionStorage 持久化
 - **共享密码保护**: `POST /api/auth/verify` 密码验证端点，远程用户需输入密码才能访问
-- **局域网发现** (`GET /api/network/discover`): 扫描同网段内其他 FT1-MONITOR 实例
+- **局域网发现** (`GET /api/network/discover`): 扫描同网段内其他 spc-monitor 实例
 - **防火墙放行** (`POST /api/network/open-firewall`): 一键 Windows 防火墙端口放行（UAC 提权）
 - **防火墙脚本** (`scripts/open-firewall.bat`): 手动防火墙配置工具
 
@@ -211,7 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Highlights
 
-This is the first production release of the FT1-MONITOR platform. It migrates the desktop shell from Tauri v1 to v2, replaces PyInstaller with Nuitka for backend packaging, and adds real-time alert notifications with in-app toast, sound, and system-level push.
+This is the first production release of the spc-monitor platform. It migrates the desktop shell from Tauri v1 to v2, replaces PyInstaller with Nuitka for backend packaging, and adds real-time alert notifications with in-app toast, sound, and system-level push.
 
 ### Added
 

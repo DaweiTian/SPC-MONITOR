@@ -183,7 +183,7 @@ Note: the `result` variable (IMR) is always computed regardless of chart_type, s
 
 Run the backend server and test:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python -c "
 from backend.app.engine.spc.control_charts import EWMAControlChart
 import numpy as np
@@ -344,7 +344,7 @@ Then in the response construction (around line 596), add `trend_analysis` to the
 - [ ] **Step 4: Verify Mann-Kendall works**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python -c "
 from backend.app.api.predict import _mann_kendall_test
 import numpy as np
@@ -577,7 +577,7 @@ In the chart rendering section, conditionally show I-MR or EWMA based on `chartT
 
 Start the dev server and check:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run dev
 ```
 Navigate to SPC page, click "EWMA 图" tab, verify chart renders with λ slider.

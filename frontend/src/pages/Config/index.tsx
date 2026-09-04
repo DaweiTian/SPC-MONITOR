@@ -76,10 +76,10 @@ const INSTRUMENTS: InstrumentInfo[] = [
 ]
 
 const INITIAL_SPECS: SpecLimit[] = [
-  { id: '1', product: 'FT1-STD', indicator: '直径(mm)', usl: 10.05, lsl: 9.95, target: 10.00, unit: 'mm' },
-  { id: '2', product: 'FT1-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
-  { id: '3', product: 'FT1-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
-  { id: '4', product: 'FT1-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
+  { id: '1', product: 'SPC-STD', indicator: '直径(mm)', usl: 10.05, lsl: 9.95, target: 10.00, unit: 'mm' },
+  { id: '2', product: 'SPC-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
+  { id: '3', product: 'SPC-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
+  { id: '4', product: 'SPC-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
 ]
 
 const DEFAULT_DB_CONFIG: DBConfig = {
@@ -1870,7 +1870,7 @@ export const ConfigPage: React.FC = () => {
                       className={styles.formInput}
                       value={newProduct.code}
                       onChange={e => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
-                      placeholder="例: FT1-STD"
+                      placeholder="例: SPC-STD"
                       aria-label="品项编码"
                     />
                   </div>

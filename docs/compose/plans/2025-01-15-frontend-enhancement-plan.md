@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Enhance FT1-MONITOR frontend with sticky header, help documentation, data management page, config improvements, and consistent styling.
+**Goal:** Enhance spc-monitor frontend with sticky header, help documentation, data management page, config improvements, and consistent styling.
 
 **Architecture:** Port proven patterns from yili-lims-data-model (Vue/Element Plus) to React/Ant Design. Add new pages and components while maintaining existing functionality. CSS variables for consistent theming.
 
@@ -157,7 +157,7 @@ Run dev server and verify:
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/src/index.css frontend/src/components/Layout/index.tsx
 git commit -m "feat: add sticky header and CSS variables foundation"
 ```
@@ -380,7 +380,7 @@ Run dev server and import HelpTooltip in any page to verify it renders correctly
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/src/components/HelpTooltip/index.tsx
 git commit -m "feat: add HelpTooltip component with 30+ term definitions"
 ```
@@ -403,8 +403,8 @@ git commit -m "feat: add HelpTooltip component with 30+ term definitions"
 - [ ] **Step 1: Copy HTML documentation files**
 
 ```bash
-mkdir -p /home/erribaba/git-workstation/FT1-MONITOR/frontend/public/docs
-cp /home/erribaba/git-workstation/yili-lims-data-model/frontend/public/docs/*.html /home/erribaba/git-workstation/FT1-MONITOR/frontend/public/docs/
+mkdir -p /home/erribaba/git-workstation/spc-monitor/frontend/public/docs
+cp /home/erribaba/git-workstation/yili-lims-data-model/frontend/public/docs/*.html /home/erribaba/git-workstation/spc-monitor/frontend/public/docs/
 ```
 
 - [ ] **Step 2: Create Help page**
@@ -535,7 +535,7 @@ Run dev server and verify:
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/public/docs/ frontend/src/pages/Help/index.tsx frontend/src/App.tsx
 git commit -m "feat: add help center page with documentation links"
 ```
@@ -757,7 +757,7 @@ Run dev server and verify:
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/src/pages/Data/index.tsx frontend/src/App.tsx
 git commit -m "feat: add data management page with filters and statistics"
 ```
@@ -1136,7 +1136,7 @@ Run dev server and verify:
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/src/pages/Config/index.tsx
 git commit -m "feat: enhance config page with field mapping and Nelson rules"
 ```
@@ -1213,7 +1213,7 @@ Run dev server and verify:
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/src/pages/SPC/index.tsx frontend/src/pages/Capability/index.tsx frontend/src/pages/Dashboard/index.tsx
 git commit -m "feat: add HelpTooltip to SPC, Capability, and Dashboard pages"
 ```
@@ -1233,7 +1233,7 @@ git commit -m "feat: add HelpTooltip to SPC, Capability, and Dashboard pages"
 - [ ] **Step 1: Run full build check**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run build
 ```
 
@@ -1242,7 +1242,7 @@ Expected: Build succeeds with no TypeScript errors.
 - [ ] **Step 2: Run dev server and test all pages**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run dev
 ```
 
@@ -1262,7 +1262,7 @@ Test checklist:
 - [ ] **Step 3: Commit final state**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git status
 # If any uncommitted changes:
 git add -A

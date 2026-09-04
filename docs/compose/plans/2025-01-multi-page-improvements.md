@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix 18 issues across Data Management, Config Management, Help, and Navigation pages in the FT1-MONITOR system.
+**Goal:** Fix 18 issues across Data Management, Config Management, Help, and Navigation pages in the spc-monitor system.
 
 **Architecture:** Backend changes add new API endpoints and persist config state. Frontend changes update page components, icons, and layout. Each task is self-contained and independently testable.
 
@@ -1094,7 +1094,7 @@ git commit -m "feat: dynamic status display, version 1.5.1, status bar redesign"
 - [ ] **Step 1: Start backend and frontend**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 # Terminal 1: backend
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 # Terminal 2: frontend

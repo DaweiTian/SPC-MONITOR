@@ -103,16 +103,16 @@ export const INSTRUMENTS: InstrumentInfo[] = [
 ]
 
 export const INITIAL_PRODUCTS: ProductItem[] = [
-  { id: '1', name: 'FT1-标准型', code: 'FT1-STD', indicatorCount: 8, status: 'enabled' },
-  { id: '2', name: 'FT1-高精度型', code: 'FT1-HP', indicatorCount: 6, status: 'enabled' },
-  { id: '3', name: 'FT1-经济型', code: 'FT1-ECO', indicatorCount: 5, status: 'disabled' },
+  { id: '1', name: 'SPC-标准型', code: 'SPC-STD', indicatorCount: 8, status: 'enabled' },
+  { id: '2', name: 'SPC-高精度型', code: 'SPC-HP', indicatorCount: 6, status: 'enabled' },
+  { id: '3', name: 'SPC-经济型', code: 'SPC-ECO', indicatorCount: 5, status: 'disabled' },
 ]
 
 export const INITIAL_SPECS: SpecLimit[] = [
-  { id: '1', product: 'FT1-STD', indicator: '直径(mm)', usl: 10.05, lsl: 9.95, target: 10.00, unit: 'mm' },
-  { id: '2', product: 'FT1-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
-  { id: '3', product: 'FT1-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
-  { id: '4', product: 'FT1-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
+  { id: '1', product: 'SPC-STD', indicator: '直径(mm)', usl: 10.05, lsl: 9.95, target: 10.00, unit: 'mm' },
+  { id: '2', product: 'SPC-STD', indicator: '圆度(μm)', usl: 2.0, lsl: 0, target: 0.5, unit: 'μm' },
+  { id: '3', product: 'SPC-HP', indicator: '表面粗糙度', usl: 0.8, lsl: 0, target: 0.3, unit: 'Ra' },
+  { id: '4', product: 'SPC-HP', indicator: '硬度(HRC)', usl: 62, lsl: 58, target: 60, unit: 'HRC' },
 ]
 
 export const DEFAULT_DB_CONFIG: DBConfig = {

@@ -1,4 +1,4 @@
-"""FT1-MONITOR 后端入口 (PyInstaller / Nuitka 打包用)
+"""spc-monitor 后端入口 (PyInstaller / Nuitka 打包用)
 
 用法:
     ft1-backend.exe [--port 18080] [--host 127.0.0.1]

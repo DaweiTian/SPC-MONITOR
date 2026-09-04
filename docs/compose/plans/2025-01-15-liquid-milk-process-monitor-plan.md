@@ -26,12 +26,12 @@
 **Covers:** [S1, S2]
 
 **Files:**
-- Create: `FT1-MONITOR/backend/requirements.txt`
-- Create: `FT1-MONITOR/backend/main.py`
-- Create: `FT1-MONITOR/frontend/package.json`
-- Create: `FT1-MONITOR/frontend/vite.config.ts`
-- Create: `FT1-MONITOR/launcher/Cargo.toml`
-- Create: `FT1-MONITOR/README.md`
+- Create: `spc-monitor/backend/requirements.txt`
+- Create: `spc-monitor/backend/main.py`
+- Create: `spc-monitor/frontend/package.json`
+- Create: `spc-monitor/frontend/vite.config.ts`
+- Create: `spc-monitor/launcher/Cargo.toml`
+- Create: `spc-monitor/README.md`
 
 **Interfaces:**
 - 无依赖，纯脚手架任务
@@ -39,8 +39,8 @@
 - [ ] **Step 1: 创建项目根目录**
 
 ```bash
-mkdir -p /home/erribaba/git-workstation/FT1-MONITOR
-cd /home/erribaba/git-workstation/FT1-MONITOR
+mkdir -p /home/erribaba/git-workstation/spc-monitor
+cd /home/erribaba/git-workstation/spc-monitor
 git init
 ```
 
@@ -223,7 +223,7 @@ cargo tauri dev
 - [ ] **Step 10: 初始化 Git 并提交**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add .
 git commit -m "feat: 初始化项目结构"
 ```
@@ -475,7 +475,7 @@ __all__ = ["get_db", "get_settings", "Settings"]
 - [ ] **Step 6: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加后端核心配置和数据模型"
 ```
@@ -1034,7 +1034,7 @@ class AdaptiveScheduler:
 - [ ] **Step 5: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加数据采集引擎"
 ```
@@ -1418,7 +1418,7 @@ class ProcessCapability:
 - [ ] **Step 4: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加 SPC 分析引擎"
 ```
@@ -1630,7 +1630,7 @@ class AlertEngine:
 - [ ] **Step 2: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加预警引擎"
 ```
@@ -1911,7 +1911,7 @@ class OnlineStorage:
 - [ ] **Step 2: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加存储服务"
 ```
@@ -2534,7 +2534,7 @@ if __name__ == "__main__":
 - [ ] **Step 7: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add backend/
 git commit -m "feat: 添加后端 API 路由"
 ```
@@ -3018,7 +3018,7 @@ code {
 - [ ] **Step 8: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/
 git commit -m "feat: 添加前端基础框架"
 ```
@@ -3850,7 +3850,7 @@ export const ConfigPage: React.FC = () => {
 - [ ] **Step 6: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add frontend/
 git commit -m "feat: 添加前端页面"
 ```
@@ -4117,7 +4117,7 @@ pub fn apply_update(path: &str) -> Result<(), String> {
 - [ ] **Step 7: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add launcher/
 git commit -m "feat: 添加 Rust 启动器"
 ```
@@ -4203,7 +4203,7 @@ cargo tauri dev
 ## 项目结构
 
 ```
-FT1-MONITOR/
+spc-monitor/
 ├── backend/           # FastAPI 后端
 ├── frontend/          # React 前端
 ├── launcher/          # Rust 启动器
@@ -4387,7 +4387,7 @@ server {
 - [ ] **Step 4: 提交代码**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add .
 git commit -m "docs: 添加项目文档"
 ```

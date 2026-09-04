@@ -13,7 +13,7 @@ commits: 7057298..d3b5340
 
 ## What Was Built
 
-FT1-MONITOR launcher upgraded from Tauri v1.5 to Tauri v2, with three new features: Windows Mica/blur window effects, a splash loading screen with backend health monitoring, and a semi-transparent desktop widget for SPC/Cpk dashboard data. Backend packaging switched from PyInstaller to Nuitka for smaller binary size and faster startup.
+spc-monitor launcher upgraded from Tauri v1.5 to Tauri v2, with three new features: Windows Mica/blur window effects, a splash loading screen with backend health monitoring, and a semi-transparent desktop widget for SPC/Cpk dashboard data. Backend packaging switched from PyInstaller to Nuitka for smaller binary size and faster startup.
 
 The upgrade touches 14 files across 4 areas: Rust launcher (config + source), frontend (splash + widget HTML/JS), backend (Nuitka packaging), and build tooling. All Tauri v1 APIs (`SystemTray`, `CustomMenuItem`, `get_window`, `allowlist`) have been replaced with their v2 equivalents (`TrayIconBuilder`, `MenuItem::with_id`, `get_webview_window`, capabilities system).
 

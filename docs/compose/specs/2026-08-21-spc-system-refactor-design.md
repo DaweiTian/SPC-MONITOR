@@ -6,7 +6,7 @@
 
 ## [S1] Problem Statement
 
-The current FT1-MONITOR project has a working backend with SPC engine, mock data collection, and alert system, but the frontend uses Ant Design's default light theme — far from the industrial-grade dark sci-fi UI specified in the prototype (`docs/index.html`). Key gaps:
+The current spc-monitor project has a working backend with SPC engine, mock data collection, and alert system, but the frontend uses Ant Design's default light theme — far from the industrial-grade dark sci-fi UI specified in the prototype (`docs/index.html`). Key gaps:
 
 - **Visual**: Light theme, no ECharts integration on most pages, no dark mode
 - **Missing module**: No prediction/forecasting page

@@ -803,7 +803,7 @@ async def open_firewall(request: Request):
         ps_cmd = (
             'Start-Process cmd -ArgumentList '
             '"/c netsh advfirewall firewall add rule '
-            'name=\'FT1-MONITOR (TCP 18080)\' dir=in action=allow protocol=TCP localport=18080" '
+            'name=\'SPC-Monitor (TCP 18080)\' dir=in action=allow protocol=TCP localport=18080" '
             '-Verb RunAs -WindowStyle Hidden'
         )
         rc = ctypes.windll.shell32.ShellExecuteW(
@@ -815,7 +815,7 @@ async def open_firewall(request: Request):
         time.sleep(3)
         try:
             check = subprocess.run(
-                ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=FT1-MONITOR (TCP 18080)'],
+                ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=SPC-Monitor (TCP 18080)'],
                 capture_output=True
             )
             stdout = check.stdout.decode('gbk', errors='replace') if check.stdout else ''
@@ -830,7 +830,7 @@ async def open_firewall(request: Request):
 
 @app.get("/api/network/discover")
 async def discover_devices():
-    """扫描局域网内开启共享的 FT1-MONITOR 服务"""
+    """扫描局域网内开启共享的 spc-monitor 服务"""
     import socket
     import concurrent.futures
 

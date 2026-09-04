@@ -53,11 +53,11 @@ echo [3/4] 启动后端服务 (端口 18080)...
 cd /d "%PROJECT_DIR%"
 for /f "delims=" %%i in ('python -c "from backend.app.core.config import get_server_config; print(get_server_config()['host'])" 2^>nul') do set BACKEND_HOST=%%i
 if "%BACKEND_HOST%"=="" set BACKEND_HOST=0.0.0.0
-start "FT1-Monitor Backend" python -m uvicorn backend.main:app --host %BACKEND_HOST% --port 18080 --reload
+start "SPC-Monitor Backend" python -m uvicorn backend.main:app --host %BACKEND_HOST% --port 18080 --reload
 
 echo [4/4] 启动前端服务 (端口 5173)...
 cd /d "%PROJECT_DIR%\frontend"
-start "FT1-Monitor Frontend" npm run dev
+start "SPC-Monitor Frontend" npm run dev
 
 echo.
 echo ==========================================

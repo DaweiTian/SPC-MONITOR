@@ -1,4 +1,4 @@
-; NSIS Installer Hooks for FT1-MONITOR
+; NSIS Installer Hooks for spc-monitor
 ; See: https://v2.tauri.app/distribute/windows-installer/#extending-the-installer
 
 !macro NSIS_HOOK_PREINSTALL

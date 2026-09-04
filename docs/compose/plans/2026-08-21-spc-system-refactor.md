@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refactor the FT1-MONITOR SPC system from Ant Design light theme to a custom dark sci-fi UI matching the prototype, add prediction module, wire real-time WebSocket, enable data source switching, and optimize the Rust launcher.
+**Goal:** Refactor the spc-monitor SPC system from Ant Design light theme to a custom dark sci-fi UI matching the prototype, add prediction module, wire real-time WebSocket, enable data source switching, and optimize the Rust launcher.
 
 **Architecture:** Frontend is fully rewritten with custom CSS (no antd), all pages use ECharts for visualization. Backend gets new prediction/source-switch/export APIs. WebSocket broadcast is wired into the collection pipeline. Launcher gets real config, health checks, and tray actions.
 
@@ -37,7 +37,7 @@
 - [ ] **Step 1: Remove antd dependencies**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm uninstall antd @ant-design/icons
 ```
 
@@ -113,7 +113,7 @@ Ensure `main.tsx` only imports `index.css` and renders `<App />`. Remove any ant
 - [ ] **Step 4: Verify build compiles (expect errors from missing antd imports)**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npx tsc --noEmit 2>&1 | head -20
 ```
 
@@ -339,7 +339,7 @@ import { PredictionPage } from './pages/Prediction'
 - [ ] **Step 4: Verify layout renders in browser**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run dev
 ```
 
@@ -721,7 +721,7 @@ Add exponential backoff reconnection (1s → 2s → 4s → 8s → max 30s). Add 
 - [ ] **Step 4: Verify TypeScript compiles**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npx tsc --noEmit
 ```
 
@@ -993,7 +993,7 @@ Either integrate the Pydantic schemas into endpoints (add `response_model=`) or 
 - [ ] **Step 3: Verify backend starts without errors**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -1297,7 +1297,7 @@ git commit -m "feat: port management, CREATE_NO_WINDOW, graceful shutdown"
 - [ ] **Step 1: Build frontend**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run build
 ```
 
@@ -1306,7 +1306,7 @@ Expected: zero errors, clean build.
 - [ ] **Step 2: Start full system**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 &
 cd frontend && npm run dev &
 ```
@@ -1330,7 +1330,7 @@ Wait for automatic data collection cycle (5 min or trigger manual), verify Dashb
 - [ ] **Step 5: Build launcher**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/launcher
+cd /home/erribaba/git-workstation/spc-monitor/launcher
 cargo build
 ```
 

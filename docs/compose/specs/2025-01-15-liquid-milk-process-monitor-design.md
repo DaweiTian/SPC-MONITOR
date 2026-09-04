@@ -6,7 +6,7 @@
 液奶过程监控系统 (Liquid Milk Process Monitoring System)
 
 ### 项目位置
-`/home/erribaba/git-workstation/FT1-MONITOR`
+`/home/erribaba/git-workstation/spc-monitor`
 
 ### 项目定位
 专注于 FT120 仪器数据的实时检测和分析，提供 SPC 控制图、过程能力分析、实时预警等功能。
@@ -27,7 +27,7 @@
 ### 整体架构
 
 ```
-FT1-MONITOR/
+spc-monitor/
 ├── backend/                    # FastAPI 后端
 │   ├── app/
 │   │   ├── api/               # API 路由

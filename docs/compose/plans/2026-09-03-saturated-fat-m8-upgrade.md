@@ -29,16 +29,16 @@
 - [ ] **Step 1: 创建models目录并复制模型文件**
 
 ```bash
-mkdir -p /home/erribaba/git-workstation/FT1-MONITOR/backend/models
+mkdir -p /home/erribaba/git-workstation/spc-monitor/backend/models
 cp "/mnt/d/伊利/数据建模/脂肪-饱和脂肪多特征回归数据_m8_model.pkl" \
-   /home/erribaba/git-workstation/FT1-MONITOR/backend/models/m8_saturated_fat.pkl
+   /home/erribaba/git-workstation/spc-monitor/backend/models/m8_saturated_fat.pkl
 ```
 
 - [ ] **Step 2: 验证模型文件可加载**
 
 Run:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python3 -c "
 import joblib
 data = joblib.load('backend/models/m8_saturated_fat.pkl')
@@ -267,7 +267,7 @@ def is_m8_available() -> bool:
 
 Run:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python3 -c "
 from backend.app.engine.predictor.m8_model import predict_m8, is_m8_available, FeatureMissingError
 print('M8 available:', is_m8_available())
@@ -430,7 +430,7 @@ def predict_cross_indicator(
 
 Run:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python3 -c "
 from backend.app.engine.predictor.cross_indicator import predict_cross_indicator
 
@@ -745,7 +745,7 @@ git commit -m "feat: add prediction method toggle (linear/M8) in product config 
 
 Run:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 python3 -c "
 from backend.app.engine.predictor.cross_indicator import predict_cross_indicator
 
@@ -784,7 +784,7 @@ Expected: `All integration tests passed!`
 
 Run:
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR/frontend
+cd /home/erribaba/git-workstation/spc-monitor/frontend
 npm run build
 ```
 Expected: 构建成功，无TypeScript错误
@@ -792,7 +792,7 @@ Expected: 构建成功，无TypeScript错误
 - [ ] **Step 3: Commit最终状态**
 
 ```bash
-cd /home/erribaba/git-workstation/FT1-MONITOR
+cd /home/erribaba/git-workstation/spc-monitor
 git add -A
 git status
 ```

@@ -9,7 +9,7 @@ $OUTPUT_DIR = Join-Path $PROJECT_DIR "dist"
 New-Item -ItemType Directory -Force -Path $OUTPUT_DIR | Out-Null
 
 # Portable version
-$PORTABLE = Join-Path $OUTPUT_DIR "FT1-MONITOR-Portable"
+$PORTABLE = Join-Path $OUTPUT_DIR "spc-monitor-Portable"
 if (Test-Path $PORTABLE) { Remove-Item -Recurse -Force $PORTABLE }
 New-Item -ItemType Directory -Path $PORTABLE | Out-Null
 

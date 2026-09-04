@@ -154,7 +154,7 @@ export const ProductManager = React.memo(function ProductManager(props: ProductM
                       className={styles.formInput}
                       value={newProduct.code}
                       onChange={e => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
-                      placeholder="例: FT1-STD"
+                      placeholder="例: SPC-STD"
                     />
                   </div>
                 </div>

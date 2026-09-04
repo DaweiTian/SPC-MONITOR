@@ -66,8 +66,8 @@ pub fn run() {
                 extern "system" {
                     fn SetCurrentProcessExplicitAppUserModelID(app_id: *const u16) -> i32;
                 }
-                // "FT1.SPCMonitor.Launcher" as null-terminated UTF-16
-                let app_id: Vec<u16> = "FT1.SPCMonitor.Launcher\0".encode_utf16().collect();
+                // "SPC.Monitor.Launcher" as null-terminated UTF-16
+                let app_id: Vec<u16> = "SPC.Monitor.Launcher\0".encode_utf16().collect();
                 unsafe {
                     let _ = SetCurrentProcessExplicitAppUserModelID(app_id.as_ptr());
                 }

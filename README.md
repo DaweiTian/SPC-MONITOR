@@ -1,4 +1,4 @@
-# FT1-MONITOR — 液奶过程监控平台
+# spc-monitor — 液奶过程监控平台
 
 基于 FT120 仪器的乳制品生产过程 SPC 监控、预测预警与数据分析桌面平台。
 
@@ -48,7 +48,7 @@
 ## 项目结构
 
 ```
-FT1-MONITOR/
+spc-monitor/
 ├── backend/           # FastAPI 后端
 │   ├── app/
 │   │   ├── api/       # API 路由
