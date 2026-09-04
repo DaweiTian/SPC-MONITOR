@@ -102,40 +102,51 @@ def load_spec_limits(filepath: str, product_code: Optional[str] = None) -> Dict[
         return {}
 
 
+_detected_odbc_driver: str | None = None
+
+
 def _detect_odbc_driver() -> str:
-    """检测系统上可用的 SQL Server ODBC 驱动"""
-    import subprocess
+    """检测系统上可用的 SQL Server ODBC 驱动（结果缓存，只检测一次）"""
+    global _detected_odbc_driver
+    if _detected_odbc_driver is not None:
+        return _detected_odbc_driver
+
+    # 优先用 winreg 直接读注册表（无弹窗）
     try:
-        # PowerShell 查询注册表中的 ODBC 驱动
-        result = subprocess.run(
-            ['powershell', '-Command',
-             r"Get-ItemProperty 'HKLM:\SOFTWARE\ODBC\ODBCINST.INI\*\*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Driver | Where-Object { $_ -like '*sqlsrv*' }"],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.stdout.strip():
-            # 从驱动路径提取驱动名
-            drivers = result.stdout.strip().split('\n')
-            for d in drivers:
-                d = d.strip()
-                if '17' in d:
-                    return 'ODBC Driver 17 for SQL Server'
-                if '18' in d:
-                    return 'ODBC Driver 18 for SQL Server'
-            return 'ODBC Driver 17 for SQL Server'
-    except Exception:
-        pass
-    # 通用回退：尝试列出所有 ODBC 驱动
-    try:
-        result = subprocess.run(
-            ['powershell', '-Command',
-             r"Get-OdbcDriver -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*SQL*' } | Select-Object -First 1 -ExpandProperty Name"],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.stdout.strip():
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return 'SQL Server'
+        import winreg
+        base_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\ODBC\ODBCINST.INI")
+        i = 0
+        drivers = []
+        while True:
+            try:
+                name = winreg.EnumKey(base_key, i)
+                if 'sql' in name.lower() or 'SQL' in name:
+                    drivers.append(name)
+                i += 1
+            except OSError:
+                break
+        winreg.CloseKey(base_key)
+        # 优先选17，其次18，最后取第一个
+        for d in drivers:
+            if '17' in d:
+                _detected_odbc_driver = d
+                logger.info(f"检测到 ODBC 驱动: {d}")
+                return _detected_odbc_driver
+        for d in drivers:
+            if '18' in d:
+                _detected_odbc_driver = d
+                logger.info(f"检测到 ODBC 驱动: {d}")
+                return _detected_odbc_driver
+        if drivers:
+            _detected_odbc_driver = drivers[0]
+            logger.info(f"检测到 ODBC 驱动: {drivers[0]}")
+            return _detected_odbc_driver
+    except Exception as e:
+        logger.debug(f"winreg 检测 ODBC 驱动失败: {e}")
+
+    _detected_odbc_driver = 'ODBC Driver 17 for SQL Server'
+    logger.warning(f"未检测到 SQL Server ODBC 驱动，使用默认值: {_detected_odbc_driver}")
+    return _detected_odbc_driver
 
 
 def build_connection_string(config: Dict[str, Any]) -> str:
