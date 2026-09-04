@@ -1,6 +1,6 @@
 {
   "productName": "过程SPC监控平台",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -48,7 +48,13 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' https://tauri.localhost asset: https://asset.localhost; script-src 'self' https://tauri.localhost asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' asset: https://asset.localhost; frame-src 'self' https://tauri.localhost asset: https://asset.localhost; connect-src 'self' http://127.0.0.1:18080 http://localhost:18080 ws://127.0.0.1:18080 ws://localhost:18080"
+      "csp": "default-src 'self' https://tauri.localhost asset: https://asset.localhost; script-src 'self' https://tauri.localhost asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' asset: https://asset.localhost; frame-src 'self' https://tauri.localhost asset: https://asset.localhost; connect-src 'self' http://127.0.0.1:18080 http://localhost:18080 ws://127.0.0.1:18080 ws://localhost:18080 http://* https://*"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["http://localhost:9090/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxMjNGNDU2Nzg5QUJDREUKUldTYkM0cVJvSDR3TEt3Y3Y3YVVoR0VyNnF4djhRSGZ3YmN6cFlmOEZvPQ=="
     }
   }
 }

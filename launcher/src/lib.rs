@@ -1,16 +1,18 @@
 mod config;
 mod service;
 mod tray;
+mod updater;
 
 use config::AppConfig;
 use log::{error, warn};
 use service::ServiceManager;
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tray::TrayMenuItems;
+use updater::PendingUpdate;
 
 struct ApiKeyState(String);
 
@@ -56,6 +58,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::init())
         .setup(move |app| {
             // 设置 AppUserModelID，使任务栏图标与后端进程区分开
             #[cfg(target_os = "windows")]
@@ -100,6 +103,8 @@ pub fn run() {
 
             // 启动后端健康检查 + 就绪通知
             let app_handle = app.handle().clone();
+            // 启动自动更新定时检查（每 3 天）
+            updater::spawn_periodic_check(app.handle().clone());
             std::thread::spawn(move || {
                 let mut failures = 0u32;
                 let mut was_healthy = false;
@@ -156,6 +161,7 @@ pub fn run() {
         .manage(service_manager)
         .manage(shutdown_flag)
         .manage(ApiKeyState(api_key))
+        .manage(Mutex::<Option<PendingUpdate>>::new(None))
         .invoke_handler(tauri::generate_handler![
             start_server,
             stop_server,
@@ -165,6 +171,9 @@ pub fn run() {
             get_widget_data,
             toggle_widget,
             get_api_key,
+            updater::check_for_update,
+            updater::download_update,
+            updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

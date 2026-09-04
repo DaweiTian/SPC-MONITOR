@@ -1,0 +1,108 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  padding: 32px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.icon {
+  color: var(--accent-green, #22c55e);
+  margin-bottom: 16px;
+}
+
+.dialog h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.version {
+  color: var(--accent-blue, #3b82f6);
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+
+.notes {
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.notesLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+
+.notesText {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btnLater,
+.btnUpdate {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btnLater {
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary);
+}
+
+.btnUpdate {
+  background: var(--accent-blue, #3b82f6);
+  color: white;
+}
+
+.btnLater:hover,
+.btnUpdate:hover {
+  opacity: 0.9;
+}
+
+.btnLater:disabled,
+.btnUpdate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

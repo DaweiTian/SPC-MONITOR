@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.1] - 2025-01-15
+
+### Added
+
+- **自动更新功能**: 集成 `tauri-plugin-updater`，支持应用启动时和每3天定时检查更新
+- **静默下载更新**: 发现新版本后自动在后台下载，完成后弹窗提示用户安装
+- **本地更新测试脚本**: 新增 `test-update-server.bat`，支持用 localhost 验证更新流程
+- **构建产物清单生成**: `build.bat` 新增步骤自动生成 `latest.json` 更新清单
+
+### Changed
+
+- 版本号统一管理：修复 `Cargo.toml` 版本号与其他文件不同步的问题
+
 ## [1.7.0] - 2026-09-03
 
 ### Added

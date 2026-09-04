@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppLayout } from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import { PasswordDialog } from './components/PasswordDialog'
+import { UpdateDialog } from './components/UpdateDialog'
 import { initApiKey } from './services/api'
 
 const Dashboard = React.lazy(() => import('./pages/Dashboard'))
@@ -77,6 +78,7 @@ const App: React.FC = () => {
       <ToastProvider>
       <AppProvider>
         <AppContent />
+        <UpdateDialog />
       </AppProvider>
       </ToastProvider>
     </ErrorBoundary>
