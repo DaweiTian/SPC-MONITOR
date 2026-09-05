@@ -99,6 +99,23 @@ pub fn spawn_periodic_check(app: AppHandle) {
 
 /// 内部：检查更新 → 下载 → 暂存
 async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
+    // 调试：先手动请求 endpoint 看响应内容
+    let endpoint = "http://106.13.77.213:9090/latest.json";
+    match reqwest::get(endpoint).await {
+        Ok(resp) => {
+            let status = resp.status();
+            let headers = format!("{:?}", resp.headers());
+            match resp.text().await {
+                Ok(body) => {
+                    log::warn!("调试 - HTTP {} 响应头: {}", status, headers);
+                    log::warn!("调试 - 响应体 (前500字): {}", &body[..body.len().min(500)]);
+                }
+                Err(e) => log::warn!("调试 - 读取响应体失败: {}", e),
+            }
+        }
+        Err(e) => log::warn!("调试 - HTTP 请求失败: {}", e),
+    }
+
     let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
 
     let Some(update) = update else {
