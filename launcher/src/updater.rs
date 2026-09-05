@@ -99,24 +99,32 @@ pub fn spawn_periodic_check(app: AppHandle) {
 
 /// 内部：检查更新 → 下载 → 暂存
 async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
-    // 调试：先手动请求 endpoint 看响应内容
-    let endpoint = "http://106.13.77.213:9090/latest.json";
-    match reqwest::get(endpoint).await {
+    // 调试：手动模拟 updater 的请求方式
+    use reqwest::header::HeaderValue;
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|e| e.to_string())?;
+    match client.get("http://106.13.77.213:9090/latest.json")
+        .header("Accept", HeaderValue::from_static("application/json"))
+        .send().await
+    {
         Ok(resp) => {
             let status = resp.status();
-            let headers = format!("{:?}", resp.headers());
-            match resp.text().await {
+            match resp.bytes().await {
                 Ok(body) => {
-                    log::warn!("调试 - HTTP {} 响应头: {}", status, headers);
-                    log::warn!("调试 - 响应体 (前500字): {}", &body[..body.len().min(500)]);
+                    log::warn!("调试2 - HTTP {}, 长度: {}字节", status, body.len());
+                    match serde_json::from_slice::<serde_json::Value>(&body) {
+                        Ok(val) => log::warn!("调试2 - JSON 解析成功: {}", serde_json::to_string(&val).unwrap_or_default().chars().take(200).collect::<String>()),
+                        Err(e) => log::error!("调试2 - JSON 解析失败: {}", e),
+                    }
                 }
-                Err(e) => log::warn!("调试 - 读取响应体失败: {}", e),
+                Err(e) => log::error!("调试2 - 读取响应体失败: {}", e),
             }
         }
-        Err(e) => log::warn!("调试 - HTTP 请求失败: {}", e),
+        Err(e) => log::error!("调试2 - HTTP 请求失败: {}", e),
     }
 
-    // 调试：打印当前应用版本
     log::warn!("调试 - 当前应用版本: {}", app.config().version.as_deref().unwrap_or("unknown"));
 
     let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
