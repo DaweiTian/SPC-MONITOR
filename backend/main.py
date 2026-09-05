@@ -24,7 +24,7 @@ except OSError:
     # 文件日志不可用时回退到 stderr
     _log_handlers.append(logging.StreamHandler())
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=_log_handlers,
 )

@@ -19,9 +19,13 @@ struct ApiKeyState(String);
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
     if let Ok(log_file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        let config = simplelog::ConfigBuilder::new()
+            .set_time_offset_to_local()
+            .unwrap_or_else(|c| c)
+            .build();
         let _ = CombinedLogger::init(vec![WriteLogger::new(
             log::LevelFilter::Warn,
-            Config::default(),
+            config,
             log_file,
         )]);
     }
