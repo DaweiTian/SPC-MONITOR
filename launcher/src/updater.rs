@@ -116,6 +116,9 @@ async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, S
         Err(e) => log::warn!("调试 - HTTP 请求失败: {}", e),
     }
 
+    // 调试：打印当前应用版本
+    log::warn!("调试 - 当前应用版本: {}", app.config().version.as_deref().unwrap_or("unknown"));
+
     let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
 
     let Some(update) = update else {
