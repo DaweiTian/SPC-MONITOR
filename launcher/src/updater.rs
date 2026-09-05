@@ -73,8 +73,8 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
 /// 启动后台定时检查任务（每 3 天一次，首次延迟 60 秒）
 pub fn spawn_periodic_check(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        log::warn!("更新检查任务已启动，60 秒后首次检查");
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        log::warn!("更新检查任务已启动，5 秒后首次检查");
+        tokio::time::sleep(Duration::from_secs(5)).await;
         log::warn!("开始检查更新...");
 
         loop {
