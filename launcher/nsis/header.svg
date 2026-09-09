@@ -48,7 +48,7 @@
           fill="none" stroke="#d9fbff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
-  <text x="248" y="108" font-family="Microsoft YaHei UI, Microsoft YaHei, PingFang SC, sans-serif"
+  <text x="215" y="108" font-family="Microsoft YaHei UI, Microsoft YaHei, PingFang SC, sans-serif"
         font-size="46" font-weight="700" fill="#f8fafc" letter-spacing="1">液奶过程监控系统</text>
   <text x="250" y="148" font-family="Segoe UI, Arial, sans-serif"
         font-size="18" font-weight="600" fill="#67e8f9" letter-spacing="2" opacity="0.9">SPC REAL-TIME ANALYSIS</text>

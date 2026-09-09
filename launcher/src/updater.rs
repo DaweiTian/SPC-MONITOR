@@ -26,14 +26,47 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
 }
 
 /// 前端调用：静默下载更新并暂存，供后续安装
+/// `expected_version`：前端确认过的版本号；服务器版本不一致时拒绝下载，避免 TOCTOU
 #[tauri::command(async)]
-pub async fn download_update(app: AppHandle) -> Result<UpdateInfo, String> {
+pub async fn download_update(
+    app: AppHandle,
+    expected_version: Option<String>,
+) -> Result<UpdateInfo, String> {
+    // 已下载过且版本匹配则直接复用，避免重复下载
+    {
+        let state = app.state::<Mutex<Option<PendingUpdate>>>();
+        let guard = state.lock().map_err(|e| e.to_string())?;
+        if let Some(p) = guard.as_ref() {
+            let pending_ver = p.update.version.clone();
+            let notes = p.update.body.clone();
+            let matches = expected_version
+                .as_ref()
+                .map(|e| e == &pending_ver)
+                .unwrap_or(true);
+            if matches {
+                return Ok(UpdateInfo {
+                    version: pending_ver,
+                    notes,
+                });
+            }
+        }
+    }
+
     let update = app
         .updater().map_err(|e| e.to_string())?
         .check()
         .await
         .map_err(|e| e.to_string())?
         .ok_or("没有可用的更新")?;
+
+    if let Some(expected) = &expected_version {
+        if &update.version != expected {
+            return Err(format!(
+                "服务器版本已变化（期望 {}，实际 {}），请重新检查更新",
+                expected, update.version
+            ));
+        }
+    }
 
     let version = update.version.clone();
     let notes = update.body.clone();

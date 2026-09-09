@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.4] - 2026-09-10
+
+### Added
+
+- **手动检查更新**: 侧边栏版本号支持左键/右键打开菜单，可手动检查更新
+- **更新确认弹窗**: 发现新版本后先确认是否下载，避免静默占用带宽
+- **历史更新日志**: 内嵌完整 CHANGELOG 弹窗（60% 屏宽居中），当前版本高亮
+
+### Changed
+
+- 版本号统一为 1.7.4（含后端 FastAPI metadata、启动页、安装图）
+- 版本号菜单改用原生 `contextmenu` 拦截，避免浏览器右键菜单抢占
+- NSIS 安装器 header/sidebar 品牌图重绘（对齐应用主 UI 风格）
+
+### Fixed
+
+- **下载防重入**: 「立即下载」改用 ref 防双击；已下载同版本直接复用，避免重复拉包
+- **更新版本一致性**: 下载前校验 `expected_version`，服务器版本变化时拒绝并提示重新检查
+- **弹窗叠层**: 后台静默下载完成时自动关闭「发现新版本」确认框，避免与安装弹窗并存
+- **键盘操作**: 更新日志 / 版本菜单支持 Esc 关闭
+
 ## [1.7.3] - 2026-09-09
 
 ### Fixed

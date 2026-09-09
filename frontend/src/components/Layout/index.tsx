@@ -107,7 +107,7 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-const APP_VERSION = 'v1.7.3'
+const APP_VERSION = 'v1.7.4'
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
@@ -143,8 +143,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const checkingUpdateRef = useRef(false)
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
   const [downloadingUpdate, setDownloadingUpdate] = useState(false)
+  const downloadingUpdateRef = useRef(false)
   const versionAreaRef = useRef<HTMLSpanElement>(null)
   const openVersionMenuRef = useRef<(x: number, y: number) => void>(() => {})
+
+  useEffect(() => {
+    openVersionMenuRef.current = (clientX: number, clientY: number) => {
+      const menuWidth = 180
+      const menuHeight = 88
+      const x = Math.min(Math.max(clientX, 8), window.innerWidth - menuWidth - 8)
+      const y = Math.min(Math.max(clientY, 8), window.innerHeight - menuHeight - 8)
+      setVersionMenu({ x, y })
+    }
+  }, [])
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -164,13 +175,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const isTauri = !!window.__TAURI__
 
   const openVersionMenu = (clientX: number, clientY: number) => {
-    const menuWidth = 180
-    const menuHeight = 88
-    const x = Math.min(Math.max(clientX, 8), window.innerWidth - menuWidth - 8)
-    const y = Math.min(Math.max(clientY, 8), window.innerHeight - menuHeight - 8)
-    setVersionMenu({ x, y })
+    openVersionMenuRef.current(clientX, clientY)
   }
-  openVersionMenuRef.current = openVersionMenu
 
   useEffect(() => {
     const el = versionAreaRef.current
@@ -189,15 +195,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     if (!versionMenu) return
     const close = () => setVersionMenu(null)
     const onScroll = () => setVersionMenu(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setVersionMenu(null)
+    }
     window.addEventListener('click', close)
     window.addEventListener('resize', close)
     window.addEventListener('scroll', onScroll, true)
     window.addEventListener('contextmenu', close)
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('click', close)
       window.removeEventListener('resize', close)
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('contextmenu', close)
+      window.removeEventListener('keydown', onKey)
     }
   }, [versionMenu])
 
@@ -241,10 +252,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }
 
   const handleDownloadUpdate = async () => {
-    if (!window.__TAURI__ || !availableUpdate || downloadingUpdate) return
+    if (!window.__TAURI__ || !availableUpdate || downloadingUpdateRef.current) return
+    downloadingUpdateRef.current = true
     setDownloadingUpdate(true)
     try {
-      const downloaded = (await window.__TAURI__.core.invoke('download_update')) as UpdateInfo
+      const downloaded = (await window.__TAURI__.core.invoke('download_update', {
+        expectedVersion: availableUpdate.version,
+      })) as UpdateInfo
       setAvailableUpdate(null)
       // 交给全局 UpdateDialog 提示安装
       await window.__TAURI__.event.emit('update-ready', downloaded)
@@ -255,9 +269,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         severity: 'WARNING',
       })
     } finally {
+      downloadingUpdateRef.current = false
       setDownloadingUpdate(false)
     }
   }
+
+  // 后台静默下载完成时，关掉手动确认弹窗，避免与安装弹窗叠层
+  useEffect(() => {
+    if (!window.__TAURI__) return
+    const unlisten = window.__TAURI__.event.listen('update-ready', () => {
+      setAvailableUpdate(null)
+    })
+    return () => { unlisten.then(fn => fn()).catch(() => {}) }
+  }, [])
 
   const [sourceStatus, setSourceStatus] = useState<{
     source: string
@@ -424,9 +448,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION}
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>修复 ODBC 连接串编码问题，命名实例+端口可正常连接</li>
-                <li className={styles.versionTooltipItem}>ODBC 驱动自动优选 18/17/11，排除废弃 DBNETLIB</li>
-                <li className={styles.versionTooltipItem}>点击查看检查更新或历史更新日志</li>
+                <li className={styles.versionTooltipItem}>支持手动检查更新（点击/右键版本号）</li>
+                <li className={styles.versionTooltipItem}>发现新版本可确认后再下载安装</li>
+                <li className={styles.versionTooltipItem}>可查看完整历史更新日志</li>
               </ul>
             </div>
           </span>

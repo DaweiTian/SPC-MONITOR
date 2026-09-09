@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import changelogRaw from '../../../../CHANGELOG.md?raw'
 import styles from './ChangelogDialog.module.css'
 
@@ -39,8 +39,15 @@ function parseChangelog(md: string): ChangelogVersion[] {
     const line = rawLine.trimEnd()
     const versionMatch = line.match(/^##\s+\[?([^\]\s]+)\]?\s*(?:-\s*(.+))?$/)
     if (versionMatch) {
+      const ver = versionMatch[1]
+      // 跳过 Unreleased 占位节
+      if (/^unreleased$/i.test(ver)) {
+        current = null
+        currentSection = null
+        continue
+      }
       current = {
-        version: versionMatch[1],
+        version: ver,
         date: versionMatch[2]?.trim() || undefined,
         sections: [],
       }
@@ -81,6 +88,15 @@ export function ChangelogDialog({
 }) {
   const versions = useMemo(() => parseChangelog(changelogRaw), [])
 
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
@@ -111,13 +127,13 @@ export function ChangelogDialog({
                 >
                   <div className={styles.versionHeader}>
                     <span className={styles.versionTag}>
-                      v{ver.version}
+                      {ver.version.startsWith('v') ? ver.version : `v${ver.version}`}
                       {isCurrent && <span className={styles.currentBadge}>当前</span>}
                     </span>
                     {ver.date && <span className={styles.versionDate}>{ver.date}</span>}
                   </div>
-                  {ver.sections.map((section) => (
-                    <div key={section.title} className={styles.section}>
+                  {ver.sections.map((section, sIdx) => (
+                    <div key={`${ver.version}-${section.title}-${sIdx}`} className={styles.section}>
                       <div className={styles.sectionTitle}>{section.title}</div>
                       <ul className={styles.itemList}>
                         {section.items.map((item, idx) => (

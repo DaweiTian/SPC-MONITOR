@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import styles from '../UpdateDialog/UpdateDialog.module.css'
 
 interface UpdateInfo {
@@ -16,6 +17,14 @@ export function AvailableUpdateDialog({
   onCancel: () => void
   onDownload: () => void
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !downloading) onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [downloading, onCancel])
+
   return (
     <div className={styles.overlay}>
       <div className={styles.dialog}>
