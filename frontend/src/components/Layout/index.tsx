@@ -140,6 +140,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const checkingUpdateRef = useRef(false)
+  const versionAreaRef = useRef<HTMLSpanElement>(null)
+  const openVersionMenuRef = useRef<(x: number, y: number) => void>(() => {})
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -158,6 +160,28 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }
   const isTauri = !!window.__TAURI__
 
+  const openVersionMenu = (clientX: number, clientY: number) => {
+    const menuWidth = 180
+    const menuHeight = 88
+    const x = Math.min(Math.max(clientX, 8), window.innerWidth - menuWidth - 8)
+    const y = Math.min(Math.max(clientY, 8), window.innerHeight - menuHeight - 8)
+    setVersionMenu({ x, y })
+  }
+  openVersionMenuRef.current = openVersionMenu
+
+  useEffect(() => {
+    const el = versionAreaRef.current
+    if (!el) return
+    // 原生监听 + capture，确保拦截浏览器右键菜单（React 合成事件在部分 WebView 下不可靠）
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      openVersionMenuRef.current(e.clientX, e.clientY)
+    }
+    el.addEventListener('contextmenu', onContextMenu, true)
+    return () => el.removeEventListener('contextmenu', onContextMenu, true)
+  }, [])
+
   useEffect(() => {
     if (!versionMenu) return
     const close = () => setVersionMenu(null)
@@ -165,21 +189,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     window.addEventListener('click', close)
     window.addEventListener('resize', close)
     window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('contextmenu', close)
     return () => {
       window.removeEventListener('click', close)
       window.removeEventListener('resize', close)
       window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('contextmenu', close)
     }
   }, [versionMenu])
 
-  const handleVersionContextMenu = (e: React.MouseEvent) => {
+  const handleVersionClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const menuWidth = 180
-    const menuHeight = 88
-    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 8)
-    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 8)
-    setVersionMenu({ x, y })
+    const rect = e.currentTarget.getBoundingClientRect()
+    openVersionMenu(rect.left + rect.width / 2 - 84, rect.top - 96)
   }
 
   const handleCheckUpdate = async () => {
@@ -364,9 +387,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </nav>
         <div className={styles.sidebarFooter}>
           <span
+            ref={versionAreaRef}
             className={styles.footerVersionBadge}
-            title="右键：检查更新 / 更新日志"
-            onContextMenu={handleVersionContextMenu}
+            role="button"
+            tabIndex={0}
+            title="检查更新 / 更新日志"
+            onClick={handleVersionClick}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                const rect = e.currentTarget.getBoundingClientRect()
+                openVersionMenu(rect.left + rect.width / 2 - 84, rect.top - 96)
+              }
+            }}
           >
             {APP_VERSION}
             <div className={styles.versionTooltip}>
@@ -377,7 +410,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <ul className={styles.versionTooltipList}>
                 <li className={styles.versionTooltipItem}>修复 ODBC 连接串编码问题，命名实例+端口可正常连接</li>
                 <li className={styles.versionTooltipItem}>ODBC 驱动自动优选 18/17/11，排除废弃 DBNETLIB</li>
-                <li className={styles.versionTooltipItem}>右键版本号可检查更新或查看完整历史日志</li>
+                <li className={styles.versionTooltipItem}>点击查看检查更新或历史更新日志</li>
               </ul>
             </div>
           </span>

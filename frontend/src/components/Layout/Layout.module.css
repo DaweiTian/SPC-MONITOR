@@ -216,15 +216,29 @@
 
 .footerVersionBadge {
   font-size: 11px;
-  padding: 0;
-  color: rgba(0, 212, 255, 0.5);
+  padding: 6px 8px;
+  margin: -6px -8px;
+  color: rgba(0, 212, 255, 0.55);
   font-family: 'Orbitron', 'Courier New', monospace;
   white-space: nowrap;
   letter-spacing: 1.5px;
   text-align: center;
   position: relative;
-  cursor: context-menu;
+  cursor: pointer;
   user-select: none;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  width: fit-content;
+  align-self: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.footerVersionBadge:hover,
+.footerVersionBadge:focus-visible {
+  color: rgba(0, 212, 255, 0.9);
+  background: rgba(0, 212, 255, 0.08);
+  outline: none;
 }
 
 .versionContextMenu {
