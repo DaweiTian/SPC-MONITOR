@@ -3,21 +3,36 @@ from functools import lru_cache
 from pathlib import Path
 import json
 import os
+import sys
 
 # ---- conf/ 目录路径解析 ----
 # 优先级：
-#   1. CWD/conf  （run.py 将 CWD 设为 exe 目录）
-#   2. __file__/../../conf  （开发环境：backend/app/core/ → backend/conf/）
-#   3. __file__/_internal 上溯 + conf  （Nuitka 编译后 __file__ 在 _internal 下）
+#   1. CWD/conf（run.py 将 CWD 设为 exe 目录）
+#   2. 可执行文件旁 conf/（打包模式：ft1-backend/conf）
+#   3. __file__/../../../conf（开发：backend/app/core → backend/conf）
 
 def _find_conf_dir() -> Path:
     """定位 conf/ 配置目录。"""
     candidates = [
-        Path.cwd() / "conf",                                    # 打包模式：CWD = exe 目录
-        Path(__file__).parent.parent.parent / "conf",           # 打包模式备选
-        Path(__file__).parent.parent / "conf",                  # 开发模式：backend/app/core → backend/conf
+        Path.cwd() / "conf",
     ]
+    try:
+        exe_dir = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve().parent
+        # 打包：exe 在 ft1-backend/，conf 在同级
+        candidates.append(exe_dir / "conf")
+        # Nuitka _internal：上溯一级
+        candidates.append(exe_dir.parent / "conf")
+    except Exception:
+        pass
+    # 开发：backend/app/core/config.py → backend/conf
+    candidates.append(Path(__file__).resolve().parent.parent.parent / "conf")
+
+    seen = set()
     for p in candidates:
+        rp = p.resolve() if p.exists() else p
+        if rp in seen:
+            continue
+        seen.add(rp)
         if p.is_dir():
             return p
     import logging

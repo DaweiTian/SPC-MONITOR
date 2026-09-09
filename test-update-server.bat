@@ -17,24 +17,30 @@ if not exist "%DIST_DIR%" (
     exit /b 1
 )
 
-REM 检查更新包是否存在
-set "NSIS_ZIP="
-set "NSIS_SIG="
-for %%f in ("%DIST_DIR%\*.nsis.zip") do set "NSIS_ZIP=%%~nxf"
-for %%f in ("%DIST_DIR%\*.nsis.zip.sig") do set "NSIS_SIG=%%~nxf"
+REM 检查更新包是否存在（Tauri NSIS 产物为 *-setup.exe / *-setup.exe.sig）
+set "SETUP_EXE="
+set "SETUP_SIG="
+for %%f in ("%DIST_DIR%\*-setup.exe") do set "SETUP_EXE=%%~nxf"
+for %%f in ("%DIST_DIR%\*-setup.exe.sig") do set "SETUP_SIG=%%~nxf"
 
-if not defined NSIS_ZIP (
-    echo [ERROR] 未在 dist\ 中找到 .nsis.zip 更新包
+if not defined SETUP_EXE (
+    echo [ERROR] 未在 dist\ 中找到 *-setup.exe 更新包
     echo         请确认 build.bat 已成功完成构建
+    pause
+    exit /b 1
+)
+if not defined SETUP_SIG (
+    echo [ERROR] 未在 dist\ 中找到 *-setup.exe.sig 签名文件
+    echo         请确认 TAURI_SIGNING_PRIVATE_KEY 已设置且构建成功
     pause
     exit /b 1
 )
 
 echo [1/3] 更新 latest.json 为测试版本（版本号 +0.0.1）...
-echo        更新包: %NSIS_ZIP%
+echo        更新包: %SETUP_EXE%
 
 REM 读取签名
-set /p SIGNATURE=<"%DIST_DIR%\%NSIS_SIG%"
+set /p SIGNATURE=<"%DIST_DIR%\%SETUP_SIG%"
 
 REM 读取当前版本号并 +1（简单处理：最后一位 +1）
 for /f "tokens=*" %%v in ('powershell -Command "(Get-Content '%PROJECT_DIR%launcher\tauri.conf.json' | ConvertFrom-Json).version"') do set "CURRENT_VER=%%v"
@@ -45,16 +51,19 @@ for /f "tokens=1-3 delims=." %%a in ("%CURRENT_VER%") do (
 )
 set "TEST_VER=%MAJOR%.%MINOR%.%PATCH%"
 
+REM 生成 pub_date（locale 无关）
+for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'"') do set "PUB_DATE=%%d"
+
 REM 生成 latest.json
 (
     echo {
     echo   "version": "%TEST_VER%",
     echo   "notes": "测试更新 - 本地自动更新功能验证",
-    echo   "pub_date": "%date:~0,4%-%date:~5,2%-%date:~8,2%T00:00:00Z",
+    echo   "pub_date": "!PUB_DATE!",
     echo   "platforms": {
     echo     "windows-x86_64": {
     echo       "signature": "!SIGNATURE!",
-    echo       "url": "http://localhost:%TEST_SERVER_PORT%/%NSIS_ZIP%"
+    echo       "url": "http://localhost:%TEST_SERVER_PORT%/%SETUP_EXE%"
     echo     }
     echo   }
     echo }
@@ -77,7 +86,7 @@ if %errorlevel%==0 (
     echo   更新服务器已启动！
     echo.
     echo   latest.json:  http://localhost:%TEST_SERVER_PORT%/latest.json
-    echo   更新包地址:   http://localhost:%TEST_SERVER_PORT%/%NSIS_ZIP%
+    echo   更新包地址:   http://localhost:%TEST_SERVER_PORT%/%SETUP_EXE%
     echo.
     echo   测试步骤:
     echo   1. 保持此窗口运行

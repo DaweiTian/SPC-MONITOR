@@ -103,7 +103,14 @@ class SQLServerCollector(BaseCollector):
             rep_no_ref=mapping_config.get("rep_no_ref", 32000),
         )
         instance._db_config = db_config
-        instance._use_pymssql = False
+        # 尊重 db_config.driver 配置：pymssql 时预设 _use_pymssql=True，
+        # 与 test_connection 的标志语义保持一致（odbc/空则走 ODBC 默认路径）
+        driver = str(db_config.get("driver", "") or "").strip().lower()
+        if driver == "pymssql" or "pymssql" in driver:
+            instance._use_pymssql = True
+            logger.info("SQLServerCollector: 配置指定 driver=pymssql，将使用 pymssql 通道")
+        else:
+            instance._use_pymssql = False
         return instance
 
     def _load_breakpoint(self) -> Optional[datetime]:
@@ -302,17 +309,37 @@ class SQLServerCollector(BaseCollector):
 
         records = []
         try:
-            from sqlalchemy import text
-            with self.engine.connect() as conn:
-                result = conn.execute(text(sql), params)
-                rows = result.fetchmany(self.init_limit)
-                column_names = result.keys()
+            if self._use_pymssql:
+                # flat 模式走 pymssql：与 relational 模式同样的分支逻辑
+                logger.info("flat 模式使用 pymssql 通道采集")
+                conn = self._build_pymssql_connection(self._db_config)
+                try:
+                    cursor = conn.cursor()
+                    if params:
+                        cursor.execute(sql, params)
+                    else:
+                        cursor.execute(sql)
+                    rows = cursor.fetchmany(self.init_limit)
+                    column_names = [desc[0] for desc in cursor.description] if cursor.description else []
+                    for row in rows:
+                        row_dict = dict(zip(column_names, row))
+                        parsed = self._parse_row(row_dict)
+                        if parsed:
+                            records.extend(parsed)
+                finally:
+                    conn.close()
+            else:
+                from sqlalchemy import text
+                with self.engine.connect() as conn:
+                    result = conn.execute(text(sql), params)
+                    rows = result.fetchmany(self.init_limit)
+                    column_names = result.keys()
 
-                for row in rows:
-                    row_dict = dict(zip(column_names, row))
-                    parsed = self._parse_row(row_dict)
-                    if parsed:
-                        records.extend(parsed)
+                    for row in rows:
+                        row_dict = dict(zip(column_names, row))
+                        parsed = self._parse_row(row_dict)
+                        if parsed:
+                            records.extend(parsed)
         except Exception as e:
             logger.error(f"采集失败: {e}", exc_info=True)
             return {
@@ -561,6 +588,11 @@ class SQLServerCollector(BaseCollector):
     
     def _build_where_clause(self) -> tuple:
         if self._last_collect_time:
+            if self._use_pymssql:
+                return (
+                    f"WHERE [{self.time_column}] > %s",
+                    (self._last_collect_time,)
+                )
             return (
                 f"WHERE [{self.time_column}] > :last_time",
                 {"last_time": self._last_collect_time}
@@ -631,7 +663,6 @@ class SQLServerCollector(BaseCollector):
             return []
         validate_identifier(self.table_name)
         validate_identifier(self.product_column)
-        from sqlalchemy import text
         sql = f"""
             SELECT DISTINCT [{self.product_column}] as product_name
             FROM [{self.table_name}]
@@ -639,13 +670,22 @@ class SQLServerCollector(BaseCollector):
             ORDER BY [{self.product_column}]
         """
         try:
-            with self.engine.connect() as conn:
-                result = conn.execute(text(sql))
-                rows = result.fetchall()
-                return [
-                    {'code': self._generate_product_code(r[0]), 'name': r[0]}
-                    for r in rows if r[0]
-                ]
+            if self._use_pymssql:
+                conn = self._build_pymssql_connection(self._db_config)
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(sql)
+                    rows = cursor.fetchall()
+                finally:
+                    conn.close()
+            else:
+                from sqlalchemy import text
+                with self.engine.connect() as conn:
+                    rows = conn.execute(text(sql)).fetchall()
+            return [
+                {'code': self._generate_product_code(r[0]), 'name': r[0]}
+                for r in rows if r[0]
+            ]
         except Exception as e:
             logger.error(f"查询产品列表失败: {e}")
             return []

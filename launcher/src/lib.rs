@@ -4,7 +4,7 @@ mod tray;
 mod updater;
 
 use config::AppConfig;
-use log::{error, warn};
+use log::{error, info, warn};
 use service::ServiceManager;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -83,6 +83,7 @@ pub fn run() {
 
     let sm_for_handler = service_manager.clone();
     let sm_for_timer = service_manager.clone();
+    let auto_start_enabled = config.auto_start;
     let shutdown_flag = Arc::new(AtomicBool::new(false));
     let shutdown_for_thread = shutdown_flag.clone();
 
@@ -128,10 +129,15 @@ pub fn run() {
             // 创建系统托盘
             tray::create_tray(app, sm_for_handler.clone())?;
 
-            // 默认开启开机自启
-            let autostart = app.autolaunch();
-            if !autostart.is_enabled().unwrap_or(false) {
-                autostart.enable().ok();
+            // 与 AppConfig.auto_start 同步开机自启：仅当配置为 true 时启用；
+            // 用户已关闭（托盘手动关闭或配置为 false）则不强制重新启用
+            if auto_start_enabled {
+                let autostart = app.autolaunch();
+                if !autostart.is_enabled().unwrap_or(false) {
+                    if let Err(e) = autostart.enable() {
+                        log::warn!("启用开机自启失败: {}", e);
+                    }
+                }
             }
 
             // 拦截主窗口关闭：隐藏到托盘
@@ -152,6 +158,8 @@ pub fn run() {
             std::thread::spawn(move || {
                 let mut failures = 0u32;
                 let mut was_healthy = false;
+                let mut was_healthy_once = false;
+                let mut restart_backoff = 0u32;
                 while !shutdown_for_thread.load(Ordering::Relaxed) {
                     std::thread::sleep(std::time::Duration::from_secs(3));
 
@@ -179,6 +187,7 @@ pub fn run() {
                             }
                         } else {
                             failures = 0;
+                            restart_backoff = 0;
                             if !was_healthy {
                                 let _ = app_handle.emit("backend-ready", ());
                                 if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
@@ -186,6 +195,7 @@ pub fn run() {
                                     items.stop.set_enabled(true).ok();
                                 }
                                 was_healthy = true;
+                                was_healthy_once = true;
                             }
                         }
                     } else {
@@ -195,6 +205,27 @@ pub fn run() {
                                 items.stop.set_enabled(false).ok();
                             }
                             was_healthy = false;
+                        }
+                        // 进程消失：若开启自启或服务曾成功运行，自动拉起并指数退避（最大 30s）
+                        if auto_start_enabled || was_healthy_once {
+                            restart_backoff = restart_backoff.saturating_add(1);
+                            let shift = restart_backoff.saturating_sub(1).min(4);
+                            let delay_secs = (3u64 << shift).min(30);
+                            std::thread::sleep(std::time::Duration::from_secs(delay_secs));
+                            if shutdown_for_thread.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            if let Err(e) = sm_for_timer.start_server() {
+                                error!(
+                                    "自动拉起后端失败(第{}次，退避{}s): {}",
+                                    restart_backoff, delay_secs, e
+                                );
+                            } else {
+                                info!(
+                                    "后端进程缺失，已自动拉起(第{}次，退避{}s)",
+                                    restart_backoff, delay_secs
+                                );
+                            }
                         }
                     }
                 }

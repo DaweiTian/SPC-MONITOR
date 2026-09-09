@@ -1,3 +1,5 @@
+import { getApiKey } from './api'
+
 type MessageHandler = (data: Record<string, unknown>) => void
 
 class WebSocketService {
@@ -52,15 +54,14 @@ class WebSocketService {
     const wsHost = isTauri ? '127.0.0.1:18080' : window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 
-    // 优先从 Tauri launcher 获取 key，确保时序正确
-    let apiKey = localStorage.getItem('ft1_api_key') || 'ft1-monitor-default-key'
-    if (isTauri && !localStorage.getItem('ft1_api_key')) {
+    // Prefer the current in-memory key (session token / Tauri key); fall back to Tauri invoke
+    let apiKey = getApiKey()
+    if (isTauri && apiKey === 'ft1-monitor-default-key') {
       try {
         const { invoke } = await import('@tauri-apps/api/core')
         const key = await invoke<string>('get_api_key')
         if (key) {
           apiKey = key
-          localStorage.setItem('ft1_api_key', key)
         }
       } catch { /* fallback to default */ }
     }

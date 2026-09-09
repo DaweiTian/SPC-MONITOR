@@ -113,17 +113,58 @@ def _calc_accuracy(actual: np.ndarray, predicted: np.ndarray) -> dict:
 # ---------------------------------------------------------------------------
 
 def _calc_breach_prob(mean: float, std: float, usl: float | None, lsl: float | None):
-    """Return (max_prob, direction) using scipy.stats.norm."""
+    """Return (max_prob, direction) using scipy.stats.norm.
+
+    If the predicted mean is already beyond a spec limit, return a high
+    breach probability (>= 0.95) regardless of std — including std == 0.
+    Only when mean is within specs does the Gaussian tail depend on std;
+    std == 0 then means low risk.
+    """
     from scipy.stats import norm
+
+    # Mean already out of spec → high breach probability
+    if usl is not None and mean >= usl:
+        return 0.99, "upper"
+    if lsl is not None and mean <= lsl:
+        return 0.99, "lower"
+
     probs: dict[str, float] = {}
     if usl is not None and std > 0:
         probs["upper"] = round(float(1 - norm.cdf(usl, loc=mean, scale=std)), 6)
     if lsl is not None and std > 0:
         probs["lower"] = round(float(norm.cdf(lsl, loc=mean, scale=std)), 6)
     if not probs:
+        # std == 0 (or no specs) and mean within specs → low risk
         return 0.0, "none"
     direction = max(probs, key=probs.get)
     return probs[direction], direction
+
+
+def _estimate_process_std(predictions: list, upper: list | None = None,
+                          lower: list | None = None) -> float:
+    """Prefer residual/process std inferred from forecast CI half-widths.
+
+    CI is built as pred ± 1.96 * residual_std * sqrt(step), so
+    residual_std ≈ half_width / (1.96 * sqrt(step)).
+    Falls back to sample std of the point predictions when CI is unavailable.
+    """
+    try:
+        n = len(predictions)
+        if (upper is not None and lower is not None and n > 0
+                and len(upper) == n and len(lower) == n):
+            sigmas: list[float] = []
+            for i, (u, lo) in enumerate(zip(upper, lower)):
+                half = (float(u) - float(lo)) / 2.0
+                denom = 1.96 * float(np.sqrt(i + 1))
+                if denom > 0 and np.isfinite(half) and half > 0:
+                    sigmas.append(half / denom)
+            if sigmas:
+                return float(np.median(sigmas))
+    except Exception:
+        pass
+    if len(predictions) > 1:
+        return float(np.std(predictions, ddof=1))
+    return 0.0
 
 
 def _determine_risk_level(prob: float) -> str:
@@ -137,9 +178,46 @@ def _determine_risk_level(prob: float) -> str:
         return "CRITICAL"
 
 
+def _extrapolate_future_time(times: list | None, step_index: int):
+    """Extrapolate a future sample time from historical sampling interval.
+
+    `times` is the full chronological history; never reuse historical
+    timestamps as if they were future breach times.
+    Returns ISO string or None.
+    """
+    if not times or len(times) < 2 or step_index < 1:
+        return None
+    try:
+        from datetime import datetime, timedelta
+        parsed = []
+        for t in times[-10:]:
+            try:
+                parsed.append(datetime.fromisoformat(str(t)))
+            except Exception:
+                continue
+        if len(parsed) < 2:
+            return None
+        deltas = [(parsed[i + 1] - parsed[i]).total_seconds()
+                  for i in range(len(parsed) - 1)]
+        deltas = [d for d in deltas if d > 0]
+        if not deltas:
+            return None
+        median_delta = sorted(deltas)[len(deltas) // 2]
+        future = parsed[-1] + timedelta(seconds=median_delta * step_index)
+        return future.isoformat()
+    except Exception:
+        return None
+
+
 def _calc_breach_time(predictions: list, upper: list, lower: list,
                       usl: float | None, lsl: float | None, times: list | None):
-    """Find the first predicted breach step. Returns dict or None."""
+    """Find the first predicted breach step. Returns dict or None.
+
+    `times` is the full historical timestamp list (chronological). The
+    future `breach_time` is extrapolated from the sampling interval, or
+    null — historical times are never presented as future breach times.
+    Step index is always retained.
+    """
     for i, (u, lo) in enumerate(zip(upper, lower)):
         breached = False
         direction = None
@@ -154,7 +232,7 @@ def _calc_breach_time(predictions: list, upper: list, lower: list,
                 "step": i + 1,
                 "direction": direction,
                 "predicted_value": round(predictions[i], 4),
-                "breach_time": times[i] if times and i < len(times) else None,
+                "breach_time": _extrapolate_future_time(times, i + 1),
             }
     return None
 
@@ -410,6 +488,35 @@ def _run_forecast(model_name: str, values: np.ndarray, horizon: int):
 # P1: Cpk helpers
 # ---------------------------------------------------------------------------
 
+CPK_GRADE_EXCELLENT = 1.33
+CPK_GRADE_SUFFICIENT = 1.0
+
+
+def _get_cpk_min_threshold() -> float:
+    """Alert threshold from runtime config (default 1.33)."""
+    try:
+        path = get_conf_path("runtime_config.json")
+        with open(path, "r", encoding="utf-8-sig") as f:
+            cfg = json.load(f)
+        return float(cfg.get("cpk_min_threshold", 1.33))
+    except Exception:
+        return 1.33
+
+
+def grade_cpk(cpk: float | None) -> str | None:
+    """Unified Cpk capability grade.
+
+    Bands: >=1.33 excellent, >=1.0 sufficient, else insufficient.
+    """
+    if cpk is None:
+        return None
+    if cpk >= CPK_GRADE_EXCELLENT:
+        return "excellent"
+    if cpk >= CPK_GRADE_SUFFICIENT:
+        return "sufficient"
+    return "insufficient"
+
+
 def _sliding_window_cpk(values: np.ndarray, usl: float, lsl: float, window: int = 100):
     """Sliding window Cpk analysis. Returns dict."""
     n = len(values)
@@ -427,7 +534,14 @@ def _sliding_window_cpk(values: np.ndarray, usl: float, lsl: float, window: int 
     for start in range(0, n - actual_window + 1, step):
         w = values[start:start + actual_window]
         mean = float(np.mean(w))
-        sigma = float(np.std(w, ddof=1))
+        # Within-sigma via moving-range (true Cpk); fall back to overall std
+        if len(w) >= 2:
+            mr_bar = float(np.mean(np.abs(np.diff(w))))
+            sigma = mr_bar / 1.128
+            if sigma == 0:
+                sigma = float(np.std(w, ddof=1))
+        else:
+            sigma = 0.0
         if sigma == 0:
             cpk_values.append(None)
         else:
@@ -448,23 +562,15 @@ def _sliding_window_cpk(values: np.ndarray, usl: float, lsl: float, window: int 
     else:
         trend = None
 
-    # Capability classification
-    if cpk_current is None:
-        capability = None
-    elif cpk_current >= 1.33:
-        capability = "excellent"
-    elif cpk_current >= 1.0:
-        capability = "sufficient"
-    elif cpk_current >= 0.5:
-        capability = "insufficient"
-    else:
-        capability = "severe_insufficient"
+    # Capability classification (unified bands via grade_cpk)
+    capability = grade_cpk(cpk_current)
+    alert_th = _get_cpk_min_threshold()
 
     return {
         "cpk_current": cpk_current,
         "cpk_trend": trend,
         "capability": capability,
-        "alert": cpk_current is not None and cpk_current < 1.0,
+        "alert": cpk_current is not None and cpk_current < alert_th,
         "window_size": actual_window,
         "cpk_values": cpk_values,
     }
@@ -614,12 +720,13 @@ def forecast(
     usl, lsl = _get_spec_limits(product, indicator)
 
     pred_mean = float(np.mean(predictions))
-    pred_std = float(np.std(predictions, ddof=1)) if len(predictions) > 1 else 0.0
+    # Prefer residual std inferred from CI; fall back to std of predictions
+    pred_std = _estimate_process_std(predictions, upper, lower)
     breach_prob, breach_dir = _calc_breach_prob(pred_mean, pred_std, usl, lsl)
     risk_level = _determine_risk_level(breach_prob)
+    # Pass full history; breach_time is extrapolated (never historical times)
     breach_time = _calc_breach_time(
-        predictions, upper, lower, usl, lsl,
-        times[-horizon:] if len(times) >= horizon else None,
+        predictions, upper, lower, usl, lsl, times,
     )
 
     risk = {
@@ -748,21 +855,10 @@ def risk_cpk(
     values = np.array([d["value"] for d in data], dtype=float)[::-1]
     result = _sliding_window_cpk(values, usl, lsl, window)
 
-    # Determine capability level
+    # Determine capability level (unified bands via grade_cpk)
     cpk = result.get("cpk_current")
-    if cpk is None:
-        capability = "unknown"
-    elif cpk >= 2.0:
-        capability = "excellent"
-    elif cpk >= 1.33:
-        capability = "sufficient"
-    elif cpk >= 1.0:
-        capability = "insufficient"
-    else:
-        capability = "severe_insufficient"
-
-    result["capability"] = capability
-    result["alert"] = cpk is not None and cpk < 1.0
+    result["capability"] = grade_cpk(cpk) or "unknown"
+    result["alert"] = cpk is not None and cpk < _get_cpk_min_threshold()
     result["window_size"] = result.pop("cpk_window", window)
     result["usl"] = usl
     result["lsl"] = lsl
@@ -795,12 +891,13 @@ def risk_breach(
     usl, lsl = _get_spec_limits(product, indicator)
 
     pred_mean = float(np.mean(predictions))
-    pred_std = float(np.std(predictions, ddof=1)) if len(predictions) > 1 else 0.0
+    # Prefer residual std inferred from CI; fall back to std of predictions
+    pred_std = _estimate_process_std(predictions, upper, lower)
     breach_prob, breach_dir = _calc_breach_prob(pred_mean, pred_std, usl, lsl)
     risk_level = _determine_risk_level(breach_prob)
+    # Pass full history; breach_time is extrapolated (never historical times)
     breach_time = _calc_breach_time(
-        predictions, upper, lower, usl, lsl,
-        times[-horizon:] if len(times) >= horizon else None,
+        predictions, upper, lower, usl, lsl, times,
     )
 
     return {

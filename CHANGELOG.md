@@ -12,6 +12,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **ODBC 连接串编码错误**: `build_connection_string` 改为 `odbc_connect` 显式拼接，修复 `host\instance,port` 被 URL 编码成 `%5C`/`%2C` 导致 ODBC 回退命名管道、报错 [53] 的问题
 - **ODBC 驱动自动选择**: 优先 18→17→11→Native Client，排除已废弃的 DBNETLIB「SQL Server」驱动
 - **ODBC 连接属性**: `timeout` 改为 `Connection Timeout`，并附加 `TrustServerCertificate=yes`
+- **flat 模式尊重 pymssql 驱动选择**: `from_config` 不再强制 ODBC；flat 采集与产品列表支持 pymssql 分支
+- **规格限为 0 时漏报**: 告警引擎与前端保存逻辑改用 `is not None` / `Number.isFinite`，USL/LSL=0 可正常判定
+- **过程能力 Ca 语义**: 改为传统偏移度 `|mean-target|/(T/2)`；零方差不再输出非法 `Infinity`；样本不足直接报错
+- **突破概率与越限时刻**: 均值已越限时直接判定高风险；`breach_time` 按采样间隔外推，不再误用历史时间戳
+- **滑动窗口 Cpk**: 改用 within-sigma（MR̄/1.128），与能力分析口径一致；Cpk 分级统一为 1.33/1.0
+- **后端崩溃自动重启**: 进程退出后按指数退避自动拉起（原先仅 HTTP 失败才重启）
+- **端口清理误杀风险**: 仅处理 LISTENING，精确匹配端口，并对 `ft1-backend.exe`/`python.exe` 做进程名白名单
+- **开机自启覆盖用户设置**: 启动时不再无条件 enable OS 自启
+
+### Security
+
+- **远程访问强制鉴权**: 非本机请求拒绝公开默认 API Key；`config`/`data`/`correction` 模块服务端 403
+- **共享密码会话 token**: `/api/auth/verify` 成功后签发 HMAC 短时 token，前端写入 sessionStorage（不再落 localStorage）
+- **局域网设备扫描**: `/api/network/discover` 增加 API Key + 仅本机限制
+- **构建产物脱敏**: `build.bat` 仅复制安全 conf 文件，不再打包数据库口令等运行时配置
+- **签名密钥保护**: `.gitignore` 排除 `keys/`、`*.key`、`key-output*`；构建前强制校验 `TAURI_SIGNING_PRIVATE_KEY*`
+- **移除 updater 调试残留**: 删除硬编码 HTTP 探测与 5 秒首检；恢复 60 秒首次检查；例行日志降为 info
+- **Release 关闭 DevTools**: Tauri feature 仅保留 `tray-icon`
+
+### Changed
+
+- 版本号统一为 1.7.3（含后端 FastAPI metadata）
+- 更新测试脚本与 nginx 缓存规则对齐实际 NSIS `*-setup.exe` 产物
+- `package.ps1` 生成 `latest.json` 使用无 BOM UTF-8
+- 手动采集与定时采集共用并发锁，避免重复采集
+- 无规格限的交叉预测品项默认关闭告警
 
 ## [1.7.2] - 2026-09-05
 

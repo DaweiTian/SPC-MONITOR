@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.core.auth import verify_api_key, DEFAULT_API_KEY
+from backend.app.core.auth import verify_api_key, DEFAULT_API_KEY, issue_session_token
 from backend.app.core.config import get_server_config, SERVER_CONFIG_FILE, get_conf_path
 from backend.app.core.exceptions import AppException, app_exception_handler, generic_exception_handler
 from datetime import datetime
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     _main_loop = asyncio.get_running_loop()
     yield
 
-app = FastAPI(title="液奶过程监控系统", version="1.7.1", lifespan=lifespan)
+app = FastAPI(title="液奶过程监控系统", version="1.7.3", lifespan=lifespan)
 
 # Serve frontend static files (for browser access via http://localhost:18080/)
 import pathlib
@@ -119,6 +119,30 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
 
+# 远程客户端禁止访问本机限定模块（服务端强制，不依赖前端契约）
+_LOCAL_ONLY_PATH_PREFIXES = ("/api/config", "/api/data", "/api/correction")
+
+
+@app.middleware("http")
+async def enforce_local_only_modules(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith("/api/permissions") and not path.startswith("/api/auth/"):
+        client_host = request.client.host if request.client else ""
+        if client_host not in ("127.0.0.1", "::1", "localhost"):
+            if path.startswith(_LOCAL_ONLY_PATH_PREFIXES):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    {"detail": "仅本机可访问该模块"},
+                    status_code=403,
+                )
+            if path.startswith(("/api/network", "/api/devices")) and request.method != "GET":
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    {"detail": "仅本机可修改网络/设备配置"},
+                    status_code=403,
+                )
+    return await call_next(request)
+
 # 初始化存储
 storage = OnlineStorage(db_path="data/monitor.db")
 storage.init_db()
@@ -127,13 +151,13 @@ storage.init_db()
 try:
     _excl_file = get_conf_path("excluded_remarks.json")
     if os.path.exists(_excl_file):
-        with open(_excl_file, 'r', encoding='utf-8') as f:
+        with open(_excl_file, 'r', encoding='utf-8-sig') as f:
             storage.set_excluded_remarks(json.load(f))
     else:
-        storage.set_excluded_remarks(["基准样"])
+        storage.set_excluded_remarks(["JZ", "基准", "作废", "基准样"])
 except Exception as e:
     logger.warning(f"Failed to load excluded remarks: {e}")
-    storage.set_excluded_remarks(["基准样"])
+    storage.set_excluded_remarks(["JZ", "基准", "作废", "基准样"])
 
 # 初始化采集器
 collector = MockCollector(storage=storage)
@@ -612,10 +636,12 @@ def get_permissions(request: Request):
 
 @app.post("/api/auth/verify")
 def verify_password(body: dict):
-    """验证共享密码"""
+    """验证共享密码，成功则签发短时会话 token（可作 X-API-Key）"""
     password = body.get("password", "")
     if verify_shared_password(password):
-        return {"success": True, "message": "密码正确"}
+        config = get_server_config()
+        token = issue_session_token(config.get("shared_password", "") or "")
+        return {"success": True, "message": "密码正确", "token": token}
     return {"success": False, "message": "密码错误"}
 
 
@@ -828,9 +854,11 @@ async def open_firewall(request: Request):
         return {"success": False, "message": str(e)}
 
 
-@app.get("/api/network/discover")
-async def discover_devices():
-    """扫描局域网内开启共享的 spc-monitor 服务"""
+@app.get("/api/network/discover", dependencies=_auth)
+async def discover_devices(request: Request):
+    """扫描局域网内开启共享的 spc-monitor 服务（仅本机可调用）"""
+    if not is_local_request(request):
+        raise HTTPException(status_code=403, detail="仅本机可扫描局域网设备")
     import socket
     import concurrent.futures
 
@@ -847,7 +875,6 @@ async def discover_devices():
             import urllib.request
             url = f"http://{ip}:18080/api/health"
             req = urllib.request.Request(url, method='GET')
-            req.add_header('X-API-Key', DEFAULT_API_KEY)
             with urllib.request.urlopen(req, timeout=1) as resp:
                 if resp.status == 200:
                     try:

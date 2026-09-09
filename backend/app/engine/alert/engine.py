@@ -156,7 +156,7 @@ class AlertEngine:
         if spec_limits and len(values_arr) > 0:
             latest_value = float(values_arr[-1])
             
-            if spec_limits.get('usl') and latest_value > spec_limits['usl']:
+            if spec_limits.get('usl') is not None and latest_value > spec_limits['usl']:
                 alert = {
                     'alert_id': self._gen_alert_id(),
                     'product_code': product_code,
@@ -175,7 +175,7 @@ class AlertEngine:
                     new_alerts.append(alert)
                     pending_keys.add((product_code, indicator_code, 'above_usl'))
             
-            if spec_limits.get('lsl') and latest_value < spec_limits['lsl']:
+            if spec_limits.get('lsl') is not None and latest_value < spec_limits['lsl']:
                 alert = {
                     'alert_id': self._gen_alert_id(),
                     'product_code': product_code,

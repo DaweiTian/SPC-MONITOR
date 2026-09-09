@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
-import { api } from '../services/api'
+import { api, setSessionToken } from '../services/api'
 
 interface Permissions {
   isLocal: boolean
@@ -56,6 +56,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 如果 URL 中有密码，自动验证
         const result = await api.verifyPassword(authFromUrl)
         if (result.success) {
+          if (result.token) setSessionToken(result.token)
           setIsAuthenticated(true)
           sessionStorage.setItem('ft1_authenticated', 'true')
         }
@@ -94,6 +95,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const result = await api.verifyPassword(password)
       if (result.success) {
+        if (result.token) setSessionToken(result.token)
         setIsAuthenticated(true)
         sessionStorage.setItem('ft1_authenticated', 'true')
         // 重新获取权限（修正首次启动时的误判）

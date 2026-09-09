@@ -19,6 +19,20 @@ collector = None
 
 _cache = TTLCache(ttl=300)
 
+
+def _sanitize(obj):
+    """Replace NaN/inf floats with None for JSON serialization."""
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
 @router.get("/spc/{product_code}/{indicator_code}")
 def get_spc_data(
     product_code: str,
@@ -276,12 +290,12 @@ def get_cpk_data(
                 "value": round(cpk_val, 4),
             })
 
-    resp = {
+    resp = _sanitize({
         "product_code": product_code,
         "indicator_code": indicator_code,
         "spec_limits": spec_limits,
         "result": result.to_dict(),
         "cpk_history": cpk_history,
-    }
+    })
     _cache.set(cache_key, resp)
     return resp

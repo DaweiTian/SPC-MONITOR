@@ -36,6 +36,25 @@ impl Drop for ServiceManager {
     }
 }
 
+/// 判断 PID 对应镜像是否为本项目后端（白名单：ft1-backend.exe / python.exe）
+/// 无法确认时返回 false（更安全，不误杀无关进程）
+#[cfg(target_os = "windows")]
+fn is_allowed_port_process(pid: u32) -> bool {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command as StdCommand;
+    let output = StdCommand::new("tasklist")
+        .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
+        .creation_flags(0x08000000)
+        .output();
+    let Ok(out) = output else { return false; };
+    let text = String::from_utf8_lossy(&out.stdout).to_ascii_lowercase();
+    // 无匹配任务时输出 "INFO: No tasks are running..."；跳过
+    if text.contains("info:") {
+        return false;
+    }
+    text.contains("ft1-backend.exe") || text.contains("python.exe")
+}
+
 /// 杀掉占用指定端口的残留进程（Windows）
 #[cfg(target_os = "windows")]
 fn kill_port_occupier(port: u16) {
@@ -48,22 +67,35 @@ fn kill_port_occupier(port: u16) {
         .output();
     let Ok(out) = output else { return };
     let text = String::from_utf8_lossy(&out.stdout);
-    let port_str = format!(":{}", port);
+    // 精确匹配本地地址以 :PORT 结尾（避免 :18080 误匹配 :180801）
+    let port_suffix = format!(":{}", port);
     let mut pids = Vec::new();
     for line in text.lines() {
-        if line.contains(&port_str) && (line.contains("LISTENING") || line.contains("TIME_WAIT")) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    if pid > 0 {
-                        pids.push(pid);
-                    }
-                }
+        // netstat -ano 列: Proto  Local Address  Foreign Address  State  PID
+        let cols: Vec<&str> = line.split_whitespace().collect();
+        if cols.len() < 5 {
+            continue;
+        }
+        // 只处理 LISTENING，不处理 TIME_WAIT（TIME_WAIT 无进程占用语义，杀 PID 可能误伤）
+        if cols[3] != "LISTENING" {
+            continue;
+        }
+        if !cols[1].ends_with(port_suffix.as_str()) {
+            continue;
+        }
+        if let Ok(pid) = cols[4].parse::<u32>() {
+            if pid > 0 {
+                pids.push(pid);
             }
         }
     }
     pids.sort();
     pids.dedup();
     for pid in pids {
+        if !is_allowed_port_process(pid) {
+            warn!("端口 {} 被 PID {} 占用，但镜像不在白名单（ft1-backend.exe/python.exe），跳过终止", port, pid);
+            continue;
+        }
         warn!("端口 {} 被进程 {} 占用，尝试终止", port, pid);
         StdCommand::new("taskkill")
             .args(["/F", "/PID", &pid.to_string()])
@@ -131,9 +163,18 @@ impl ServiceManager {
     /// 从后端 conf/server_config.json 读取监听地址（默认 "127.0.0.1"）
     fn read_server_host(&self) -> String {
         let config_path = if let Some(ref exe) = self.backend_exe {
-            exe.parent().unwrap_or(std::path::Path::new(".")).join("conf").join("server_config.json")
+            exe.parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join("conf")
+                .join("server_config.json")
         } else {
-            std::path::PathBuf::from("conf").join("server_config.json")
+            // 无打包后端时，相对 current_exe 所在目录解析（NSIS 启动时 CWD 不确定）
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("conf")
+                .join("server_config.json")
         };
         std::fs::read_to_string(&config_path)
             .ok()

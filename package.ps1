@@ -95,7 +95,8 @@ if ($setupSig) {
   }
 }
 "@
-    $latestJson | Out-File -Encoding utf8 (Join-Path $OUTPUT_DIR "latest.json")
+    # Write without BOM so Tauri updater / JSON consumers parse cleanly
+    [System.IO.File]::WriteAllText((Join-Path $OUTPUT_DIR "latest.json"), $latestJson, [System.Text.UTF8Encoding]::new($false))
     Write-Host "latest.json generated (version: $version)"
     Write-Host "Upload to server: scp $OUTPUT_DIR\latest.json $OUTPUT_DIR\*-setup.exe $OUTPUT_DIR\*-setup.exe.sig root@106.13.77.213:/var/www/spc-monitor-updates/"
 } else {

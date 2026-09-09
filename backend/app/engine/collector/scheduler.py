@@ -120,15 +120,31 @@ class AdaptiveScheduler:
     
     def trigger_manual(self) -> Dict[str, Any]:
         logger.info("手动采集触发")
+        if self._is_collecting:
+            logger.warning("上一次采集尚未完成，手动采集被拒绝")
+            return {
+                "status": "busy",
+                "message": "上一次采集尚未完成，请稍后再试",
+                "timestamp": datetime.now().isoformat(),
+            }
+        with self._collect_lock:
+            if self._is_collecting:
+                logger.warning("上一次采集尚未完成，手动采集被拒绝")
+                return {
+                    "status": "busy",
+                    "message": "上一次采集尚未完成，请稍后再试",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            self._is_collecting = True
         try:
             result = self.collect_func()
             count = result.get("new_records", 0)
             self.last_record_count = count
             self.last_collect_time = datetime.now()
-            
+
             if count > 0 and self.current_level > 0:
                 self._reschedule(0)
-            
+
             return {
                 "status": "success",
                 "new_records": count,
@@ -141,6 +157,8 @@ class AdaptiveScheduler:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat(),
             }
+        finally:
+            self._is_collecting = False
     
     def get_status(self) -> Dict[str, Any]:
         return {

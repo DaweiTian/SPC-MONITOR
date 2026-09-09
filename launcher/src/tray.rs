@@ -58,8 +58,7 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
     app.manage(autostart_item.clone());
 
     let sm = service_manager.clone();
-    let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+    let mut tray_builder = TrayIconBuilder::new()
         .menu(&menu)
         .on_menu_event(move |app, event| {
             match event.id.as_ref() {
@@ -131,8 +130,16 @@ pub fn create_tray(app: &tauri::App, service_manager: Arc<ServiceManager>) -> ta
                     let _ = w.set_focus();
                 }
             }
-        })
-        .build(app)?;
+        });
+
+    // default_window_icon 可能为 None，优雅降级：有则用，无则让系统使用默认/空白图标
+    if let Some(icon) = app.default_window_icon() {
+        tray_builder = tray_builder.icon(icon.clone());
+    } else {
+        log::warn!("default_window_icon 为 None，托盘将不设置自定义图标");
+    }
+
+    let _tray = tray_builder.build(app)?;
 
     Ok(())
 }

@@ -196,3 +196,12 @@ launcher/ft1-backend/
 # Rust build output
 launcher/target/
 data/monitor.db
+
+# Signing secrets — never commit
+keys/
+*.key
+*.pem
+*.p12
+*.pfx
+*key-output*
+launcher/key-output.txt

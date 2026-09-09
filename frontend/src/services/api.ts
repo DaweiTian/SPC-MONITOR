@@ -20,15 +20,30 @@ const http = axios.create({
   timeout: 120000,
 })
 
-// API key authentication – read from Tauri launcher, localStorage, or default
+// API key authentication – memory-first; sessionStorage for session token; localStorage only for backward compat read
 const DEFAULT_API_KEY = 'ft1-monitor-default-key'
 let apiKey: string
 try {
-  apiKey = localStorage.getItem('ft1_api_key') || DEFAULT_API_KEY
+  // One-time backward-compat read from localStorage; no further localStorage writes
+  apiKey = sessionStorage.getItem('ft1_session_token') || localStorage.getItem('ft1_api_key') || DEFAULT_API_KEY
 } catch {
   apiKey = DEFAULT_API_KEY
 }
 http.defaults.headers.common['X-API-Key'] = apiKey
+
+/** Get the current in-memory API key (used by websocket etc.) */
+export function getApiKey(): string {
+  return apiKey
+}
+
+/** Store a session token from password verify (memory + sessionStorage; never localStorage) */
+export function setSessionToken(token: string): void {
+  apiKey = token
+  http.defaults.headers.common['X-API-Key'] = token
+  try {
+    sessionStorage.setItem('ft1_session_token', token)
+  } catch { /* sessionStorage unavailable — memory still holds the key */ }
+}
 
 /** Initialize API key from Tauri launcher (call once at app startup) */
 export async function initApiKey(): Promise<void> {
@@ -38,7 +53,7 @@ export async function initApiKey(): Promise<void> {
     const key = await invoke<string>('get_api_key')
     if (key && key !== apiKey) {
       apiKey = key
-      localStorage.setItem('ft1_api_key', key)
+      // Keep in memory only — do not persist default/Tauri key to localStorage
       http.defaults.headers.common['X-API-Key'] = key
     }
   } catch {
@@ -235,7 +250,7 @@ export const api = {
 
   // 密码验证
   verifyPassword: (password: string) =>
-    http.post<{ success: boolean; message: string }>('/auth/verify', { password }).then(r => r.data),
+    http.post<{ success: boolean; message: string; token?: string }>('/auth/verify', { password }).then(r => r.data),
 
   // 设备管理
   getDevices: () =>

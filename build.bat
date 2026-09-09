@@ -27,7 +27,7 @@ call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 echo [2/6] Nuitka 编译后端...
 REM 复制前端 dist 到 data/frontend（供浏览器访问）
 if exist "%PROJECT_DIR%data\frontend" rmdir /s /q "%PROJECT_DIR%data\frontend"
-xcopy /E /I /Q /Y "%PROJECT_DIR%frontend\dist" "%PROJECT_DIR%data\frontend" >nul 2>nul
+xcopy /E /I /Q /Y "%PROJECT_DIR%frontend\dist" "%PROJECT_DIR%data\frontend" >nul || (echo 前端复制到 data\frontend 失败 & pause & exit /b 1)
 cd /d "%PROJECT_DIR%"
 python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-package=sklearn --include-package=pandas --include-package=starlette --include-package=scipy._external --include-module=ctypes --include-data-dir=data=data --nofollow-import-to=scipy.io,scipy.cluster --nofollow-import-to=numpy.tests --nofollow-import-to=pandas.conftest --nofollow-import-to=sklearn.tests --nofollow-import-to=sklearn.utils.tests --nofollow-import-to=pandas.tests backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
 
@@ -39,19 +39,53 @@ move /Y "ft1-backend-dist\run.dist\run.exe" "ft1-backend-dist\run.dist\ft1-backe
 REM 去除后端 exe 图标（避免任务栏出现两个图标）
 python -c "import pefile; pe=pefile.PE(r'ft1-backend-dist\run.dist\ft1-backend.exe'); d=pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']]; d.VirtualAddress=0;d.Size=0;pe.write(r'ft1-backend-dist\run.dist\ft1-backend.exe')" 2>nul
 xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul || (echo 后端复制失败 & pause & exit /b 1)
-xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul 2>nul
-REM 复制配置文件（全部在 backend/conf/ 目录下）
+xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul || (echo 数据目录复制失败 & pause & exit /b 1)
+REM 仅复制非敏感配置文件（排除 db_config/mdb_config/fta_config/server_config 等含凭据的运行时配置）
 if not exist "!PROJECT_DIR!backend\conf" (echo 错误: backend\conf 目录不存在 & pause & exit /b 1)
-xcopy /E /I /Q /Y "!PROJECT_DIR!backend\conf" "%BACKEND_DIST%\conf" >nul || (echo 配置文件复制失败 & pause & exit /b 1)
+if not exist "%BACKEND_DIST%\conf" mkdir "%BACKEND_DIST%\conf"
+for %%f in (product_categories.json prediction_config.json excluded_remarks.json db_mapping.json spec_limits.json) do (
+    if exist "!PROJECT_DIR!backend\conf\%%f" (
+        copy /Y "!PROJECT_DIR!backend\conf\%%f" "%BACKEND_DIST%\conf\" >nul || (echo 配置文件复制失败: %%f & pause & exit /b 1)
+    )
+)
 REM 验证关键配置文件已复制
 if not exist "%BACKEND_DIST%\conf\spec_limits.json" (echo   WARNING: conf\spec_limits.json 不存在，将使用默认规格限)
-if not exist "%BACKEND_DIST%\conf\db_config.json" (echo   WARNING: conf\db_config.json 不存在，将使用默认数据库配置)
+if not exist "%BACKEND_DIST%\conf\db_config.json" (echo   NOTE: conf\db_config.json 不随安装包分发，请在部署后配置数据库连接)
 REM 复制 M8 模型文件（pkl，Nuitka 不自动包含非 Python 数据文件）
 REM 注意: _resolve_model_dir() 用 __file__ 上溯3级解析路径，保留 backend/ 层级
 if not exist "%BACKEND_DIST%\backend\models" mkdir "%BACKEND_DIST%\backend\models"
 xcopy /I /Q /Y "!PROJECT_DIR!backend\models\*.pkl" "%BACKEND_DIST%\backend\models\" >nul || echo   WARNING: M8 model files (*.pkl) not found - prediction will fallback to linear K-value
 
 echo [4/6] 构建 Tauri...
+REM 自动更新签名需要 Tauri 更新私钥
+REM 优先使用系统/用户环境变量 TAURI_SIGNING_PRIVATE_KEY（直接存放私钥内容）
+REM 兼容回退：TAURI_SIGNING_PRIVATE_KEY_PATH（私钥文件路径）
+if defined TAURI_SIGNING_PRIVATE_KEY (
+    echo   使用环境变量 TAURI_SIGNING_PRIVATE_KEY 进行更新包签名
+) else if defined TAURI_SIGNING_PRIVATE_KEY_PATH (
+    echo   使用环境变量 TAURI_SIGNING_PRIVATE_KEY_PATH 进行更新包签名
+    if not exist "%TAURI_SIGNING_PRIVATE_KEY_PATH%" (
+        echo 错误: TAURI_SIGNING_PRIVATE_KEY_PATH 指向的文件不存在: %TAURI_SIGNING_PRIVATE_KEY_PATH%
+        pause
+        exit /b 1
+    )
+) else (
+    echo 错误: 未设置更新签名私钥
+    echo.
+    echo   推荐方式（系统环境变量，设置后需新开终端生效）:
+    echo     setx TAURI_SIGNING_PRIVATE_KEY "完整私钥内容"
+    echo     setx TAURI_SIGNING_PRIVATE_KEY_PASSWORD "私钥口令"   ^& REM 若私钥有密码
+    echo.
+    echo   备选方式:
+    echo     setx TAURI_SIGNING_PRIVATE_KEY_PATH "D:\path\to\update.key"
+    echo.
+    echo   注意: 私钥为多行文本时，系统环境变量可能只保留一行，建议改用 PATH 指向密钥文件
+    pause
+    exit /b 1
+)
+if defined TAURI_SIGNING_PRIVATE_KEY_PASSWORD (
+    echo   已加载私钥口令环境变量
+)
 cd /d "%LAUNCHER_DIR%"
 cargo tauri build || (echo Tauri 构建失败 & pause & exit /b 1)
 
@@ -63,9 +97,9 @@ mkdir "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\SPC-Monitor.exe" "%PORTABLE%\过程SPC监控平台.exe" >nul || (echo 复制主程序失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y "%BACKEND_DIST%" "%PORTABLE%\ft1-backend" >nul || (echo 复制后端到打包目录失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y "%PROJECT_DIR%scripts" "%PORTABLE%\scripts" >nul 2>nul
-powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\过程SPC监控平台_免安装版.zip' -Force" || (echo 压缩打包失败 & pause & exit /b 1)
+powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OUTPUT_DIR%\过程SPC监控平台_免安装版v!VERSION!.zip' -Force" || (echo 压缩打包失败 & pause & exit /b 1)
 rmdir /s /q "%PORTABLE%"
-copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*.exe" "%OUTPUT_DIR%\" >nul || (echo 复制安装包失败 & pause & exit /b 1)
+copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*!VERSION!*-setup.exe" "%OUTPUT_DIR%\" >nul || (echo 复制安装包失败 & pause & exit /b 1)
 
 echo [6/6] 生成更新清单 latest.json...
 set "SETUP_EXE="

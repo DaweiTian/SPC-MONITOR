@@ -711,9 +711,12 @@ export const ConfigPage: React.FC = () => {
     for (const spec of enabledSpecs) {
       try {
         const limits: { lsl?: number; usl?: number; target?: number; product_code: string } = { product_code: newProduct.code }
-        if (spec.lsl != null && spec.lsl) limits.lsl = spec.lsl
-        if (spec.usl != null && spec.usl) limits.usl = spec.usl
-        if (spec.target != null && spec.target) limits.target = spec.target
+        const nLsl = spec.lsl == null ? null : Number(spec.lsl)
+        if (nLsl !== null && Number.isFinite(nLsl)) limits.lsl = nLsl
+        const nUsl = spec.usl == null ? null : Number(spec.usl)
+        if (nUsl !== null && Number.isFinite(nUsl)) limits.usl = nUsl
+        const nTarget = spec.target == null ? null : Number(spec.target)
+        if (nTarget !== null && Number.isFinite(nTarget)) limits.target = nTarget
         await api.updateSingleSpecLimit(spec.indicator_code, limits)
         if (spec.lsl != null || spec.usl != null) {
           productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
@@ -739,6 +742,7 @@ export const ConfigPage: React.FC = () => {
       const defaultK = selectedCategory && predictionCategories[selectedCategory]
         ? predictionCategories[selectedCategory].k
         : 0.6278
+      const nAlert = alertThreshold === '' || alertThreshold == null ? null : Number(alertThreshold) / 100
       predIndicators.saturated_fat = {
         source_indicator: 'fat',
         coefficient: parseFloat(predCoefficient) || defaultK,
@@ -746,7 +750,7 @@ export const ConfigPage: React.FC = () => {
         prediction_method: predictionMethod,
         product_category: selectedCategory || '',
         alert_enabled: alertEnabled,
-        alert_threshold: parseFloat(alertThreshold) / 100 || 0.10,
+        alert_threshold: nAlert !== null && Number.isFinite(nAlert) ? nAlert : 0.10,
         usl: predUsl !== '' ? parseFloat(predUsl) : null,
         lsl: predLsl !== '' ? parseFloat(predLsl) : null,
         target: predTarget !== '' ? parseFloat(predTarget) : null,

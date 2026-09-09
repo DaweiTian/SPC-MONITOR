@@ -64,28 +64,25 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .take();
 
-    if let Some(p) = pending {
-        p.update.install(p.bytes).map_err(|e| e.to_string())?;
-    }
+    let p = pending.ok_or("没有已下载的更新")?;
+    p.update.install(p.bytes).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 /// 启动后台定时检查任务（每 3 天一次，首次延迟 60 秒）
 pub fn spawn_periodic_check(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        log::warn!("更新检查任务已启动，5 秒后首次检查");
-        tokio::time::sleep(Duration::from_secs(5)).await;
-        log::warn!("开始检查更新...");
+        log::info!("更新检查任务已启动，60 秒后首次检查");
+        tokio::time::sleep(Duration::from_secs(60)).await;
 
         loop {
-            log::warn!("正在请求更新服务器...");
             match try_check_and_download(&app).await {
                 Ok(Some(info)) => {
-                    log::warn!("发现新版本 {}，已静默下载", info.version);
+                    log::info!("发现新版本 {}，已静默下载", info.version);
                     app.emit("update-ready", &info).ok();
                 }
                 Ok(None) => {
-                    log::warn!("当前已是最新版本");
+                    log::info!("当前已是最新版本");
                 }
                 Err(e) => {
                     log::warn!("检查更新失败: {}", e);
@@ -99,34 +96,6 @@ pub fn spawn_periodic_check(app: AppHandle) {
 
 /// 内部：检查更新 → 下载 → 暂存
 async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
-    // 调试：手动模拟 updater 的请求方式
-    use reqwest::header::HeaderValue;
-    let client = reqwest::Client::builder()
-        .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|e| e.to_string())?;
-    match client.get("http://106.13.77.213:9090/latest.json")
-        .header("Accept", HeaderValue::from_static("application/json"))
-        .send().await
-    {
-        Ok(resp) => {
-            let status = resp.status();
-            match resp.bytes().await {
-                Ok(body) => {
-                    log::warn!("调试2 - HTTP {}, 长度: {}字节", status, body.len());
-                    match serde_json::from_slice::<serde_json::Value>(&body) {
-                        Ok(val) => log::warn!("调试2 - JSON 解析成功: {}", serde_json::to_string(&val).unwrap_or_default().chars().take(200).collect::<String>()),
-                        Err(e) => log::error!("调试2 - JSON 解析失败: {}", e),
-                    }
-                }
-                Err(e) => log::error!("调试2 - 读取响应体失败: {}", e),
-            }
-        }
-        Err(e) => log::error!("调试2 - HTTP 请求失败: {}", e),
-    }
-
-    log::warn!("调试 - 当前应用版本: {}", app.config().version.as_deref().unwrap_or("unknown"));
-
     let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
 
     let Some(update) = update else {

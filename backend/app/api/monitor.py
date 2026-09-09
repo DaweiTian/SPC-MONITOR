@@ -129,13 +129,15 @@ def get_widget_capability():
                         r = capability.analyze_one_sided(values, spec['usl'], 'upper')
                     else:
                         r = capability.analyze_one_sided(values, spec['lsl'], 'lower')
-                    if r.cpk > 0:
-                        results["cp"].append(r.cp)
-                        results["cpk"].append(r.cpk)
-                        results["pp"].append(r.pp)
-                        results["ppk"].append(r.ppk)
-                        results["sigma"].append(r.sigma_level)
-                        results["ppm"].append(r.defect_rate_ppm)
+                    # capability may return None for ca/cp/cpk/etc when sigma is 0
+                    if r.cpk is not None and np.isfinite(r.cpk) and r.cpk > 0:
+                        for key, attr in (
+                            ("cp", r.cp), ("cpk", r.cpk), ("pp", r.pp),
+                            ("ppk", r.ppk), ("sigma", r.sigma_level),
+                            ("ppm", r.defect_rate_ppm),
+                        ):
+                            if attr is not None and np.isfinite(float(attr)):
+                                results[key].append(attr)
                 except Exception:
                     continue
 
