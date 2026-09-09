@@ -549,6 +549,22 @@
   padding: 0 4px;
 }
 
+/* 折叠侧栏过窄，tooltip 改为向右展开，避免被裁切 */
+.sidebarCollapsed .footerVersionBadge .versionTooltip {
+  left: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.sidebarCollapsed .footerVersionBadge:hover .versionTooltip {
+  transform: translateY(-50%);
+}
+
+.sidebarCollapsed .footerVersionBadge .versionTooltip::after {
+  display: none;
+}
+
 .sidebarCollapsed .footerPoweredBy {
   display: none;
 }
@@ -620,11 +636,6 @@
   width: 10px;
   height: 10px;
   flex-shrink: 0;
-}
-
-/* ========== Nav item text wrapper ========== */
-.navItemText {
-  /* collapsed state hides this via .sidebarCollapsed .navItemText */
 }
 
 /* ========== 动画 ========== */

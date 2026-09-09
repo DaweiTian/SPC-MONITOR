@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, websocketService } from '../../services'
 import { useAppContext } from '../../contexts/AppContext'
@@ -107,7 +107,7 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-const APP_VERSION = 'v1.7.4'
+const APP_VERSION = `v${__APP_VERSION__}`
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
@@ -145,10 +145,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [downloadingUpdate, setDownloadingUpdate] = useState(false)
   const downloadingUpdateRef = useRef(false)
   const versionAreaRef = useRef<HTMLSpanElement>(null)
+  const versionMenuRef = useRef<HTMLDivElement>(null)
   const openVersionMenuRef = useRef<(x: number, y: number) => void>(() => {})
 
   useEffect(() => {
     openVersionMenuRef.current = (clientX: number, clientY: number) => {
+      // 先按估算值放置，渲染后 useLayoutEffect 按实测尺寸再夹紧
       const menuWidth = 180
       const menuHeight = 88
       const x = Math.min(Math.max(clientX, 8), window.innerWidth - menuWidth - 8)
@@ -156,6 +158,18 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       setVersionMenu({ x, y })
     }
   }, [])
+
+  useLayoutEffect(() => {
+    const menu = versionMenuRef.current
+    if (!versionMenu || !menu) return
+    const rect = menu.getBoundingClientRect()
+    let { x, y } = versionMenu
+    if (x + rect.width > window.innerWidth - 8) x = window.innerWidth - rect.width - 8
+    if (y + rect.height > window.innerHeight - 8) y = window.innerHeight - rect.height - 8
+    if (x < 8) x = 8
+    if (y < 8) y = 8
+    if (x !== versionMenu.x || y !== versionMenu.y) setVersionMenu({ x, y })
+  }, [versionMenu])
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -462,6 +476,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
       {versionMenu && (
         <div
+          ref={versionMenuRef}
           className={styles.versionContextMenu}
           style={{ left: versionMenu.x, top: versionMenu.y }}
           onClick={(e) => e.stopPropagation()}

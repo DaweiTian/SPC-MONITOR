@@ -86,11 +86,7 @@ pub async fn download_update(
 /// 前端调用：安装已下载的更新（会退出应用）
 #[tauri::command(async)]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
-    // 安装前显式停止后端进程（install() 内部调用 process::exit 会绕过 Drop）
-    if let Some(sm) = app.try_state::<std::sync::Arc<crate::service::ServiceManager>>() {
-        let _ = sm.stop_server();
-    }
-
+    // 先取出待装包，确认存在后再停后端，避免“停了却没得装”
     let pending = app
         .state::<Mutex<Option<PendingUpdate>>>()
         .lock()
@@ -98,8 +94,22 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .take();
 
     let p = pending.ok_or("没有已下载的更新")?;
-    p.update.install(p.bytes).map_err(|e| e.to_string())?;
-    Ok(())
+
+    // install() 内部会 process::exit，需先停后端（绕过 Drop）
+    if let Some(sm) = app.try_state::<std::sync::Arc<crate::service::ServiceManager>>() {
+        let _ = sm.stop_server();
+    }
+
+    match p.update.install(p.bytes) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            // 安装失败则尽量把后端拉回来，避免应用处于“无后端”状态
+            if let Some(sm) = app.try_state::<std::sync::Arc<crate::service::ServiceManager>>() {
+                let _ = sm.start_server();
+            }
+            Err(e.to_string())
+        }
+    }
 }
 
 /// 启动后台定时检查任务（每 3 天一次，首次延迟 60 秒）
@@ -136,6 +146,19 @@ async fn try_check_and_download(app: &AppHandle) -> Result<Option<UpdateInfo>, S
     };
 
     let version = update.version.clone();
+
+    // 后台任务与手动下载共享 PendingUpdate：同版本已就绪则不重复下载/弹窗
+    {
+        let state = app.state::<Mutex<Option<PendingUpdate>>>();
+        let guard = state.lock().map_err(|e| e.to_string())?;
+        if let Some(p) = guard.as_ref() {
+            if p.update.version == version {
+                log::info!("版本 {} 已下载过，跳过", version);
+                return Ok(None);
+            }
+        }
+    }
+
     let notes = update.body.clone();
 
     let bytes = update
