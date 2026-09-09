@@ -6,7 +6,7 @@ mod updater;
 use config::AppConfig;
 use log::{error, warn};
 use service::ServiceManager;
-use simplelog::{CombinedLogger, Config, WriteLogger};
+use simplelog::{CombinedLogger, WriteLogger};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -19,10 +19,22 @@ struct ApiKeyState(String);
 fn init_logging() {
     let log_path = AppConfig::log_dir().join("launcher.log");
     if let Ok(log_file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-        let config = simplelog::ConfigBuilder::new()
-            .set_time_offset_to_local()
-            .unwrap_or_else(|c| c)
-            .build();
+        // simplelog 默认只打 HH:MM:SS，跨天无法对齐真实时间；
+        // time crate 在 Windows 多线程后取本地偏移会失败，必须在启动其他线程前完成。
+        let mut builder = simplelog::ConfigBuilder::new();
+        match time::UtcOffset::current_local_offset() {
+            Ok(offset) => {
+                builder.set_time_offset(offset);
+            }
+            Err(e) => {
+                eprintln!("获取本地时区偏移失败，日志时间将使用 UTC: {e}");
+                let _ = builder.set_time_offset_to_local();
+            }
+        }
+        builder.set_time_format_custom(time::macros::format_description!(
+            "[year]-[month]-[day] [hour]:[minute]:[second]"
+        ));
+        let config = builder.build();
         let _ = CombinedLogger::init(vec![WriteLogger::new(
             log::LevelFilter::Warn,
             config,

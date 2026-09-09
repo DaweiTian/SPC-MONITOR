@@ -296,8 +296,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION} 更新日志
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>自动更新：启动时+每3天检查更新，静默下载后提示安装</li>
-                <li className={styles.versionTooltipItem}>版本号统一：修复Cargo.toml版本号与其他文件不同步问题</li>
+                <li className={styles.versionTooltipItem}>修复 ODBC 连接串编码问题，命名实例+端口可正常连接</li>
+                <li className={styles.versionTooltipItem}>ODBC 驱动自动优选 18/17/11，排除废弃 DBNETLIB</li>
+                <li className={styles.versionTooltipItem}>建议使用 ODBC 驱动连接 SQL Server（需安装 ODBC Driver 17+）</li>
               </ul>
             </div>
           </span>

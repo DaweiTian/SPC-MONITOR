@@ -21,6 +21,8 @@ reqwest = { version = "0.12", features = ["blocking", "json"] }
 dirs = "5"
 log = "0.4"
 simplelog = "0.12"
+# 日志完整时间戳与本地时区（simplelog 依赖 time 0.3）
+time = { version = "0.3", features = ["local-offset", "formatting", "parsing", "macros"] }
 open = "5"
 tokio = { version = "1", features = ["time"] }
 
