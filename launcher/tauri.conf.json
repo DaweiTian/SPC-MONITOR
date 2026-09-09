@@ -1,6 +1,6 @@
 {
   "productName": "过程SPC监控平台",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "identifier": "com.ft1.monitor",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -55,7 +55,7 @@
   "plugins": {
     "updater": {
       "endpoints": ["http://106.13.77.213:9090/latest.json"],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxMjNGNDU2Nzg5QUJDREUKUldTYkM0cVJvSDR3TEt3Y3Y3YVVoR0VyNnF4djhRSGZ3YmN6cFlmOEZvPQ==",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBMkY4OTRDMjNBMkM0QUMKUldTc3hLSWpUSWt2bXNxTHNBUDIwczRWOThjclhJcG9SdHM4eW5DRVE2WW1CZFMxNlRldGJ5K2oK",
       "dangerousInsecureTransportProtocol": true
     }
   }

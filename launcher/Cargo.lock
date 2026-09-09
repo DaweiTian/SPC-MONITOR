@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "SPC-Monitor"
-version = "1.6.3"
+version = "1.7.3"
 dependencies = [
  "dirs 5.0.1",
  "log",
@@ -21,6 +21,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "tokio",
  "window-vibrancy",
 ]
 

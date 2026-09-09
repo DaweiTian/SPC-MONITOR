@@ -104,6 +104,48 @@ def load_spec_limits(filepath: str, product_code: Optional[str] = None) -> Dict[
 
 _detected_odbc_driver: str | None = None
 
+# 现代驱动优先；禁止选中已废弃的 DBNETLIB「SQL Server」
+_ODBC_DRIVER_PRIORITY = (
+    'ODBC Driver 18 for SQL Server',
+    'ODBC Driver 17 for SQL Server',
+    'ODBC Driver 16 for SQL Server',
+    'ODBC Driver 13 for SQL Server',
+    'ODBC Driver 11 for SQL Server',
+    'SQL Server Native Client 11.0',
+    'SQL Server Native Client 10.0',
+)
+
+
+def _pick_odbc_driver(drivers: list) -> str | None:
+    """从已安装驱动列表中选择最合适的 SQL Server ODBC 驱动。"""
+    names = [str(d).strip() for d in drivers if d and str(d).strip()]
+    if not names:
+        return None
+    lower_map = {n.lower(): n for n in names}
+    for preferred in _ODBC_DRIVER_PRIORITY:
+        hit = lower_map.get(preferred.lower())
+        if hit:
+            return hit
+    # 回退：任意 "ODBC Driver N for SQL Server"，取版本号最大者
+    import re
+    candidates = []
+    for n in names:
+        low = n.lower()
+        if low == 'sql server':
+            continue
+        if 'odbc driver' in low and 'sql server' in low:
+            m = re.search(r'(\d+)', n)
+            ver = int(m.group(1)) if m else 0
+            candidates.append((ver, n))
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        return candidates[0][1]
+    # 最后才考虑 Native Client（已含在优先级里）；绝不返回 DBNETLIB
+    for n in names:
+        if 'native client' in n.lower() and 'sql' in n.lower():
+            return n
+    return None
+
 
 def _detect_odbc_driver() -> str:
     """检测系统上可用的 SQL Server ODBC 驱动（结果缓存，只检测一次）"""
@@ -116,20 +158,10 @@ def _detect_odbc_driver() -> str:
         import pyodbc
         available = pyodbc.drivers()
         logger.info(f"pyodbc 可用驱动: {available}")
-        sql_drivers = [d for d in available if 'sql' in d.lower()]
-        for d in sql_drivers:
-            if '17' in d:
-                _detected_odbc_driver = d
-                logger.info(f"检测到 ODBC 驱动: {d}")
-                return _detected_odbc_driver
-        for d in sql_drivers:
-            if '18' in d:
-                _detected_odbc_driver = d
-                logger.info(f"检测到 ODBC 驱动: {d}")
-                return _detected_odbc_driver
-        if sql_drivers:
-            _detected_odbc_driver = sql_drivers[0]
-            logger.info(f"检测到 ODBC 驱动: {sql_drivers[0]}")
+        picked = _pick_odbc_driver(available)
+        if picked:
+            _detected_odbc_driver = picked
+            logger.info(f"检测到 ODBC 驱动: {picked}")
             return _detected_odbc_driver
     except Exception as e:
         logger.debug(f"pyodbc.drivers() 失败: {e}")
@@ -149,43 +181,56 @@ def _detect_odbc_driver() -> str:
                 break
         winreg.CloseKey(base_key)
         logger.info(f"注册表 ODBC 驱动列表: {drivers}")
-        sql_drivers = [d for d in drivers if 'sql' in d.lower()]
-        for d in sql_drivers:
-            if '17' in d:
-                _detected_odbc_driver = d
-                return _detected_odbc_driver
-        for d in sql_drivers:
-            if '18' in d:
-                _detected_odbc_driver = d
-                return _detected_odbc_driver
-        if sql_drivers:
-            _detected_odbc_driver = sql_drivers[0]
+        picked = _pick_odbc_driver(drivers)
+        if picked:
+            _detected_odbc_driver = picked
+            logger.info(f"检测到 ODBC 驱动: {picked}")
             return _detected_odbc_driver
     except Exception as e:
         logger.debug(f"winreg 检测 ODBC 驱动失败: {e}")
 
     _detected_odbc_driver = 'ODBC Driver 17 for SQL Server'
-    logger.warning(f"未检测到 SQL Server ODBC 驱动，使用默认值: {_detected_odbc_driver}")
+    logger.warning(f"未检测到可用的 SQL Server ODBC 驱动，使用默认值: {_detected_odbc_driver}")
     return _detected_odbc_driver
 
 
 def build_connection_string(config: Dict[str, Any]) -> str:
-    """Build SQL Server connection string from config."""
-    server = config.get('server', '')
-    database = config.get('database', '')
-    username = config.get('username', '')
-    password = config.get('password', '')
+    """Build SQLAlchemy URL for SQL Server via pyodbc.
+
+    使用 odbc_connect 显式拼 ODBC 串，避免把 server 塞进 URL host
+    导致 %5C/%2C 未还原（命名实例+端口会退化成命名管道连接失败）。
+    """
+    server = (config.get('server') or '').strip()
+    database = (config.get('database') or '').strip()
+    username = (config.get('username') or '').strip()
+    password = config.get('password') or ''
     driver = config.get('driver', 'pymssql')
-    timeout = config.get('timeout', 30)
+    try:
+        timeout = int(config.get('timeout', 30) or 30)
+    except (TypeError, ValueError):
+        timeout = 30
 
     # 当 driver 为 "odbc" 时，自动检测系统 ODBC 驱动
     if driver == 'odbc':
         driver = _detect_odbc_driver()
         logger.info(f"自动检测 ODBC 驱动: {driver}")
 
-    driver_encoded = driver.replace(' ', '+')
+    # ODBC 花括号转义：} → }}
+    driver_token = '{' + str(driver).replace('}', '}}') + '}'
 
+    # server 保持原样（支持 host / host,port / host\\instance / host\\instance,port）
+    parts = [
+        f'DRIVER={driver_token}',
+        f'SERVER={server}',
+        f'DATABASE={database}',
+        f'Connection Timeout={timeout}',
+        'TrustServerCertificate=yes',
+    ]
     if config.get('auth_type') == 'windows':
-        return f"mssql+pyodbc://{urllib.parse.quote_plus(server)}/{urllib.parse.quote_plus(database)}?driver={driver_encoded}&trusted_connection=yes&timeout={timeout}"
+        parts.append('Trusted_Connection=yes')
     else:
-        return f"mssql+pyodbc://{urllib.parse.quote_plus(username)}:{urllib.parse.quote_plus(password)}@{urllib.parse.quote_plus(server)}/{urllib.parse.quote_plus(database)}?driver={driver_encoded}&timeout={timeout}"
+        parts.append(f'UID={username}')
+        parts.append(f'PWD={password}')
+
+    odbc_connect = ';'.join(parts)
+    return 'mssql+pyodbc:///?odbc_connect=' + urllib.parse.quote_plus(odbc_connect)

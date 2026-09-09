@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.3] - 2026-09-09
+
+### Fixed
+
+- **ODBC 连接串编码错误**: `build_connection_string` 改为 `odbc_connect` 显式拼接，修复 `host\instance,port` 被 URL 编码成 `%5C`/`%2C` 导致 ODBC 回退命名管道、报错 [53] 的问题
+- **ODBC 驱动自动选择**: 优先 18→17→11→Native Client，排除已废弃的 DBNETLIB「SQL Server」驱动
+- **ODBC 连接属性**: `timeout` 改为 `Connection Timeout`，并附加 `TrustServerCertificate=yes`
+
 ## [1.7.2] - 2026-09-05
 
 ### Fixed
