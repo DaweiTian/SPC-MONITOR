@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, websocketService } from '../../services'
 import { useAppContext } from '../../contexts/AppContext'
+import { useToast } from '../Toast'
+import { ChangelogDialog } from '../ChangelogDialog'
 import styles from './Layout.module.css'
+
+interface UpdateInfo {
+  version: string
+  notes: string | null
+}
 
 interface NavItem {
   key: string
@@ -126,8 +133,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const navigate = useNavigate()
   const location = useLocation()
   const { currentProduct, collectionFrequency, canAccess } = useAppContext()
+  const { addToast } = useToast()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
+  const [versionMenu, setVersionMenu] = useState<{ x: number; y: number } | null>(null)
+  const [changelogOpen, setChangelogOpen] = useState(false)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const checkingUpdateRef = useRef(false)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -145,6 +157,69 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     })
   }
   const isTauri = !!window.__TAURI__
+
+  useEffect(() => {
+    if (!versionMenu) return
+    const close = () => setVersionMenu(null)
+    const onScroll = () => setVersionMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [versionMenu])
+
+  const handleVersionContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const menuWidth = 180
+    const menuHeight = 88
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 8)
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 8)
+    setVersionMenu({ x, y })
+  }
+
+  const handleCheckUpdate = async () => {
+    if (checkingUpdateRef.current) return
+    if (!window.__TAURI__) {
+      addToast({ title: '检查更新', message: '在线更新仅桌面客户端支持', severity: 'INFO' })
+      return
+    }
+    checkingUpdateRef.current = true
+    setCheckingUpdate(true)
+    try {
+      const info = (await window.__TAURI__.core.invoke('check_for_update')) as UpdateInfo | null
+      if (!info) {
+        addToast({
+          title: '检查更新',
+          message: `当前已是最新版本 ${APP_VERSION}`,
+          severity: 'INFO',
+        })
+        return
+      }
+      addToast({
+        title: '发现新版本',
+        message: `v${info.version} 正在后台下载，请稍候…`,
+        severity: 'INFO',
+        duration: 6000,
+      })
+      const downloaded = (await window.__TAURI__.core.invoke('download_update')) as UpdateInfo
+      await window.__TAURI__.event.emit('update-ready', downloaded)
+    } catch (e) {
+      addToast({
+        title: '检查更新失败',
+        message: typeof e === 'string' ? e : '无法连接更新服务器，请检查网络',
+        severity: 'WARNING',
+      })
+    } finally {
+      checkingUpdateRef.current = false
+      setCheckingUpdate(false)
+    }
+  }
+
   const [sourceStatus, setSourceStatus] = useState<{
     source: string
     connected: boolean
@@ -288,17 +363,21 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          <span className={styles.footerVersionBadge}>
+          <span
+            className={styles.footerVersionBadge}
+            title="右键：检查更新 / 更新日志"
+            onContextMenu={handleVersionContextMenu}
+          >
             {APP_VERSION}
             <div className={styles.versionTooltip}>
               <div className={styles.versionTooltipTitle}>
                 <span className={styles.versionTooltipTitleDot} />
-                {APP_VERSION} 更新日志
+                {APP_VERSION}
               </div>
               <ul className={styles.versionTooltipList}>
                 <li className={styles.versionTooltipItem}>修复 ODBC 连接串编码问题，命名实例+端口可正常连接</li>
                 <li className={styles.versionTooltipItem}>ODBC 驱动自动优选 18/17/11，排除废弃 DBNETLIB</li>
-                <li className={styles.versionTooltipItem}>建议使用 ODBC 驱动连接 SQL Server（需安装 ODBC Driver 17+）</li>
+                <li className={styles.versionTooltipItem}>右键版本号可检查更新或查看完整历史日志</li>
               </ul>
             </div>
           </span>
@@ -307,6 +386,48 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
         </div>
       </aside>
+
+      {versionMenu && (
+        <div
+          className={styles.versionContextMenu}
+          style={{ left: versionMenu.x, top: versionMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className={styles.versionMenuItem}
+            disabled={checkingUpdate}
+            onClick={() => {
+              setVersionMenu(null)
+              void handleCheckUpdate()
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            {checkingUpdate ? '正在检查…' : '检查更新'}
+          </button>
+          <button
+            className={styles.versionMenuItem}
+            onClick={() => {
+              setVersionMenu(null)
+              setChangelogOpen(true)
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            更新日志
+          </button>
+        </div>
+      )}
+
+      <ChangelogDialog
+        open={changelogOpen}
+        currentVersion={APP_VERSION}
+        onClose={() => setChangelogOpen(false)}
+      />
 
       {/* ===== 主区域 ===== */}
       <div className={styles.main} role="main">
