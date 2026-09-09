@@ -4,6 +4,7 @@ import { api, websocketService } from '../../services'
 import { useAppContext } from '../../contexts/AppContext'
 import { useToast } from '../Toast'
 import { ChangelogDialog } from '../ChangelogDialog'
+import { AvailableUpdateDialog } from '../AvailableUpdateDialog'
 import styles from './Layout.module.css'
 
 interface UpdateInfo {
@@ -140,6 +141,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const checkingUpdateRef = useRef(false)
+  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false)
   const versionAreaRef = useRef<HTMLSpanElement>(null)
   const openVersionMenuRef = useRef<(x: number, y: number) => void>(() => {})
   const [collapsed, setCollapsed] = useState(() => {
@@ -223,14 +226,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         })
         return
       }
-      addToast({
-        title: '发现新版本',
-        message: `v${info.version} 正在后台下载，请稍候…`,
-        severity: 'INFO',
-        duration: 6000,
-      })
-      const downloaded = (await window.__TAURI__.core.invoke('download_update')) as UpdateInfo
-      await window.__TAURI__.event.emit('update-ready', downloaded)
+      // 弹窗确认是否下载，不直接开下
+      setAvailableUpdate(info)
     } catch (e) {
       addToast({
         title: '检查更新失败',
@@ -240,6 +237,25 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     } finally {
       checkingUpdateRef.current = false
       setCheckingUpdate(false)
+    }
+  }
+
+  const handleDownloadUpdate = async () => {
+    if (!window.__TAURI__ || !availableUpdate || downloadingUpdate) return
+    setDownloadingUpdate(true)
+    try {
+      const downloaded = (await window.__TAURI__.core.invoke('download_update')) as UpdateInfo
+      setAvailableUpdate(null)
+      // 交给全局 UpdateDialog 提示安装
+      await window.__TAURI__.event.emit('update-ready', downloaded)
+    } catch (e) {
+      addToast({
+        title: '下载更新失败',
+        message: typeof e === 'string' ? e : '下载中断，请稍后重试',
+        severity: 'WARNING',
+      })
+    } finally {
+      setDownloadingUpdate(false)
     }
   }
 
@@ -461,6 +477,18 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         currentVersion={APP_VERSION}
         onClose={() => setChangelogOpen(false)}
       />
+
+      {availableUpdate && (
+        <AvailableUpdateDialog
+          info={availableUpdate}
+          downloading={downloadingUpdate}
+          onCancel={() => {
+            if (downloadingUpdate) return
+            setAvailableUpdate(null)
+          }}
+          onDownload={() => { void handleDownloadUpdate() }}
+        />
+      )}
 
       {/* ===== 主区域 ===== */}
       <div className={styles.main} role="main">
