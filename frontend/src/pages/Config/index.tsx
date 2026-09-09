@@ -444,7 +444,8 @@ export const ConfigPage: React.FC = () => {
         setSaveResult({ success: true, message: '配置已保存，正在连接数据源...' })
 
         // Switch instrument immediately so collector is ready before preview/import
-        const switchResult = await api.switchInstrument(currentInstrument, initLimit)
+        // 预览阶段不必清断点；真正导入在确认框用最终 initLimit 再切换一次
+        const switchResult = await api.switchInstrument(currentInstrument, 100, false)
         if (switchResult?.success) {
           setSaveResult({ success: true, message: '数据源已连接，正在获取预览...' })
         } else {
@@ -501,10 +502,10 @@ export const ConfigPage: React.FC = () => {
     setImportProgress({ current: 0, total: initLimit, elapsed: 0 })
     const startTime = Date.now()
     try {
-      // 用用户在确认框中选择的 initLimit 重新切换采集器
+      // 用用户在确认框中选择的 initLimit 重新切换采集器，并清除断点以便全量重导
       // （handleSaveConfig 阶段切换用的是默认 100，必须在这里按最终选择重建）
       setCollectResult({ success: true, message: '正在按所选数量初始化数据源...' })
-      const reSwitch = await api.switchInstrument(currentInstrument, initLimit)
+      const reSwitch = await api.switchInstrument(currentInstrument, initLimit, true)
       if (!reSwitch?.success) {
         setCollectResult({
           success: false,
@@ -1698,37 +1699,37 @@ export const ConfigPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Import Limit */}
-              {!initStatus.breakpoint && (
-                <div className={styles.confirmSection}>
-                  <h4>初始导入数量</h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-                    <input
-                      type="range"
-                      min={10}
-                      max={1000}
-                      step={10}
-                      value={initLimit}
-                      onChange={e => setInitLimit(Number(e.target.value))}
-                      style={{ flex: 1 }}
-                      aria-label="初始导入数量"
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      max={1000}
-                      value={initLimit}
-                      onChange={e => setInitLimit(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
-                      style={{ width: 70, textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', padding: '4px 8px' }}
-                      aria-label="导入数量"
-                    />
-                    <span style={{ color: '#8b95a7', fontSize: 12, minWidth: 30 }}>条</span>
-                  </div>
-                  <p style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
-                    首次导入将从最新数据开始，最多 {initStatus.total_samples} 条可用
-                  </p>
+              {/* Import Limit — 首次导入 或 已有断点时的重新导入 */}
+              <div className={styles.confirmSection}>
+                <h4>{initStatus.breakpoint ? '重新导入历史数据' : '初始导入数量'}</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+                  <input
+                    type="range"
+                    min={10}
+                    max={1000}
+                    step={10}
+                    value={initLimit}
+                    onChange={e => setInitLimit(Number(e.target.value))}
+                    style={{ flex: 1 }}
+                    aria-label="导入样本数量"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={initLimit}
+                    onChange={e => setInitLimit(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
+                    style={{ width: 70, textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', padding: '4px 8px' }}
+                    aria-label="导入数量"
+                  />
+                  <span style={{ color: '#8b95a7', fontSize: 12, minWidth: 90 }}>个样本</span>
                 </div>
-              )}
+                <p style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
+                  {initStatus.breakpoint
+                    ? `将清除断点，从最新数据重新拉取最多 ${initLimit} 个样本；本地已有的重复记录会自动跳过`
+                    : `首次导入将从最新数据开始，最多 ${initStatus.total_samples} 个样本可用`}
+                </p>
+              </div>
 
               {/* Recent Records Preview */}
               <div className={styles.confirmSection}>

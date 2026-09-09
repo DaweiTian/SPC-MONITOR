@@ -18,6 +18,7 @@ from backend.app.models.requests import (
     FTAConfigRequest,
     UpdateConfigRequest,
     InstrumentSwitchRequest,
+    ReimportRequest,
     AliasRequest,
     ProductStatusRequest,
     ProductCategoryRequest,
@@ -41,6 +42,8 @@ def _quiet_msys_init():
 
 # Collector swap callback (set by main.py)
 _switch_collector_func: Optional[Callable] = None
+# One-shot collect callback (set by main.py), used by reimport
+_collect_once_func: Optional[Callable] = None
 
 
 def _fix_mdb_encoding(s):
@@ -663,7 +666,11 @@ def switch_instrument(body: InstrumentSwitchRequest):
         return {"success": False, "message": "采集器切换功能未初始化"}
     
     try:
-        result = _switch_collector_func(instrument_id, init_limit=body.init_limit)
+        result = _switch_collector_func(
+            instrument_id,
+            init_limit=body.init_limit,
+            reset_breakpoint=body.reset_breakpoint,
+        )
         
         # Update instrument config
         instrument_config["current_instrument"] = instrument_id
@@ -679,6 +686,52 @@ def switch_instrument(body: InstrumentSwitchRequest):
     except Exception as e:
         logger.error(f"切换仪器失败: {e}", exc_info=True)
         return {"success": False, "message": "切换失败，请检查配置"}
+
+
+@router.post("/collector/reimport")
+def reimport_collector_data(body: ReimportRequest):
+    """清除采集断点并按 init_limit 重新导入最新 N 个样本。
+
+    用于升级修复导入逻辑后，让已安装旧版的用户补历史数据。
+    本地已存在的 (指标, 品项, 时间) 会因唯一约束跳过，不会产生重复。
+    """
+    if _switch_collector_func is None:
+        return {"success": False, "message": "采集器切换功能未初始化"}
+
+    instrument_config = _load_json_config(INSTRUMENT_CONFIG_FILE, _default_instrument_config)
+    instrument_id = instrument_config.get("current_instrument", "mock")
+    if instrument_id == "mock":
+        return {"success": False, "message": "当前为 Mock 数据源，无需重新导入"}
+
+    try:
+        result = _switch_collector_func(
+            instrument_id,
+            init_limit=body.init_limit,
+            reset_breakpoint=True,
+        )
+        if not result.get("success"):
+            return result
+
+        # 立即执行一次采集
+        collect_fn = _collect_once_func
+        if collect_fn is None:
+            return {
+                "success": True,
+                "message": f"断点已清除，将在下次采集时导入最新 {body.init_limit} 个样本",
+                "collect": None,
+            }
+        collect_result = collect_fn()
+        new_records = collect_result.get("new_records", 0) if isinstance(collect_result, dict) else 0
+        return {
+            "success": True,
+            "message": f"重新导入完成：新增 {new_records} 条（最多 {body.init_limit} 个样本）",
+            "collect": collect_result,
+            "new_records": new_records,
+            "init_limit": body.init_limit,
+        }
+    except Exception as e:
+        logger.error(f"重新导入失败: {e}", exc_info=True)
+        return {"success": False, "message": f"重新导入失败: {e}"}
 
 # ========== MDB Configuration ==========
 

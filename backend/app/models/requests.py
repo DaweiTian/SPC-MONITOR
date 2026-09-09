@@ -44,6 +44,14 @@ class FTAConfigRequest(BaseModel):
 class InstrumentSwitchRequest(BaseModel):
     instrument_id: str = Field(..., pattern="^(mock|ft1|ft120|fta)$")
     init_limit: int = Field(100, ge=1, le=1000, description="首次导入数据条数上限")
+    reset_breakpoint: bool = Field(
+        False,
+        description="清除采集断点后按 init_limit 重新导入（UI 切换/重导时应为 true）",
+    )
+
+
+class ReimportRequest(BaseModel):
+    init_limit: int = Field(100, ge=1, le=1000, description="重新导入的样本数上限")
 
 
 class UpdateConfigRequest(BaseModel):

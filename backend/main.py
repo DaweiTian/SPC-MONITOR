@@ -373,12 +373,14 @@ import backend.app.api.predict as predict_module
 predict_module.storage = storage
 
 
-def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
+def switch_collector(instrument_id: str, init_limit: int = 100, reset_breakpoint: bool = False) -> dict:
     """Stop the scheduler, swap the collector, and restart.
 
     Args:
         instrument_id: "mock", "ft1", "ft120", or "fta"
-        init_limit: max records to import on first run (1-1000)
+        init_limit: max samples to import on first run (1-1000)
+        reset_breakpoint: 是否清除采集断点以便按 init_limit 重新全量导入。
+            UI 显式切换/重导时传 True；启动自动切换应传 False，保留增量位置。
 
     Returns:
         dict with success flag and message.
@@ -422,9 +424,11 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
                 with open(mapping_file, "r", encoding="utf-8") as f:
                     mapping_config = json.load(f)
 
-                # 清除断点，确保 init_limit 按「最新 N 个样本」全量导入
-                #（避免旧断点把导入限制在增量窗口内，导致只进几条数据）
-                clear_breakpoint(get_conf_path("sqlserver_breakpoint.json"))
+                # 仅在显式重导/切换时清断点，确保 init_limit 按「最新 N 个样本」导入
+                # 启动自动切换(reset_breakpoint=False)保留断点，继续增量采集
+                if reset_breakpoint:
+                    clear_breakpoint(get_conf_path("sqlserver_breakpoint.json"))
+                    logger.info("已清除 SQL Server 采集断点，准备按 init_limit 重新导入")
 
                 new_collector = SQLServerCollector.from_config(
                     db_config=db_config,
@@ -553,6 +557,7 @@ def _update_all_references(source: str, connected: bool, instrument_type: str = 
 # Wire the switch function into the config API
 import backend.app.api.config as config_module
 config_module._switch_collector_func = switch_collector
+config_module._collect_once_func = collect_with_alert
 
 # Auto-switch to configured instrument on startup
 def _auto_switch_on_startup():
@@ -565,7 +570,8 @@ def _auto_switch_on_startup():
             current = config.get("current_instrument", "mock")
             if current != "mock":
                 logger.info(f"自动切换到配置的仪器: {current}")
-                result = switch_collector(current)
+                # 启动时不清断点，避免每次重启都重新拉 init_limit 条
+                result = switch_collector(current, reset_breakpoint=False)
                 if result.get("success"):
                     logger.info(f"启动时自动切换成功: {result.get('message')}")
                 else:

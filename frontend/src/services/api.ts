@@ -131,8 +131,14 @@ export const api = {
   // Instrument configuration
   getInstrumentConfig: () => http.get<InstrumentConfig>('/config/instrument').then(r => r.data),
   updateInstrumentConfig: (config: InstrumentConfig) => http.put('/config/instrument', config).then(r => r.data),
-  switchInstrument: (instrumentId: string, initLimit?: number) =>
-    http.post('/config/instrument/switch', { instrument_id: instrumentId, init_limit: initLimit ?? 100 }).then(r => r.data),
+  switchInstrument: (instrumentId: string, initLimit?: number, resetBreakpoint = true) =>
+    http.post('/config/instrument/switch', {
+      instrument_id: instrumentId,
+      init_limit: initLimit ?? 100,
+      reset_breakpoint: resetBreakpoint,
+    }).then(r => r.data),
+  reimportCollectorData: (initLimit: number) =>
+    http.post('/config/collector/reimport', { init_limit: initLimit }).then(r => r.data),
   
   // MDB configuration
   getMDBConfig: () => http.get<MDBConfig>('/config/mdb').then(r => r.data),
