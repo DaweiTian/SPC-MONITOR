@@ -422,6 +422,10 @@ def switch_collector(instrument_id: str, init_limit: int = 100) -> dict:
                 with open(mapping_file, "r", encoding="utf-8") as f:
                     mapping_config = json.load(f)
 
+                # 清除断点，确保 init_limit 按「最新 N 个样本」全量导入
+                #（避免旧断点把导入限制在增量窗口内，导致只进几条数据）
+                clear_breakpoint(get_conf_path("sqlserver_breakpoint.json"))
+
                 new_collector = SQLServerCollector.from_config(
                     db_config=db_config,
                     mapping_config=mapping_config,

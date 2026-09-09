@@ -2,7 +2,14 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .base import BaseCollector
-from .utils import parse_datetime, load_breakpoint, save_breakpoint, load_spec_limits, build_connection_string
+from .utils import (
+    parse_datetime,
+    load_breakpoint,
+    save_breakpoint,
+    load_spec_limits,
+    build_connection_string,
+    resolve_instance_port,
+)
 from backend.app.core.validation import validate_identifier
 from backend.app.core.config import get_conf_path
 
@@ -162,19 +169,39 @@ class SQLServerCollector(BaseCollector):
         # 解析主机名到IP地址（解决中文主机名问题）
         host = SQLServerCollector._resolve_host(host)
 
+        # 命名实例且未显式给端口：尝试 SQL Browser 解析 TCP 端口
+        # pymssql/FreeTDS 对 host\instance 支持差，ODBC 靠 Browser 可以，这里补齐
+        if instance and not port:
+            browser_port = resolve_instance_port(host, instance)
+            if browser_port:
+                port = browser_port
+                instance = None
+
         # 构建 pymssql server 参数：优先 host:port，否则 host\instance
         if port:
             server = f"{host}:{port}"
         elif instance:
             server = f"{host}\\{instance}"
+            logger.warning(
+                f"pymssql 使用命名实例格式 {server}；若连接失败请改用 IP:端口"
+                f"（可先在 SSMS 查看实例端口，或确保 SQL Browser/UDP 1434 可达）"
+            )
         else:
             server = host
 
         logger.info(f"pymssql 连接参数: server={server}, database={database}, auth={auth_type}")
+        connect_kwargs = {
+            "server": server,
+            "database": database,
+            "login_timeout": 10,
+            "timeout": 30,
+        }
         if auth_type == "windows":
             # pymssql Windows 认证：不传 user/password，由 SSPI 自动处理
-            return pymssql.connect(server=server, database=database)
-        return pymssql.connect(server=server, user=username, password=password, database=database)
+            return pymssql.connect(**connect_kwargs)
+        connect_kwargs["user"] = username
+        connect_kwargs["password"] = password
+        return pymssql.connect(**connect_kwargs)
     
     @property
     def engine(self):
@@ -381,32 +408,36 @@ class SQLServerCollector(BaseCollector):
             products_map = self._load_products_sql()
             components_map = self._load_components_sql()
 
-            # 查询新样本
-            where = ""
-            params: Dict[str, Any] = {}
-            if self._last_collect_time:
-                if self._use_pymssql:
-                    where = f"WHERE s.[{self.time_col}] > %s"
-                    params = (self._last_collect_time,)
-                else:
-                    where = f"WHERE s.[{self.time_col}] > :last_time"
-                    params = {"last_time": self._last_collect_time}
+            # 查询新样本：时间条件作用在 Sample 子查询上
+            sample_where = ""
+            join_where = ""
+            if self._use_pymssql:
+                time_params: tuple = ()
+                rep_params: tuple = ()
+                if self._last_collect_time:
+                    sample_where = f"WHERE s0.[{self.time_col}] > %s"
+                    time_params = (self._last_collect_time,)
+                if self.rep_no_ref is not None:
+                    join_where = "WHERE p.[RepNoRef] = %s"
+                    rep_params = (self.rep_no_ref,)
+                params: Any = time_params + rep_params
+            else:
+                named: Dict[str, Any] = {}
+                if self._last_collect_time:
+                    sample_where = f"WHERE s0.[{self.time_col}] > :last_time"
+                    named["last_time"] = self._last_collect_time
+                if self.rep_no_ref is not None:
+                    join_where = "WHERE p.[RepNoRef] = :rep_no_ref"
+                    named["rep_no_ref"] = self.rep_no_ref
+                params = named
 
-            rep_filter = ""
-            if self.rep_no_ref is not None:
-                if self._use_pymssql:
-                    rep_filter = "AND p.[RepNoRef] = %s"
-                    if isinstance(params, tuple):
-                        params = params + (self.rep_no_ref,)
-                    else:
-                        params = (self.rep_no_ref,)
-                else:
-                    rep_filter = "AND p.[RepNoRef] = :rep_no_ref"
-                    params["rep_no_ref"] = self.rep_no_ref
-
+            # 初始导入：TOP N 取「样本数」而不是关联行数。
+            # 每个样本在 Prediction 中有多组分行；若对 JOIN 结果 TOP 1000，
+            # 可能只覆盖约 1000/组分数 个样本（例如每样本 250 组分 → 仅 4 个样本），
+            # 导致「脂肪」等单指标只剩几条。先取最新 N 个样本，再展开组分。
             top_n = self.init_limit if not self._last_collect_time else 200
             sql = f"""
-                SELECT TOP {top_n}
+                SELECT
                     s.[SampNo],
                     s.[{self.product_ref_col}],
                     s.[{self.time_col}],
@@ -414,12 +445,25 @@ class SQLServerCollector(BaseCollector):
                     p.[{self.value_col}],
                     s.[SampleId],
                     s.[Remark]
-                FROM [{self.sample_table}] s
+                FROM (
+                    SELECT TOP {top_n}
+                        s0.[SampNo],
+                        s0.[{self.product_ref_col}],
+                        s0.[{self.time_col}],
+                        s0.[SampleId],
+                        s0.[Remark]
+                    FROM [{self.sample_table}] s0
+                    {sample_where}
+                    ORDER BY s0.[{self.time_col}] DESC
+                ) s
                 INNER JOIN [{self.prediction_table}] p ON s.[SampNo] = p.[SampRef]
-                {where}
-                {rep_filter}
+                {join_where}
                 ORDER BY s.[{self.time_col}] DESC
             """
+            logger.info(
+                f"关系模式采集: 取最新 {top_n} 个样本再展开组分"
+                f"（增量={bool(self._last_collect_time)}, driver={'pymssql' if self._use_pymssql else 'odbc'}）"
+            )
 
             records = []
             if self._use_pymssql:

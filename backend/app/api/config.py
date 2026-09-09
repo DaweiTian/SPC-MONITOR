@@ -320,6 +320,14 @@ def _diagnose_pymssql_error(e: Exception, cfg: dict) -> str:
                 f"3. 防火墙是否放行端口 {port}\n"
                 f"4. SQL Server 服务是否已启动"
             )
+        if instance:
+            return (
+                f"无法连接到 {server}（命名实例）。请检查：\n"
+                f"1. SQL Server Browser 服务是否启动，UDP 1434 是否可达\n"
+                f"2. 建议改用「IP:端口」格式（在 SSMS 属性→网络配置中查看 TCP 端口，常见 1433）\n"
+                f"3. 防火墙是否放行该 TCP 端口\n"
+                f"4. 实例名是否正确（当前: {instance}）"
+            )
         elif instance:
             return (
                 f"无法连接到 {server}。请检查：\n"
@@ -1027,12 +1035,11 @@ def get_db_init_status():
             except (json.JSONDecodeError, FileNotFoundError):
                 pass
 
-        # 最近数据预览
+        # 最近数据预览：跟随采集器实际驱动（ODBC / pymssql），不要写死 pymssql
         recent_records = []
+        total_samples_available = 0
         try:
             rep_no_ref = mapping.get("rep_no_ref", 32000)
-            conn = collector._build_pymssql_connection(collector._db_config)
-            cursor = conn.cursor()
             time_col = mapping.get("time_column", "DateTime")
             prod_ref_col = mapping.get("product_ref_column", "ProdRef")
             comp_ref_col = mapping.get("component_ref_column", "CompRef")
@@ -1041,17 +1048,42 @@ def get_db_init_status():
             prediction_table = mapping.get("prediction_table", "Prediction")
             for name in [time_col, prod_ref_col, comp_ref_col, value_col, sample_table, prediction_table]:
                 validate_identifier(name)
-            cursor.execute(f"""
+
+            preview_sql = f"""
                 SELECT TOP 10
                     s.[{time_col}], s.[{prod_ref_col}],
                     p.[{comp_ref_col}], p.[{value_col}]
                 FROM [{sample_table}] s
                 INNER JOIN [{prediction_table}] p ON s.[SampNo] = p.[SampRef]
-                WHERE p.[RepNoRef] = %s
+                WHERE p.[RepNoRef] = {{rep}}
                 ORDER BY s.[{time_col}] DESC
-            """, (rep_no_ref,))
-            rows = cursor.fetchall()
-            conn.close()
+            """
+            count_sql = f"SELECT COUNT(*) FROM [{sample_table}]"
+
+            if collector._use_pymssql:
+                conn = collector._build_pymssql_connection(collector._db_config)
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(preview_sql.replace("{rep}", "%s"), (rep_no_ref,))
+                    rows = cursor.fetchall()
+                    try:
+                        cursor.execute(count_sql)
+                        total_samples_available = int(cursor.fetchone()[0] or 0)
+                    except Exception:
+                        total_samples_available = 0
+                finally:
+                    conn.close()
+            else:
+                from sqlalchemy import text
+                with collector.engine.connect() as conn:
+                    rows = conn.execute(
+                        text(preview_sql.replace("{rep}", ":rep")),
+                        {"rep": rep_no_ref},
+                    ).fetchall()
+                    try:
+                        total_samples_available = int(conn.execute(text(count_sql)).scalar() or 0)
+                    except Exception:
+                        total_samples_available = 0
 
             products_map = collector._load_products_sql()
             components_map = collector._load_components_sql()
@@ -1071,7 +1103,8 @@ def get_db_init_status():
             "success": True,
             "breakpoint": breakpoint_info,
             "recent_records": recent_records,
-            "total_samples": len(recent_records),  # SQL Server 不方便快速 COUNT，用预览数量
+            # 可导入的「样本数」上限（导入时 init_limit 按样本计）
+            "total_samples": total_samples_available or len(recent_records),
             "total_products": len(products),
             "total_indicators": len(indicators),
         }

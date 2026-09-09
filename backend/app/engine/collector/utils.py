@@ -32,6 +32,40 @@ def resolve_host(host: str) -> str:
         return host
 
 
+def resolve_instance_port(host: str, instance: str, timeout: float = 3.0) -> Optional[int]:
+    """通过 SQL Server Browser (SSRP/UDP 1434) 解析命名实例的 TCP 端口。
+
+    pymssql/FreeTDS 对 host\\instance 支持很差；ODBC 可以靠 SQL Browser，
+    这里给 pymssql 补上同样的能力。
+    """
+    if not host or not instance:
+        return None
+    try:
+        ip = resolve_host(host)
+        # SSRP client unicast request: 0x04 + instance name
+        payload = b"\x04" + instance.encode("ascii", errors="ignore")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        try:
+            sock.sendto(payload, (ip, 1434))
+            data, _ = sock.recvfrom(4096)
+        finally:
+            sock.close()
+        if not data or data[0] != 0x05:
+            return None
+        # Response: 0x05 + "tcp;PORT;..." text
+        text = data[1:].decode("ascii", errors="ignore")
+        for part in text.split(";"):
+            if part.isdigit():
+                port = int(part)
+                if 1 <= port <= 65535:
+                    logger.info(f"SQL Browser 解析实例 {instance} -> {ip}:{port}")
+                    return port
+    except Exception as e:
+        logger.debug(f"SQL Browser 解析实例失败 ({host}\\{instance}): {e}")
+    return None
+
+
 def parse_datetime(time_str: str) -> Optional[datetime]:
     """Parse datetime string handling both ISO format and custom formats."""
     if not time_str:
