@@ -13,7 +13,8 @@
   background: var(--bg-card, #141a2a);
   border: 1px solid rgba(0, 212, 255, 0.2);
   border-radius: 12px;
-  width: 640px;
+  width: 60vw;
+  min-width: 480px;
   max-width: 92vw;
   max-height: 80vh;
   display: flex;
