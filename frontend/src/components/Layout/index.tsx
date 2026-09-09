@@ -99,7 +99,7 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-const APP_VERSION = 'v1.7.1'
+const APP_VERSION = 'v1.7.3'
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
