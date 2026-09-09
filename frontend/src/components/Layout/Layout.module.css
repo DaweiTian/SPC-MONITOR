@@ -549,16 +549,20 @@
   padding: 0 4px;
 }
 
-/* 折叠侧栏过窄，tooltip 改为向右展开，避免被裁切 */
+/* 折叠侧栏过窄：向右展开；版本号在页脚，底部对齐向上生长，避免触底溢出 */
 .sidebarCollapsed .footerVersionBadge .versionTooltip {
   left: calc(100% + 8px);
-  bottom: auto;
-  top: 50%;
-  transform: translateY(-50%);
+  right: auto;
+  top: auto;
+  bottom: 0;
+  max-height: min(280px, calc(100vh - 24px));
+  overflow-y: auto;
+  transform: translateY(0);
 }
 
-.sidebarCollapsed .footerVersionBadge:hover .versionTooltip {
-  transform: translateY(-50%);
+.sidebarCollapsed .footerVersionBadge:hover .versionTooltip,
+.sidebarCollapsed .footerVersionBadge:focus-visible .versionTooltip {
+  transform: translateY(0);
 }
 
 .sidebarCollapsed .footerVersionBadge .versionTooltip::after {
