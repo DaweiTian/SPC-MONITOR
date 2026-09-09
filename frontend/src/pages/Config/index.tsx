@@ -501,6 +501,18 @@ export const ConfigPage: React.FC = () => {
     setImportProgress({ current: 0, total: initLimit, elapsed: 0 })
     const startTime = Date.now()
     try {
+      // 用用户在确认框中选择的 initLimit 重新切换采集器
+      // （handleSaveConfig 阶段切换用的是默认 100，必须在这里按最终选择重建）
+      setCollectResult({ success: true, message: '正在按所选数量初始化数据源...' })
+      const reSwitch = await api.switchInstrument(currentInstrument, initLimit)
+      if (!reSwitch?.success) {
+        setCollectResult({
+          success: false,
+          message: reSwitch?.message || '初始化数据源失败',
+        })
+        return
+      }
+
       // Auto-match products from preview if available
       if (initStatus?.recent_records) {
         await fetchProducts()
@@ -514,11 +526,11 @@ export const ConfigPage: React.FC = () => {
         handleAutoMatchProducts(mdbProducts)
       }
 
-      // Instrument is already switched in handleSaveConfig — just collect
       setCollectResult({ success: true, message: '正在采集数据...' })
+      // 大样本量导入可能超过 60s，放宽到 180s
       const collectResult = await Promise.race([
         api.manualCollect(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('采集超时（60秒）')), 60000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('采集超时（180秒）')), 180000))
       ])
       
       if (collectResult?.status === 'success') {
