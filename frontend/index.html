@@ -220,7 +220,7 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       (function() {
-        var retries = 0, maxRetries = 60;
+        var retries = 0, maxRetries = 80, timedOut = false; // ~120s，与 launcher 首启宽限对齐
         var isTauri = '__TAURI__' in window;
         var healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health';
 
@@ -254,16 +254,18 @@
 
         function hideSplash() {
           var overlay = document.getElementById('splash-overlay');
+          if (!overlay) return;
           overlay.style.transition = 'opacity 0.6s ease';
           overlay.style.opacity = '0';
-          setTimeout(function() { overlay.remove(); }, 600);
+          setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 600);
         }
 
         function checkBackend() {
-          if (retries >= maxRetries) {
+          // 超时后仍继续慢速轮询：后端可能稍后才就绪，不要永久卡在 splash
+          if (!timedOut && retries >= maxRetries) {
+            timedOut = true;
             setStep(elStepBackend, '');
-            showError('后端服务启动超时 (' + Math.round(maxRetries * 1.5) + 's)。请检查后端日志或端口 18080 是否被占用。');
-            return;
+            showError('后端服务启动较慢，仍在自动重试。请检查 ft1-backend 日志或端口 18080 是否被占用。');
           }
           retries++;
 
@@ -309,6 +311,8 @@
                         setStep(elStepReady, 'done');
                         setProgress(100);
                         setText('SYSTEM READY', 'success');
+                        // 通知 React 层后端已就绪，立即重拉权限（避免误弹密码框）
+                        try { window.dispatchEvent(new CustomEvent('ft1-backend-ready')); } catch (e) { /* ignore */ }
                         setTimeout(hideSplash, 400);
                       }, 300);
                     } else {
@@ -326,11 +330,11 @@
             })
             .catch(function() {
               clearTimeout(timer);
-              // 后端未就绪，继续轮询
-              if (retries % 4 === 0) {
+              // 后端未就绪，继续轮询（超时后放慢到 5s）
+              if (!timedOut && retries % 4 === 0) {
                 setText('STARTING BACKEND SERVICE' + '.'.repeat((retries / 4) % 4), 'active');
               }
-              setTimeout(checkBackend, 1500);
+              setTimeout(checkBackend, timedOut ? 5000 : 1500);
             });
         }
         checkBackend();

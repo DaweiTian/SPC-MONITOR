@@ -56,13 +56,13 @@ if __name__ == '__main__':
     import time as _time
     try:
         # 重试机制：端口可能因 Launcher 重启仍在 TIME_WAIT 状态
-        for _attempt in range(5):
+        for _attempt in range(8):
             try:
                 uvicorn.run(app, host=args.host, port=args.port)
                 break
             except OSError as e:
                 if '10048' in str(e) or 'Address already in use' in str(e):
-                    print(f"端口 {args.port} 被占用，等待释放后重试...")
+                    print(f"端口 {args.port} 被占用，等待释放后重试... (尝试 {_attempt + 1}/8)")
                     _time.sleep(3)
                     continue
                 raise

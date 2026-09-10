@@ -133,7 +133,7 @@ function formatTime(date: Date): string {
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { currentProduct, collectionFrequency, canAccess } = useAppContext()
+  const { currentProduct, collectionFrequency, canAccess, refreshPermissions } = useAppContext()
   const { addToast } = useToast()
   const [clock, setClock] = useState(() => formatTime(new Date()))
   const [alertsCount, setAlertsCount] = useState(0)
@@ -348,9 +348,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           instrument_type: status.instrument_type || 'mock',
           backendReachable: true,
         })
-        // 后端恢复时自动重连 WebSocket
+        // 后端恢复时自动重连 WebSocket，并刷新权限（应对密码开关/本机判定变化）
         if (!prevReachable) {
           websocketService.reconnect()
+          void refreshPermissions()
         }
         prevReachable = true
       } catch {

@@ -244,9 +244,9 @@ export const api = {
   getM8ModelInfo: () =>
     http.get<{ m8_available: boolean; models: { full?: { version?: string; metrics?: Record<string, number> } | null; lite?: { version?: string; metrics?: Record<string, number> } | null } }>('/predict/model-info').then(r => r.data),
 
-  // 权限查询
+  // 权限查询（短超时：后端未就绪时快速失败并重试，避免卡在启动等待）
   getPermissions: () =>
-    http.get<{ isLocal: boolean; allowedModules: string; restrictedModules?: string[]; passwordRequired: boolean }>('/permissions').then(r => r.data),
+    http.get<{ isLocal: boolean; allowedModules: string; restrictedModules?: string[]; passwordRequired: boolean }>('/permissions', { timeout: 5000 }).then(r => r.data),
 
   // 网络配置
   getNetworkConfig: () =>
@@ -254,9 +254,9 @@ export const api = {
   updateNetworkConfig: (config: { host?: string; shared_password?: string }) =>
     http.put<{ success: boolean; message: string; host: string; port: number; local_ip: string; shared_password: string; password_enabled: boolean }>('/network/config', config).then(r => r.data),
 
-  // 密码验证
+  // 密码验证（短超时：避免 URL auth / 验证请求长时间占住权限拉取锁）
   verifyPassword: (password: string) =>
-    http.post<{ success: boolean; message: string; token?: string }>('/auth/verify', { password }).then(r => r.data),
+    http.post<{ success: boolean; message: string; token?: string }>('/auth/verify', { password }, { timeout: 8000 }).then(r => r.data),
 
   // 设备管理
   getDevices: () =>

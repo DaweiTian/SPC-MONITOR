@@ -5,6 +5,17 @@ interface PasswordDialogProps {
   onVerify: (password: string) => Promise<boolean>
 }
 
+async function probeBackend(): Promise<boolean> {
+  const isTauri = '__TAURI__' in window
+  const healthUrl = isTauri ? 'http://127.0.0.1:18080/api/health' : '/api/health'
+  try {
+    const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(3000) })
+    return resp.ok
+  } catch {
+    return false
+  }
+}
+
 export function PasswordDialog({ onVerify }: PasswordDialogProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -23,11 +34,17 @@ export function PasswordDialog({ onVerify }: PasswordDialogProps) {
     try {
       const success = await onVerify(password)
       if (!success) {
-        setError('密码错误，请重试')
-        setPassword('')
+        // verifyPassword 在网络失败时也返回 false，探测后端以区分文案
+        const online = await probeBackend()
+        if (!online) {
+          setError('无法连接本机后端服务，请稍候重试或检查服务是否已启动')
+        } else {
+          setError('密码错误，请重试')
+          setPassword('')
+        }
       }
     } catch {
-      setError('网络错误，请检查连接后重试')
+      setError('无法连接本机后端服务，请稍候重试或检查服务是否已启动')
       setPassword('')
     } finally {
       setLoading(false)

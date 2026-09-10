@@ -76,8 +76,24 @@ pub fn run() {
     log::warn!("配置加载完成，auto_start={}", config.auto_start);
 
     if config.auto_start {
-        if let Err(e) = service_manager.start_server() {
-            error!("自动启动服务失败: {}", e);
+        // 启动失败重试：端口残留/杀软扫描可能导致首次 spawn 失败
+        let mut started = false;
+        for attempt in 1..=3u32 {
+            match service_manager.start_server() {
+                Ok(()) => {
+                    started = true;
+                    break;
+                }
+                Err(e) => {
+                    error!("自动启动服务失败(尝试 {}/3): {}", attempt, e);
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_secs(2 * attempt as u64));
+                    }
+                }
+            }
+        }
+        if !started {
+            error!("自动启动服务在 3 次尝试后仍失败，将由健康检查线程继续拉起");
         }
     }
 
@@ -159,34 +175,28 @@ pub fn run() {
                 let mut failures = 0u32;
                 let mut was_healthy = false;
                 let mut was_healthy_once = false;
+                // 当前这次进程实例是否曾健康过（重启后重置，避免新进程被旧状态误杀）
+                let mut current_proc_healthy_once = false;
                 let mut restart_backoff = 0u32;
+                // 进程存活但尚未健康的累计秒数（轮询间隔 3s）
+                let mut alive_unhealthy_secs = 0u32;
+                // 首次启动宽限：Nuitka 独立包解压/杀软扫描在工厂新机上可能超过 60s
+                const FIRST_START_GRACE_SECS: u32 = 120;
+                // 曾健康后再次不健康：连续失败次数阈值（约 15s）
+                const UNHEALTHY_AFTER_READY_FAILURES: u32 = 5;
+                let poll_secs = 3u64;
+
                 while !shutdown_for_thread.load(Ordering::Relaxed) {
-                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    std::thread::sleep(std::time::Duration::from_secs(poll_secs));
 
                     if shutdown_for_thread.load(Ordering::Relaxed) {
                         break;
                     }
 
                     if sm_for_timer.has_process() {
-                        if !sm_for_timer.health_check() {
-                            failures += 1;
-                            if failures >= 5 {
-                                sm_for_timer.stop_server().ok();
-                                if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
-                                    items.start.set_enabled(true).ok();
-                                    items.stop.set_enabled(false).ok();
-                                }
-                                was_healthy = false;
-                                // 等待端口释放（Windows TIME_WAIT 可能需要数秒）
-                                std::thread::sleep(std::time::Duration::from_secs(5));
-                                if let Err(e) = sm_for_timer.start_server() {
-                                    error!("自动重启失败: {}", e);
-                                } else {
-                                    failures = 0;
-                                }
-                            }
-                        } else {
+                        if sm_for_timer.health_check() {
                             failures = 0;
+                            alive_unhealthy_secs = 0;
                             restart_backoff = 0;
                             if !was_healthy {
                                 let _ = app_handle.emit("backend-ready", ());
@@ -196,6 +206,43 @@ pub fn run() {
                                 }
                                 was_healthy = true;
                                 was_healthy_once = true;
+                                current_proc_healthy_once = true;
+                            }
+                        } else {
+                            failures += 1;
+                            alive_unhealthy_secs = alive_unhealthy_secs.saturating_add(poll_secs as u32);
+
+                            // 区分「还在启动」与「已卡死」（按当前进程实例判定）
+                            // - 当前实例从未健康：给足首启宽限，不要在解压中途杀进程
+                            // - 当前实例曾健康：短暂连续失败才判定卡死并重启
+                            let should_restart = if current_proc_healthy_once {
+                                failures >= UNHEALTHY_AFTER_READY_FAILURES
+                            } else {
+                                alive_unhealthy_secs >= FIRST_START_GRACE_SECS
+                            };
+
+                            if should_restart {
+                                warn!(
+                                    "后端持续不健康（连续失败 {} 次 / 存活未健康 {}s），尝试重启",
+                                    failures, alive_unhealthy_secs
+                                );
+                                sm_for_timer.stop_server().ok();
+                                if let Some(items) = app_handle.try_state::<TrayMenuItems>() {
+                                    items.start.set_enabled(true).ok();
+                                    items.stop.set_enabled(false).ok();
+                                }
+                                was_healthy = false;
+                                current_proc_healthy_once = false;
+                                failures = 0;
+                                alive_unhealthy_secs = 0;
+                                // 等待端口释放（Windows TIME_WAIT 可能需要数秒）
+                                std::thread::sleep(std::time::Duration::from_secs(5));
+                                if shutdown_for_thread.load(Ordering::Relaxed) {
+                                    break;
+                                }
+                                if let Err(e) = sm_for_timer.start_server() {
+                                    error!("自动重启失败: {}", e);
+                                }
                             }
                         }
                     } else {
@@ -215,16 +262,34 @@ pub fn run() {
                             if shutdown_for_thread.load(Ordering::Relaxed) {
                                 break;
                             }
-                            if let Err(e) = sm_for_timer.start_server() {
-                                error!(
-                                    "自动拉起后端失败(第{}次，退避{}s): {}",
-                                    restart_backoff, delay_secs, e
-                                );
-                            } else {
-                                info!(
-                                    "后端进程缺失，已自动拉起(第{}次，退避{}s)",
-                                    restart_backoff, delay_secs
-                                );
+                            // spawn 可能因端口残留失败，连续快速重试几次
+                            let mut spawned = false;
+                            for attempt in 1..=3u32 {
+                                match sm_for_timer.start_server() {
+                                    Ok(()) => {
+                                        info!(
+                                            "后端进程缺失，已自动拉起(第{}次，退避{}s，spawn尝试{})",
+                                            restart_backoff, delay_secs, attempt
+                                        );
+                                        // 新进程实例：重新进入首启宽限
+                                        current_proc_healthy_once = false;
+                                        alive_unhealthy_secs = 0;
+                                        failures = 0;
+                                        spawned = true;
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error!(
+                                            "自动拉起后端失败(第{}次，退避{}s，spawn尝试{}): {}",
+                                            restart_backoff, delay_secs, attempt, e
+                                        );
+                                        std::thread::sleep(std::time::Duration::from_secs(1));
+                                    }
+                                }
+                            }
+                            if !spawned {
+                                // 保持 restart_backoff 递增，下轮继续退避重试
+                                alive_unhealthy_secs = 0;
                             }
                         }
                     }
