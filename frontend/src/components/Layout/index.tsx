@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { api, websocketService } from '../../services'
 import { useAppContext } from '../../contexts/AppContext'
 import { useToast } from '../Toast'
-import { ChangelogDialog } from '../ChangelogDialog'
+import { ChangelogDialog, getVersionHighlights } from '../ChangelogDialog'
 import { AvailableUpdateDialog } from '../AvailableUpdateDialog'
 import styles from './Layout.module.css'
 
@@ -108,6 +108,8 @@ const navGroups: NavGroup[] = [
 ]
 
 const APP_VERSION = `v${__APP_VERSION__}`
+// 从 CHANGELOG 当前版本自动截取，升版后无需再改硬编码文案
+const VERSION_HIGHLIGHTS = getVersionHighlights(__APP_VERSION__)
 
 const pageTitleMap: Record<string, { cn: string; en: string }> = {
   '/dashboard': { cn: '实时看板', en: 'Dashboard' },
@@ -463,9 +465,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {APP_VERSION}
               </div>
               <ul className={styles.versionTooltipList}>
-                <li className={styles.versionTooltipItem}>支持手动检查更新（点击/右键版本号）</li>
-                <li className={styles.versionTooltipItem}>发现新版本可确认后再下载安装</li>
-                <li className={styles.versionTooltipItem}>可查看完整历史更新日志</li>
+                {(VERSION_HIGHLIGHTS.length > 0
+                  ? VERSION_HIGHLIGHTS
+                  : ['修复已知问题，提升稳定性']
+                ).map((item) => (
+                  <li key={item} className={styles.versionTooltipItem}>{item}</li>
+                ))}
               </ul>
             </div>
           </span>

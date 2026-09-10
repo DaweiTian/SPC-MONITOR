@@ -292,72 +292,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [1.5.1] - 2026-08-23
 
-### Highlights
+### 亮点
 
-This is the first production release of the spc-monitor platform. It migrates the desktop shell from Tauri v1 to v2, replaces PyInstaller with Nuitka for backend packaging, and adds real-time alert notifications with in-app toast, sound, and system-level push.
+这是 spc-monitor 平台的首个生产发布版本：桌面壳从 Tauri v1 升级到 v2，后端打包从 PyInstaller 切换为 Nuitka，并新增实时预警通知（应用内 Toast、提示音与系统级推送）。
 
-### Added
+### 新增
 
-- **Alert notifications**: In-app toast popups with severity-based styling and slide-in/out animation
-- **System notifications**: Tauri native notifications (desktop) and browser Notification API (fallback)
-- **Alert sound**: Web Audio API beep with `AudioContext.resume()` for modern browser autoplay policies
-- **Floating TOC**: Scrollspy-enabled table of contents for help manual pages (sticky + float positioning)
-- **Help manuals as React components**: GlossaryPage and VisualGuidePage replace iframe-embedded HTML, eliminating asset protocol issues
-- **Tauri v2 notification plugin**: `tauri-plugin-notification` with permission configuration
-- **MDB sample-boundary truncation**: `init_limit` now limits by sample count instead of raw record count, preventing partial indicator truncation
-- **Widget SPC data endpoint**: `/monitor/widget_spc` for dashboard widget chart data
-- **Backend window hiding**: `EnumWindows` + `ShowWindow(SW_HIDE)` to hide the Python console window on Windows
-- **Launcher port validation**: Forces port 18080, ignoring any user-configured port
-- **Nuitka build pipeline**: `build.bat` one-click build with `pefile` icon removal for backend exe
-- **PowerShell packaging script**: `package.ps1` for flexible packaging
-- **Vite dev proxy**: `/api` proxied to `localhost:18080` for development mode
+- **预警通知**: 应用内 Toast 弹窗，按严重级别着色并带滑入/滑出动画
+- **系统通知**: Tauri 原生通知（桌面端），浏览器 Notification API 兜底
+- **预警提示音**: Web Audio API 蜂鸣；调用 `AudioContext.resume()` 以符合现代浏览器自动播放策略
+- **浮动目录**: 帮助手册页启用 Scrollspy 目录（sticky + 浮动定位）
+- **帮助手册组件化**: GlossaryPage / VisualGuidePage 替代 iframe 内嵌 HTML，消除资源协议问题
+- **Tauri v2 通知插件**: 集成 `tauri-plugin-notification` 并完成权限配置
+- **MDB 按样品边界截断**: `init_limit` 改为按样品数限制而非原始记录数，避免指标被截断一半
+- **看板小组件 SPC 接口**: 新增 `/monitor/widget_spc`，供桌面看板组件取图
+- **隐藏后端窗口**: Windows 下用 `EnumWindows` + `ShowWindow(SW_HIDE)` 隐藏 Python 控制台窗口
+- **Launcher 端口校验**: 强制使用 18080，忽略用户配置的其他端口
+- **Nuitka 构建流水线**: `build.bat` 一键构建，`pefile` 去除后端 exe 图标资源
+- **PowerShell 打包脚本**: `package.ps1` 支持灵活打包
+- **Vite 开发代理**: 开发模式将 `/api` 代理到 `localhost:18080`
 
-### Changed
+### 变更
 
-- **Tauri v1 → v2**: `Cargo.toml`, `tauri.conf.json`, capabilities, `lib.rs`, `tray.rs` migrated
-- **Vite base path**: Changed from `/app/` to `./` to fix Tauri white screen (absolute paths incompatible with `tauri://localhost/`)
-- **BrowserRouter basename**: Three-state logic — no basename for Vite dev or Tauri client, `/app` for browser production
-- **API service**: `isTauri` detection with absolute URL construction for Tauri, relative for browser
-- **CSP policy**: Added `tauri.localhost`, `asset:`, and `frame-src` directives
-- **Launcher service**: `current_dir` set to app directory, stderr redirected to log file
-- **Health check**: Changed from `reqwest::blocking` to async `reqwest` directly, removing `tokio` dependency
-- **Chart colors**: Line color brightened from `#334155` to `#94a3b8` for better visibility
-- **ECharts hook**: Registered `ScatterChart`, `BoxplotChart`, `MarkAreaComponent`
+- **Tauri v1 → v2**: 迁移 `Cargo.toml`、`tauri.conf.json`、capabilities、`lib.rs`、`tray.rs`
+- **Vite base 路径**: 由 `/app/` 改为 `./`，修复 Tauri 白屏（绝对路径与 `tauri://localhost/` 不兼容）
+- **BrowserRouter basename**: 三态逻辑——Vite 开发与 Tauri 客户端不设 basename，浏览器生产环境用 `/app`
+- **API 服务层**: 通过 `isTauri` 判断，Tauri 使用绝对 URL，浏览器使用相对路径
+- **CSP 策略**: 增加 `tauri.localhost`、`asset:` 与 `frame-src` 指令
+- **Launcher 服务**: `current_dir` 设为应用目录，stderr 重定向到日志文件
+- **健康检查**: 由 `reqwest::blocking` 改为直接异步 `reqwest`，移除 `tokio` 依赖
+- **图表颜色**: 折线色由 `#334155` 调亮为 `#94a3b8`，提升可读性
+- **ECharts hook**: 注册 `ScatterChart`、`BoxplotChart`、`MarkAreaComponent`
 
-### Fixed
+### 修复
 
-- **`import sys` missing**: Backend startup crash when compiled with Nuitka
-- **Tauri white screen**: Absolute `/app/` asset paths not resolving under `tauri://localhost/`
-- **Browser refresh 404**: SPA catch-all route serves `index.html` for non-API GET requests
-- **Navigation icons not loading**: Absolute paths `/favicon.ico` and `/icons/...` changed to relative `./favicon.ico` and `./icons/...`
-- **Tray "Show window" not working**: Added `unminimize()` call before `set_focus()`
-- **MDB breakpoint not cleared on instrument switch**: Import `BREAKPOINT_FILE` constant and clear on switch
-- **Dashboard widget state sync**: Added `collecting` field to dashboard API response
-- **AudioContext suspended**: Call `audioCtx.resume()` before playing alert sound
-- **CSS `borderColor` override**: Reordered inline styles — shorthand before longhand
-- **`-(x - mu) ** 2` Babel error**: Wrapped exponentiation in parentheses `(-((x - mu) ** 2))`
-- **MarkLine label position**: Removed incorrect `position: 'end'` override
-- **ctypes callback return type**: Changed from `c_bool` to `wintypes.BOOL` for 64-bit correctness
+- **缺少 `import sys`**: Nuitka 编译后后端启动崩溃
+- **Tauri 白屏**: 绝对路径 `/app/` 在 `tauri://localhost/` 下无法解析
+- **浏览器刷新 404**: SPA 兜底路由对非 API 的 GET 请求返回 `index.html`
+- **导航图标不加载**: 绝对路径 `/favicon.ico`、`/icons/...` 改为相对路径 `./favicon.ico`、`./icons/...`
+- **托盘「显示窗口」无效**: 在 `set_focus()` 前增加 `unminimize()`
+- **切换仪器未清 MDB 断点**: 导入 `BREAKPOINT_FILE` 常量并在切换时清除
+- **看板小组件状态同步**: 仪表盘 API 响应增加 `collecting` 字段
+- **AudioContext 被挂起**: 播放预警音前调用 `audioCtx.resume()`
+- **CSS `borderColor` 被覆盖**: 调整内联样式顺序——简写属性在前、详写属性在后
+- **`-(x - mu) ** 2` Babel 报错**: 将指数运算加括号写成 `(-((x - mu) ** 2))`
+- **MarkLine 标签位置**: 去掉错误的 `position: 'end'` 覆盖
+- **ctypes 回调返回类型**: 由 `c_bool` 改为 `wintypes.BOOL`，保证 64 位正确性
 
-### Security
+### 安全
 
-- API key authentication on all `/api/*` routes
-- CSP configured for Tauri asset protocol and localhost origins
-- WebSocket uses query-param API key (no auth dependency on WS router)
+- 全部 `/api/*` 路由启用 API Key 鉴权
+- CSP 配置适配 Tauri 资源协议与 localhost 源
+- WebSocket 使用查询参数传递 API Key（WS 路由不挂鉴权依赖）
 
 ## [1.0.0] - 2026-08-14
 
-### Added
+### 新增
 
-- Initial project structure
-- FastAPI backend with SQLite storage
-- React 18 + TypeScript + Ant Design 5 frontend
-- SPC control charts (I-MR) with 8 Nelson rules
-- Process capability analysis (Cp/Cpk/Pp/Ppk)
-- Real-time data collection with adaptive scheduling
-- WebSocket push for live updates
-- Mock, SQL Server, MDB, and FTA data source connectors
-- Tauri v1 desktop launcher
-- Configuration management UI
-- Data management and export
-- Prediction module
+- 初始项目结构
+- FastAPI 后端 + SQLite 存储
+- React 18 + TypeScript + Ant Design 5 前端
+- SPC 控制图（I-MR）及 8 条 Nelson 判异准则
+- 过程能力分析（Cp/Cpk/Pp/Ppk）
+- 实时数据采集与自适应调度
+- WebSocket 推送实时更新
+- Mock / SQL Server / MDB / FTA 数据源连接器
+- Tauri v1 桌面启动器
+- 配置管理界面
+- 数据管理与导出
+- 预测模块

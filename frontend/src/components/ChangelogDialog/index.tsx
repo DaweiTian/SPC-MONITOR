@@ -21,6 +21,7 @@ const SECTION_LABELS: Record<string, string> = {
   Removed: '移除',
   Deprecated: '废弃',
   Performance: '性能',
+  Highlights: '亮点',
 }
 
 function stripMarkdown(text: string): string {
@@ -28,6 +29,29 @@ function stripMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+}
+
+/** 侧边栏版本悬浮说明：从 CHANGELOG 当前版本条目截取（避免与发版内容脱节） */
+export function getVersionHighlights(version: string, max = 3): string[] {
+  const target = version.replace(/^v/i, '')
+  const current = parseChangelog(changelogRaw).find((v) => v.version.replace(/^v/i, '') === target)
+  if (!current) return []
+  const prefer = ['亮点', '新增', '修复', '变更']
+  const items: string[] = []
+  for (const title of prefer) {
+    if (items.length >= max) break
+    const section = current.sections.find((s) => s.title === title)
+    if (!section) continue
+    for (const raw of section.items) {
+      if (items.length >= max) break
+      // **标题**: 说明 → 只取「标题」部分，悬浮框更短
+      const cleaned = stripMarkdown(raw)
+      const colon = cleaned.search(/[:：]/)
+      const short = colon > 0 && colon <= 20 ? cleaned.slice(0, colon).trim() : cleaned
+      if (short && !items.includes(short)) items.push(short)
+    }
+  }
+  return items
 }
 
 function parseChangelog(md: string): ChangelogVersion[] {
