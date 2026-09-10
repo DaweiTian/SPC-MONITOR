@@ -95,7 +95,7 @@
   <rect x="248" y="940" width="160" height="44" rx="22"
         fill="rgba(0,212,255,0.08)" stroke="rgba(0,212,255,0.22)" stroke-width="1.5"/>
   <text x="328" y="969" font-family="Consolas, Courier New, monospace"
-        font-size="22" fill="#67e8f9" text-anchor="middle" letter-spacing="2">v1.7.4</text>
+        font-size="22" fill="#67e8f9" text-anchor="middle" letter-spacing="2">v1.7.5</text>
 
   <!-- footer deco -->
   <g opacity="0.35">

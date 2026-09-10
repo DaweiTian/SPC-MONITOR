@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [1.7.5] - 2026-09-10
+
+### Fixed
+
+- **首启误弹共享密码**: 后端未就绪时前端不再 fail-closed 为「已启用密码保护」，改为启动等待页并轮询；仅在服务端确认 `passwordRequired` 且非本机时弹出密码框
+- **后端慢启动被误杀**: launcher 健康检查按当前进程实例区分「启动中」与「卡死」；从未健康时首启宽限 120s（原先约 15s 即杀进程重启，工厂新机 Nuitka 解压易被反复打断）
+- **启动重试**: 应用拉起后端失败重试 3 次；进程消失时 spawn 内再重试；`run.py` 端口占用重试 5→8 次
+- **splash 超时卡死**: 超时后继续慢速轮询（5s），后端稍后就绪仍可进入；权限就绪后主动隐藏 splash
+- **就绪信号丢失**: 监听 Tauri `backend-ready` 与 splash `ft1-backend-ready`；请求在途时补拉一次；后端从不可达恢复时刷新权限
+- **密码框错误文案**: 区分「无法连接后端」与「密码错误」，避免后端未起时误导用户重输密码
+- **等待页可操作**: 权限拉取连续失败约 15s 后显示排查提示与「立即重试」
+
+### Changed
+
+- 版本号统一为 1.7.5（前端 package.json、后端 FastAPI metadata、Tauri/Cargo、启动页、NSIS sidebar、CHANGELOG）
+- `getPermissions` / `verifyPassword` 使用短超时（5s / 8s），降低启动竞态卡顿
+
 ## [1.7.4] - 2026-09-10
 
 ### Added
