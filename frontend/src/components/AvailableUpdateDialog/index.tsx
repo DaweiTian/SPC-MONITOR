@@ -4,6 +4,8 @@ import styles from '../UpdateDialog/UpdateDialog.module.css'
 interface UpdateInfo {
   version: string
   notes: string | null
+  isIncremental?: boolean
+  downloadSize?: number | null
 }
 
 export function AvailableUpdateDialog({
@@ -37,6 +39,14 @@ export function AvailableUpdateDialog({
         </div>
         <h3>发现新版本</h3>
         <p className={styles.version}>v{info.version}</p>
+        {info.isIncremental && (
+          <p className={styles.desc}>
+            支持增量下载
+            {info.downloadSize
+              ? `（约 ${Math.max(1, Math.round(info.downloadSize / 1024 / 1024))} MB）`
+              : ''}
+          </p>
+        )}
         {info.notes && (
           <div className={styles.notes}>
             <p className={styles.notesLabel}>更新内容：</p>

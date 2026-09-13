@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [Unreleased]
+
+### Added
+
+- **文件级增量热更新**: 构建时生成文件清单与相对上一版的 `patch-*.zip`；`latest.json` 增加 `platforms.windows-x86_64.patch` 字段；客户端优先下载校验增量包（SHA256），覆盖安装目录后重启，失败自动回退全量 NSIS 安装
+- **`scripts/make-patch.ps1`**: 扫描主程序 + `ft1-backend/**`，对比 `versions/manifest-<ver>.json`，产出增量 zip 与 `patch-meta.json`，并注入 `latest.json`；排除运行时 DB/日志，避免覆盖用户数据
+- **安装更新弹窗**: 展示增量包类型与大致下载体积；安装失败在弹窗内展示错误
+
+### Changed
+
+- **包体清理**: `build.bat` 复制后端后清理嵌套垃圾目录（叶子名 `ft1-backend`/`dist`/`run.dist`，避免误删整个后端）
+- 更新命令 `check_for_update` / `download_update` 返回增加 `isIncremental`、`downloadSize`
+
+### Security
+
+- 增量路径校验加固：拒绝绝对路径/盘符/`..` 越界；安装前复验暂存 zip SHA256；`patch.url` 与更新端点同源校验
+- 维护模式：增量覆盖期间健康检查线程不再自动拉起后端
+- 运行中主程序 copy 失败时从 `.exe.old` 回滚；安装失败可重试（pending 回写）
+- `build.bat` / `package.ps1` 的 `latest.json` 改用 `ConvertTo-Json`，避免 changelog 引号破坏 JSON
+
 ## [1.7.5] - 2026-09-10
 
 ### Fixed

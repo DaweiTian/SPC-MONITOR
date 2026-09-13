@@ -10,6 +10,8 @@ import styles from './Layout.module.css'
 interface UpdateInfo {
   version: string
   notes: string | null
+  isIncremental?: boolean
+  downloadSize?: number | null
 }
 
 interface NavItem {

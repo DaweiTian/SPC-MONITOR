@@ -4,12 +4,15 @@ import styles from './UpdateDialog.module.css'
 interface UpdateInfo {
   version: string
   notes: string | null
+  isIncremental?: boolean
+  downloadSize?: number | null
 }
 
 export function UpdateDialog() {
   const [visible, setVisible] = useState(false)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [installing, setInstalling] = useState(false)
+  const [installError, setInstallError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!window.__TAURI__) return
@@ -18,18 +21,21 @@ export function UpdateDialog() {
       const info = (event as unknown as { payload: UpdateInfo }).payload
       setUpdateInfo(info)
       setVisible(true)
+      setInstallError(null)
     })
 
-    return () => { unlisten.then(fn => fn()) }
+    return () => { unlisten.then(fn => fn()).catch(() => {}) }
   }, [])
 
   const handleInstall = async () => {
     if (!window.__TAURI__) return
     setInstalling(true)
+    setInstallError(null)
     try {
       await window.__TAURI__.core.invoke('install_update')
     } catch (e) {
       console.error('安装更新失败:', e)
+      setInstallError(typeof e === 'string' ? e : '安装失败，请稍后重试或检查网络后重新下载')
       setInstalling(false)
     }
   }
@@ -52,6 +58,14 @@ export function UpdateDialog() {
         </div>
         <h3>新版本已就绪</h3>
         <p className={styles.version}>v{updateInfo.version}</p>
+        {updateInfo.isIncremental && (
+          <p className={styles.desc}>
+            增量更新
+            {updateInfo.downloadSize
+              ? `（约 ${Math.max(1, Math.round(updateInfo.downloadSize / 1024 / 1024))} MB）`
+              : ''}
+          </p>
+        )}
         {updateInfo.notes && (
           <div className={styles.notes}>
             <p className={styles.notesLabel}>更新内容：</p>
@@ -59,6 +73,9 @@ export function UpdateDialog() {
           </div>
         )}
         <p className={styles.desc}>更新将在应用重启后生效</p>
+        {installError && (
+          <p className={styles.desc} style={{ color: '#e57373' }}>{installError}</p>
+        )}
 
         <div className={styles.actions}>
           <button className={styles.btnLater} onClick={handleLater} disabled={installing}>

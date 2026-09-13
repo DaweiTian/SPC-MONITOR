@@ -5,9 +5,11 @@ $LAUNCHER_DIR = Join-Path $PROJECT_DIR "launcher"
 $BACKEND_DIST = Join-Path $LAUNCHER_DIR "ft1-backend"
 $OUTPUT_DIR = Join-Path $PROJECT_DIR "dist"
 
-# Clean output directory
+# Clean output directory (keep versions\ manifests for incremental patches)
 if (Test-Path $OUTPUT_DIR) { Remove-Item -Recurse -Force $OUTPUT_DIR }
 New-Item -ItemType Directory -Force -Path $OUTPUT_DIR | Out-Null
+$versionsDir = Join-Path $PROJECT_DIR "versions"
+if (-not (Test-Path $versionsDir)) { New-Item -ItemType Directory -Force -Path $versionsDir | Out-Null }
 
 # Portable version
 $PORTABLE = Join-Path $OUTPUT_DIR "spc-monitor-Portable"
@@ -82,23 +84,34 @@ if ($setupSig) {
     $exeName = if ($setupExe) { $setupExe.Name } else { "setup.exe" }
     $pubDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
-    $latestJson = @"
-{
-  "version": "$version",
-  "notes": "$notes",
-  "pub_date": "$pubDate",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "$signature",
-      "url": "http://106.13.77.213:9090/$exeName"
+    # Use ConvertTo-Json so notes/signature quotes cannot produce invalid JSON
+    $latestObj = [ordered]@{
+        version  = $version
+        notes    = $notes
+        pub_date = $pubDate
+        platforms = [ordered]@{
+            'windows-x86_64' = [ordered]@{
+                signature = $signature
+                url       = "http://106.13.77.213:9090/$exeName"
+            }
+        }
     }
-  }
-}
-"@
+    $latestJson = $latestObj | ConvertTo-Json -Depth 6
     # Write without BOM so Tauri updater / JSON consumers parse cleanly
     [System.IO.File]::WriteAllText((Join-Path $OUTPUT_DIR "latest.json"), $latestJson, [System.Text.UTF8Encoding]::new($false))
     Write-Host "latest.json generated (version: $version)"
-    Write-Host "Upload to server: scp $OUTPUT_DIR\latest.json $OUTPUT_DIR\*-setup.exe $OUTPUT_DIR\*-setup.exe.sig root@106.13.77.213:/var/www/spc-monitor-updates/"
+
+    # Generate file manifest + incremental patch, inject patch into latest.json
+    $makePatch = Join-Path $PROJECT_DIR "scripts\make-patch.ps1"
+    if (Test-Path $makePatch) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $makePatch -ProjectDir $PROJECT_DIR -ServerBase "http://106.13.77.213:9090"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: make-patch failed — do not publish latest.json without patch if clients expect incremental"
+            exit 1
+        }
+    }
+
+    Write-Host "Upload to server: scp $OUTPUT_DIR\latest.json $OUTPUT_DIR\*-setup.exe $OUTPUT_DIR\*-setup.exe.sig $OUTPUT_DIR\patch-*.zip $OUTPUT_DIR\patch-meta.json root@106.13.77.213:/var/www/spc-monitor-updates/"
 } else {
     Write-Host "Warning: Updater signature not found, skipping latest.json"
 }

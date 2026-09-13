@@ -193,6 +193,11 @@ pub fn run() {
                         break;
                     }
 
+                    if updater::update_in_progress() {
+                        // 增量安装覆盖中：禁止健康线程拉起/重启后端，避免文件锁与半新旧混跑
+                        continue;
+                    }
+
                     if sm_for_timer.has_process() {
                         if sm_for_timer.health_check() {
                             failures = 0;

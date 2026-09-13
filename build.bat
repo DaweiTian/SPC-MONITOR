@@ -13,25 +13,25 @@ echo ==========================================
 echo   过程SPC监控平台 v!VERSION! - 一键构建
 echo ==========================================
 
-echo [0/6] 清理旧构建产物...
+echo [0/7] 清理旧构建产物...
 if exist "%PROJECT_DIR%ft1-backend-dist" rmdir /s /q "%PROJECT_DIR%ft1-backend-dist"
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 if exist "%PROJECT_DIR%data\frontend" rmdir /s /q "%PROJECT_DIR%data\frontend"
 echo   已清理 ft1-backend-dist, dist, data/frontend
-echo   注意: launcher/target 已保留（增量编译），如需完全重建请手动删除
+echo   注意: launcher/target 与 versions\文件清单已保留（增量编译），如需完全重建请手动删除
 
-echo [1/6] 构建前端...
+echo [1/7] 构建前端...
 cd /d "%PROJECT_DIR%frontend"
 call npm run build || (echo 前端构建失败 & pause & exit /b 1)
 
-echo [2/6] Nuitka 编译后端...
+echo [2/7] Nuitka 编译后端...
 REM 复制前端 dist 到 data/frontend（供浏览器访问）
 if exist "%PROJECT_DIR%data\frontend" rmdir /s /q "%PROJECT_DIR%data\frontend"
 xcopy /E /I /Q /Y "%PROJECT_DIR%frontend\dist" "%PROJECT_DIR%data\frontend" >nul || (echo 前端复制到 data\frontend 失败 & pause & exit /b 1)
 cd /d "%PROJECT_DIR%"
 python -m nuitka --standalone --output-dir=ft1-backend-dist --windows-console-mode=disable --jobs=0 --include-package=backend --include-package=fastapi --include-package=uvicorn --include-package=sqlalchemy --include-package=pydantic --include-package=statsmodels --include-package=pymssql --include-package=apscheduler --include-package=access_parser --include-package=pydantic_settings --include-package=multipart --include-package=websockets --include-package=yaml --include-package=pyodbc --include-package=sklearn --include-package=pandas --include-package=starlette --include-package=scipy._external --include-module=ctypes --include-data-dir=data=data --nofollow-import-to=scipy.io,scipy.cluster --nofollow-import-to=numpy.tests --nofollow-import-to=pandas.conftest --nofollow-import-to=sklearn.tests --nofollow-import-to=sklearn.utils.tests --nofollow-import-to=pandas.tests backend/run.py || (echo 后端编译失败 & pause & exit /b 1)
 
-echo [3/6] 复制后端...
+echo [3/7] 复制后端...
 set BACKEND_DIST=%LAUNCHER_DIR%\ft1-backend
 if exist "%BACKEND_DIST%" rmdir /s /q "%BACKEND_DIST%"
 if not exist "ft1-backend-dist\run.dist\run.exe" (echo Nuitka 编译产物不存在 & pause & exit /b 1)
@@ -40,6 +40,8 @@ REM 去除后端 exe 图标（避免任务栏出现两个图标）
 python -c "import pefile; pe=pefile.PE(r'ft1-backend-dist\run.dist\ft1-backend.exe'); d=pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']]; d.VirtualAddress=0;d.Size=0;pe.write(r'ft1-backend-dist\run.dist\ft1-backend.exe')" 2>nul
 xcopy /E /I /Q /Y ft1-backend-dist\run.dist "%BACKEND_DIST%" >nul || (echo 后端复制失败 & pause & exit /b 1)
 xcopy /E /I /Q /Y data "%BACKEND_DIST%\data" >nul || (echo 数据目录复制失败 & pause & exit /b 1)
+REM 清理历史误拷贝的嵌套垃圾目录（仅叶子名；%BACKEND_DIST% 是字面目录名，不是变量展开）
+powershell -NoProfile -Command "$b = '%BACKEND_DIST%'; foreach ($n in @('ft1-backend','dist','run.dist','%BACKEND_DIST%')) { $p = Join-Path (Join-Path $b 'backend') $n; if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force; Write-Host ('  cleaned backend\' + $n) } }"
 REM 仅复制非敏感配置文件（排除 db_config/mdb_config/fta_config/server_config 等含凭据的运行时配置）
 if not exist "!PROJECT_DIR!backend\conf" (echo 错误: backend\conf 目录不存在 & pause & exit /b 1)
 if not exist "%BACKEND_DIST%\conf" mkdir "%BACKEND_DIST%\conf"
@@ -56,7 +58,7 @@ REM 注意: _resolve_model_dir() 用 __file__ 上溯3级解析路径，保留 ba
 if not exist "%BACKEND_DIST%\backend\models" mkdir "%BACKEND_DIST%\backend\models"
 xcopy /I /Q /Y "!PROJECT_DIR!backend\models\*.pkl" "%BACKEND_DIST%\backend\models\" >nul || echo   WARNING: M8 model files (*.pkl) not found - prediction will fallback to linear K-value
 
-echo [4/6] 构建 Tauri...
+echo [4/7] 构建 Tauri...
 REM 自动更新签名需要 Tauri 更新私钥
 REM 优先使用系统/用户环境变量 TAURI_SIGNING_PRIVATE_KEY（直接存放私钥内容）
 REM 兼容回退：TAURI_SIGNING_PRIVATE_KEY_PATH（私钥文件路径）
@@ -89,7 +91,7 @@ if defined TAURI_SIGNING_PRIVATE_KEY_PASSWORD (
 cd /d "%LAUNCHER_DIR%"
 cargo tauri build || (echo Tauri 构建失败 & pause & exit /b 1)
 
-echo [5/6] 打包免安装版...
+echo [5/7] 打包免安装版...
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 set PORTABLE=%OUTPUT_DIR%\spc-monitor-Portable
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
@@ -101,7 +103,7 @@ powershell -Command "Compress-Archive -Path '%PORTABLE%\*' -DestinationPath '%OU
 rmdir /s /q "%PORTABLE%"
 copy /Y "%LAUNCHER_DIR%\target\release\bundle\nsis\*!VERSION!*-setup.exe" "%OUTPUT_DIR%\" >nul || (echo 复制安装包失败 & pause & exit /b 1)
 
-echo [6/6] 生成更新清单 latest.json...
+echo [6/7] 生成更新清单 latest.json...
 set "SETUP_EXE="
 set "SETUP_SIG="
 for %%f in ("%LAUNCHER_DIR%\target\release\bundle\nsis\*!VERSION!*-setup.exe") do set "SETUP_EXE=%%f"
@@ -119,24 +121,23 @@ if defined SETUP_SIG (
     REM 生成 pub_date（locale 无关）
     for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'"') do set "PUB_DATE=%%d"
 
-    (
-        echo {
-        echo   "version": "!VERSION!",
-        echo   "notes": "!NOTES!",
-        echo   "pub_date": "!PUB_DATE!",
-        echo   "platforms": {
-        echo     "windows-x86_64": {
-        echo       "signature": "!SIGNATURE!",
-        echo       "url": "http://106.13.77.213:9090/!EXE_NAME!"
-        echo     }
-        echo   }
-        echo }
-    ) > "%OUTPUT_DIR%\latest.json"
+    REM 用 ConvertTo-Json 写入，避免 notes/签名中的引号破坏 JSON
+    powershell -NoProfile -Command "$obj = [ordered]@{ version = '!VERSION!'; notes = $env:NOTES; pub_date = '!PUB_DATE!'; platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $env:SIGNATURE; url = 'http://106.13.77.213:9090/!EXE_NAME!' } } }; [System.IO.File]::WriteAllText('%OUTPUT_DIR%\latest.json', ($obj | ConvertTo-Json -Depth 6), [System.Text.UTF8Encoding]::new($false))"
+    if errorlevel 1 (
+        echo   ERROR: latest.json 生成失败
+        pause
+        exit /b 1
+    )
 
     echo   latest.json 已生成，请将 %OUTPUT_DIR% 目录下的文件上传到更新服务器
 ) else (
     echo   WARNING: 未找到更新签名文件，跳过 latest.json 生成
 )
+
+echo [7/7] 生成文件清单与增量更新包...
+REM %PROJECT_DIR% 以 \ 结尾，"%PROJECT_DIR%" 会被 cmd 吃成 ...\"，参数尾部粘引号；
+REM 用 "%PROJECT_DIR%." 传入，或省略 -ProjectDir（脚本默认取脚本上级目录）
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_DIR%scripts\make-patch.ps1" -ProjectDir "%PROJECT_DIR%." || (echo   ERROR: 增量包生成失败，请勿发布缺少 patch 的 latest.json & pause & exit /b 1)
 
 echo.
 echo   构建完成! 产物: dist\
