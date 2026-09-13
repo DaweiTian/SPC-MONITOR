@@ -2,6 +2,10 @@
 
 基于 FT120 仪器的乳制品生产过程 SPC 监控、预测预警与数据分析桌面平台。
 
+<p align="center">
+  <img src="docs/项目截图.png" alt="SPC-MONITOR 应用界面" width="900">
+</p>
+
 ## 核心功能
 
 ### SPC 过程监控
