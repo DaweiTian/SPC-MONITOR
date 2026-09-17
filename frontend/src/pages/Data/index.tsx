@@ -64,6 +64,28 @@ export const DataPage: React.FC = () => {
     [products, productStatus, savedIndicators]
   )
 
+  // 指标下拉：已选品项时严格按勾选列表
+  const filterIndicators = useMemo(() => {
+    if (!filter.product_code) return indicators
+    const saved = savedIndicators[filter.product_code]
+    if (Array.isArray(saved)) return indicators.filter(i => saved.includes(i.code))
+    return indicators
+  }, [indicators, savedIndicators, filter.product_code])
+
+  // 「全部品项」时客户端隐藏停用/空勾选品项的历史行
+  const isRowVisible = useCallback((code: string) => {
+    if (filter.product_code) return true
+    if (productStatus[code] === 'disabled') return false
+    const saved = savedIndicators[code]
+    if (Array.isArray(saved) && saved.length === 0) return false
+    return true
+  }, [filter.product_code, productStatus, savedIndicators])
+
+  const visibleData = useMemo(
+    () => data.filter(row => isRowVisible(row.product_code || '')),
+    [data, isRowVisible]
+  )
+
   const fetchData = useCallback(async () => {
     abortRef.current?.abort()
     abortRef.current = new AbortController()
@@ -298,7 +320,7 @@ export const DataPage: React.FC = () => {
             </select>
             <select className={styles.select} value={filter.indicator_code} onChange={e => setFilter(f => ({ ...f, indicator_code: e.target.value }))} aria-label="筛选指标">
               <option value="">全部指标</option>
-              {indicators.map(i => <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>)}
+              {filterIndicators.map(i => <option key={i.code} value={i.code}>{aliases.indicators[i.code] || i.name}</option>)}
             </select>
             <input className={styles.dateInput} type="date" value={filter.date_from} onChange={e => setFilter(f => ({ ...f, date_from: e.target.value }))} aria-label="开始日期" />
             <span className={styles.dateSep}>—</span>
@@ -340,7 +362,7 @@ export const DataPage: React.FC = () => {
                 <tr><td colSpan={14} className={styles.emptyRow}>请设置筛选条件后点击查询</td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={14} className={styles.emptyRow}>暂无数据</td></tr>
-              ) : data.map((row, idx) => {
+              ) : visibleData.map((row, idx) => {
                 const spec = getSpecLimit(row.product_code, row.indicator_code)
                 const usl = spec?.usl ?? row.upper_limit
                 const lsl = spec?.lsl ?? row.lower_limit

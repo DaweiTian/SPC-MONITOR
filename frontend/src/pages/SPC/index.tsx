@@ -12,7 +12,7 @@ export const SPCPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { productStatus, getIndicatorName, aliases } = useAppMetadata()
+  const { productStatus, getIndicatorName, aliases, loading: metaLoading } = useAppMetadata()
   const [spcData, setSPCData] = useState<SPCData | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -76,8 +76,9 @@ export const SPCPage: React.FC = () => {
   }, [indicators, savedIndicators, filter.product_code])
 
   // Set initial product/indicator: URL params > Dashboard saved > first enabled
+  // 等 metadata 与 savedIndicators 就绪，避免 status 为空时闪现/误选停用品项
   useEffect(() => {
-    if (initialized || enabledProducts.length === 0 || !savedIndicatorsLoaded) return
+    if (initialized || metaLoading || enabledProducts.length === 0 || !savedIndicatorsLoaded) return
     const urlProduct = searchParams.get('product')
     const urlIndicator = searchParams.get('indicator')
     const dashboardProduct = (() => { try { return localStorage.getItem('dashboard_selected_product') } catch { return null } })()
@@ -104,16 +105,30 @@ export const SPCPage: React.FC = () => {
       ...(initIndicator ? { indicator_code: initIndicator } : {}),
     }))
     setInitialized(true)
-  }, [enabledProducts, productStatus, indicators, savedIndicators, savedIndicatorsLoaded, initialized, searchParams])
+  }, [enabledProducts, productStatus, indicators, savedIndicators, savedIndicatorsLoaded, metaLoading, initialized, searchParams])
 
   // When product changes, auto-select first saved indicator if current isn't in list
   useEffect(() => {
     if (!initialized || !filter.product_code) return
     const saved = savedIndicators[filter.product_code]
-    if (saved && saved.length > 0 && !saved.includes(filter.indicator_code)) {
-      setFilter(f => ({ ...f, indicator_code: saved[0] }))
+    if (Array.isArray(saved) && !saved.includes(filter.indicator_code)) {
+      setFilter(f => ({ ...f, indicator_code: saved[0] || '' }))
     }
-  }, [initialized, filter.product_code, savedIndicators])
+  }, [initialized, filter.product_code, filter.indicator_code, savedIndicators])
+
+  // 可见品项收缩后，若当前品项已隐藏则自动回退
+  useEffect(() => {
+    if (!initialized || !filter.product_code) return
+    if (enabledProducts.length === 0) return
+    if (!enabledProducts.some(p => p.code === filter.product_code)) {
+      const next = enabledProducts[0]
+      const saved = savedIndicators[next.code]
+      const nextInd = Array.isArray(saved) && saved.length > 0
+        ? saved[0]
+        : (indicators[0]?.code || filter.indicator_code)
+      setFilter(f => ({ ...f, product_code: next.code, indicator_code: nextInd }))
+    }
+  }, [initialized, enabledProducts, filter.product_code, savedIndicators, indicators, filter.indicator_code])
 
   // Auto-fetch when product or indicator changes (only after initialization)
   const fetchSPCData = useCallback(async (productCode: string, indicatorCode: string, window: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string, chartTypeParam?: string, lambdaParam?: number) => {

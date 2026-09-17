@@ -360,14 +360,19 @@ export const ConfigPage: React.FC = () => {
         setProducts(productList)
 
         // Fetch indicator counts in background and update
+        // 优先用品项管理勾选数，与弹窗「已选择 x/y」一致
         const countPromises = sortedProducts.map((p: Product) =>
           api.getProductIndicatorCount(p.code).catch(() => ({ count: 0 }))
         )
         const counts = await Promise.all(countPromises)
-        setProducts(prev => prev.map((p, i) => ({
-          ...p,
-          indicatorCount: counts[i]?.count || 0,
-        })))
+        const savedMap = (savedIndResult || {}) as Record<string, string[]>
+        setProducts(prev => prev.map((p, i) => {
+          const saved = savedMap[p.code]
+          return {
+            ...p,
+            indicatorCount: Array.isArray(saved) ? saved.length : (counts[i]?.count || 0),
+          }
+        }))
       }
     } catch {
       // Use empty array if fetch fails
@@ -541,11 +546,11 @@ export const ConfigPage: React.FC = () => {
           success: true,
           message: `采集成功！新增 ${newRecords} 条数据`
         })
-        // Snapshot product indicators (one-time per initialization)
+        // Snapshot: 仅补缺，保留用户已有勾选（含空列表）
         try {
           const snapshot = await api.snapshotProductIndicators()
           if (snapshot?.mapping) {
-            setSavedIndicators(snapshot.mapping)
+            setSavedIndicators(prev => ({ ...snapshot.mapping, ...prev }))
           }
         } catch {}
         // Refresh products after collection
@@ -570,6 +575,12 @@ export const ConfigPage: React.FC = () => {
     setShowConfirmDialog(false)
     setInitStatus(null)
     setInitLimit(100)
+  }
+
+  const closeProductDialog = () => {
+    setShowProductDialog(false)
+    setEditingProduct(null)
+    setSaveResult(null)
   }
 
   const handleEditProduct = async (product: ProductItem) => {
@@ -635,18 +646,15 @@ export const ConfigPage: React.FC = () => {
       return
     }
 
-    // 编辑已有仪器品项时禁止改编码：采集侧 product_code 固定等于仪器产品名
+    // 编辑已有品项时禁止改编码：采集侧 product_code 固定等于仪器产品名
     if (editingProduct && newProduct.code !== editingProduct.code) {
-      const fromInstrument = availableIndicators.length > 0
-      if (fromInstrument) {
-        addToast({
-          title: '品项编码不可修改',
-          message: '编码需与仪器连接中的产品名保持一致，否则规格限/修正值/预测等配置会与采集数据失配',
-          severity: 'WARNING',
-        })
-        setNewProduct(prev => ({ ...prev, code: editingProduct.code }))
-        return
-      }
+      addToast({
+        title: '品项编码不可修改',
+        message: '编码需与仪器连接中的样品名称保持一致，否则规格限/修正值/预测等配置会与采集数据失配',
+        severity: 'WARNING',
+      })
+      setNewProduct(prev => ({ ...prev, code: editingProduct.code }))
+      return
     }
 
     const saveErrors: string[] = []
@@ -690,16 +698,20 @@ export const ConfigPage: React.FC = () => {
 
     // Save product alias
     try {
-      await api.updateProductAlias(newProduct.code, productAlias)
-      setProductAliases(prev => {
-        const next = { ...prev }
-        if (productAlias) {
-          next[newProduct.code] = productAlias
-        } else {
-          delete next[newProduct.code]
-        }
-        return next
-      })
+      const aliasRes = await api.updateProductAlias(newProduct.code, productAlias)
+      if (aliasRes && aliasRes.success === false) {
+        saveErrors.push(`品项别名: ${aliasRes.message || '保存失败'}`)
+      } else {
+        setProductAliases(prev => {
+          const next = { ...prev }
+          if (productAlias) {
+            next[newProduct.code] = productAlias
+          } else {
+            delete next[newProduct.code]
+          }
+          return next
+        })
+      }
     } catch (e) {
       console.error('保存品项别名失败:', e)
       saveErrors.push('品项别名保存失败')
@@ -711,8 +723,14 @@ export const ConfigPage: React.FC = () => {
       const indRes = await api.updateSavedIndicators(newProduct.code, enabledCodes)
       if (indRes && indRes.success === false) {
         saveErrors.push(`监测指标: ${indRes.message || '保存失败'}`)
+      } else {
+        setSavedIndicators(prev => ({ ...prev, [newProduct.code]: enabledCodes }))
+        setProducts(prev => prev.map(p =>
+          p.id === (editingProduct?.id) || p.code === newProduct.code
+            ? { ...p, indicatorCount: enabledCodes.length }
+            : p
+        ))
       }
-      setSavedIndicators(prev => ({ ...prev, [newProduct.code]: enabledCodes }))
     } catch (e) {
       console.error('保存品项指标失败:', e)
       saveErrors.push('监测指标勾选保存失败')
@@ -755,7 +773,11 @@ export const ConfigPage: React.FC = () => {
         if (nUsl !== null && Number.isFinite(nUsl)) limits.usl = nUsl
         const nTarget = spec.target == null ? null : Number(spec.target)
         if (nTarget !== null && Number.isFinite(nTarget)) limits.target = nTarget
-        await api.updateSingleSpecLimit(spec.indicator_code, limits)
+        const specRes = await api.updateSingleSpecLimit(spec.indicator_code, limits)
+        if (specRes && specRes.success === false) {
+          saveErrors.push(`指标「${spec.indicator || spec.indicator_code}」规格限: ${specRes.message || '保存失败'}`)
+          continue
+        }
         if (spec.lsl != null || spec.usl != null) {
           productLimits[spec.indicator_code] = { lsl: limits.lsl, usl: limits.usl, target: limits.target }
         }
@@ -768,8 +790,12 @@ export const ConfigPage: React.FC = () => {
 
     // Save product category
     try {
-      await api.updateProductCategory(newProduct.code, selectedCategory)
-      setProductCategories(prev => ({ ...prev, [newProduct.code]: selectedCategory }))
+      const catRes = await api.updateProductCategory(newProduct.code, selectedCategory)
+      if (catRes && catRes.success === false) {
+        saveErrors.push(`样品类别: ${catRes.message || '保存失败'}`)
+      } else {
+        setProductCategories(prev => ({ ...prev, [newProduct.code]: selectedCategory }))
+      }
     } catch (e) {
       console.error('保存产品类别失败:', e)
       saveErrors.push('样品类别保存失败')
@@ -814,10 +840,12 @@ export const ConfigPage: React.FC = () => {
         message: saveErrors.join('；'),
         severity: 'CRITICAL',
       })
-    } else {
-      addToast({ title: '保存成功', message: `品项「${newProduct.name}」配置已更新`, severity: 'INFO' })
+      // 保留弹窗便于核对失败项
+      return
     }
 
+    addToast({ title: '保存成功', message: `品项「${newProduct.name}」配置已更新`, severity: 'INFO' })
+    setEditingProduct(null)
     setShowProductDialog(false)
   }
 
@@ -1898,7 +1926,7 @@ export const ConfigPage: React.FC = () => {
           <div className={styles.confirmDialog} style={{ maxWidth: '820px' }} role="dialog" aria-modal="true" aria-label={editingProduct ? '编辑品项' : '新增品项'}>
             <div className={styles.confirmHeader}>
               <h3>{editingProduct ? '编辑品项' : '新增品项'}</h3>
-              <button className={styles.confirmClose} onClick={() => setShowProductDialog(false)}>×</button>
+              <button className={styles.confirmClose} onClick={closeProductDialog}>×</button>
             </div>
             
             <div className={styles.confirmBody}>
@@ -2311,9 +2339,9 @@ export const ConfigPage: React.FC = () => {
             </div>
 
             <div className={styles.confirmFooter}>
-              <button 
+              <button
                 className={`${styles.btn} ${styles.btnSecondary}`}
-                onClick={() => setShowProductDialog(false)}
+                onClick={closeProductDialog}
               >
                 取消
               </button>

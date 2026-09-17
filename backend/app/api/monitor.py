@@ -21,17 +21,19 @@ collector = None
 def get_dashboard():
     if scheduler and not scheduler.scheduler.running:
         scheduler.start()
-    
+
+    from backend.app.api.alerts import _hidden_product_codes
+    hidden = _hidden_product_codes()
     today_stats = storage.get_today_stats()
-    pending_alerts = storage.get_alerts(status='pending', limit=100).get('alerts', [])
-    recent_alerts = storage.get_alerts(limit=5).get('alerts', [])
-    
+    pending_alerts = storage.get_alerts(status='pending', limit=100, exclude_product_codes=hidden).get('alerts', [])
+    recent_alerts = storage.get_alerts(limit=5, exclude_product_codes=hidden).get('alerts', [])
+
     alerts_by_severity = {'CRITICAL': 0, 'WARNING': 0, 'INFO': 0}
     for alert in pending_alerts:
         severity = alert.get('severity', 'INFO')
         if severity in alerts_by_severity:
             alerts_by_severity[severity] += 1
-    
+
     return {
         "today_data_count": today_stats['data_count'],
         "today_sync_count": today_stats['sync_count'],
@@ -212,11 +214,19 @@ def get_product_indicator_codes(product_code: str):
 
 @router.post("/products/snapshot-indicators")
 def snapshot_product_indicators():
-    """初始化时扫描数据库，保存每个品项有数据的指标编码（一次性操作）"""
-    mapping = storage.get_all_product_indicator_codes()
-    from backend.app.api.config import _save_json_config
-    _save_json_config(get_conf_path("product_indicators.json"), mapping)
-    return {"success": True, "count": len(mapping), "mapping": mapping}
+    """扫描数据库中每个品项有数据的指标；仅补缺，不覆盖用户已有勾选配置。"""
+    mapping = storage.get_all_product_indicator_codes() or {}
+    from backend.app.api.config import _load_json_config, _save_json_config
+    path = get_conf_path("product_indicators.json")
+    existing = _load_json_config(path, {}) or {}
+    if not isinstance(existing, dict):
+        existing = {}
+    for code, indicators in mapping.items():
+        # 已有显式配置（含空列表=全部取消勾选）时保持不变
+        if code not in existing:
+            existing[code] = indicators
+    _save_json_config(path, existing)
+    return {"success": True, "count": len(existing), "mapping": existing}
 
 @router.get("/products/saved-indicators")
 def get_saved_indicators():

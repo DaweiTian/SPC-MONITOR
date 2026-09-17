@@ -70,7 +70,7 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
 export const Dashboard: React.FC = () => {
   /* ── 全局状态 ── */
   const { setCurrentProduct, setCollectionFrequency } = useAppContext()
-  const { aliases, productStatus, specLimits: allSpecLimits } = useAppMetadata()
+  const { aliases, productStatus, specLimits: allSpecLimits, loading: metaLoading } = useAppMetadata()
   const { addToast } = useToast()
   const navigate = useNavigate()
   
@@ -106,14 +106,14 @@ export const Dashboard: React.FC = () => {
   const productTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const indicatorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // 根据品项状态与指标勾选过滤启用的品项
-  const enabledProducts = useMemo(() =>
-    products.filter(p =>
+  // 根据品项状态与指标勾选过滤启用的品项（metadata 未就绪时不启动自动轮换）
+  const enabledProducts = useMemo(() => {
+    if (metaLoading) return []
+    return products.filter(p =>
       productStatus[p.code] !== 'disabled' &&
       !(Array.isArray(savedIndicators[p.code]) && savedIndicators[p.code].length === 0)
-    ),
-    [products, productStatus, savedIndicators]
-  )
+    )
+  }, [products, productStatus, savedIndicators, metaLoading])
 
   /* ── 获取当前品项 ── */
   const currentProduct = useMemo(() => {
@@ -235,7 +235,11 @@ export const Dashboard: React.FC = () => {
       setActiveIndicators(active)
     } catch (e) {
       console.error('获取活跃指标失败:', e)
-      setActiveIndicators(indicators) // fallback to all
+      // 回退仍遵守品项管理勾选，避免取消勾选的指标重新出现
+      const saved = savedIndicators[currentProduct.code]
+      setActiveIndicators(
+        Array.isArray(saved) ? indicators.filter(ind => saved.includes(ind.code)) : indicators
+      )
     }
   }, [currentProduct, indicators, savedIndicators])
 
@@ -273,7 +277,7 @@ export const Dashboard: React.FC = () => {
     }
   }, [currentProduct?.code, currentIndicator?.code, predictionConfig])
 
-  /* ── 获取过程能力数据（只获取当前品项的） ── */
+  /* ── 获取过程能力数据（只获取当前品项的，且遵守勾选） ── */
   const fetchCapMatrix = useCallback(async () => {
     if (!currentProduct || indicators.length === 0) {
       setCapMatrix([])
@@ -281,7 +285,9 @@ export const Dashboard: React.FC = () => {
     }
     try {
       const productLimits = allSpecLimits[currentProduct.code] || {}
+      const saved = savedIndicators[currentProduct.code]
       const capIndicators = indicators.filter(ind => {
+        if (Array.isArray(saved) && !saved.includes(ind.code)) return false
         const s = productLimits[ind.code]
         return s && (s.usl != null || s.lsl != null)
       })
@@ -293,7 +299,7 @@ export const Dashboard: React.FC = () => {
     } catch (e) {
       console.error('获取过程能力数据失败:', e)
     }
-  }, [currentProduct, indicators, allSpecLimits])
+  }, [currentProduct, indicators, allSpecLimits, savedIndicators])
 
   /* ── 品项轮换定时器 ── */
   useEffect(() => {

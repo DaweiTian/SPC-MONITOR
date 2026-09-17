@@ -201,7 +201,7 @@ export const api = {
   updateSpecLimits: (config: Record<string, Record<string, { lsl?: number; usl?: number; target?: number }>>) =>
     http.put('/config/spec-limits', config).then(r => r.data),
   updateSingleSpecLimit: (indicatorCode: string, limits: { lsl?: number; usl?: number; target?: number; product_code?: string }) =>
-    http.put(`/config/spec-limits/${indicatorCode}`, limits).then(r => r.data),
+    http.put(`/config/spec-limits/${encodePathCode(indicatorCode)}`, limits).then(r => r.data),
 
   // Alert rules configuration
   getAlertRules: () =>

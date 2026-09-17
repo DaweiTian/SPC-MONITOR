@@ -273,7 +273,10 @@ export const AlertsPage: React.FC = () => {
         page,
         page_size: pageSize,
       })
-      setAlerts((data?.alerts || []).filter(a => isProductVisible(a.product_code || '')))
+      // 服务端已按停用/空勾选过滤 total 与列表；客户端再滤一层作兜底
+      const raw = data?.alerts || []
+      const visible = raw.filter(a => isProductVisible(a.product_code || ''))
+      setAlerts(visible)
       setTotal(data?.total || 0)
     } catch (e) {
       console.error('获取预警失败:', e)
@@ -515,7 +518,7 @@ export const AlertsPage: React.FC = () => {
                     <td>
                       <span className={styles.testValue}>{alert.test_value != null ? alert.test_value.toFixed(4) : '-'}</span>
                       {(alert.indicator_code || alert.product_code) && (
-                        <button className={styles.spcLink} title="跳转SPC控制图" onClick={() => navigate(`/spc?product=${alert.product_code}&indicator=${alert.source_indicator || alert.indicator_code}`)}>
+                        <button className={styles.spcLink} title="跳转SPC控制图" onClick={() => navigate(`/spc?product=${encodeURIComponent(alert.product_code || '')}&indicator=${encodeURIComponent(alert.source_indicator || alert.indicator_code || '')}`)}>
                           <IconLink />
                         </button>
                       )}

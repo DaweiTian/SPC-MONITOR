@@ -303,23 +303,38 @@ def collect_with_alert():
         # Get products and indicators from collector
         products = current_collector.get_products()
         indicators = current_collector.get_indicators()
-        
+
+        # 停用品项不参与预警；已取消勾选的指标也不参与
+        try:
+            product_status = _load_json_config(get_conf_path("product_status.json"), {})
+            disabled = {code for code, status in product_status.items() if status == "disabled"}
+            saved_ind = _load_json_config(get_conf_path("product_indicators.json"), {}) or {}
+        except Exception:
+            disabled = set()
+            saved_ind = {}
+
         # Check alerts for each product/indicator combination
         for product in products:
+            product_code = product.get('code')
+            if product_code in disabled:
+                continue
+            saved_codes = saved_ind.get(product_code)
             for indicator in indicators:
+                if isinstance(saved_codes, list) and indicator['code'] not in saved_codes:
+                    continue
                 product_data = storage.get_recent_data(
                     indicator_code=indicator['code'],
-                    product_code=product['code'],
+                    product_code=product_code,
                     limit=50,
                 )
-                
+
                 if len(product_data) >= 5:
                     values = [d['value'] for d in product_data]
                     timestamps = [datetime.fromisoformat(d['sample_time']) for d in product_data]
-                    spec_limits = current_collector.get_spec_limits(product_code=product['code']).get(indicator['code'])
-                    
+                    spec_limits = current_collector.get_spec_limits(product_code=product_code).get(indicator['code'])
+
                     new_alerts = alert_engine.check_and_alert(
-                        product_code=product['code'],
+                        product_code=product_code,
                         indicator_code=indicator['code'],
                         values=values,
                         timestamps=timestamps,

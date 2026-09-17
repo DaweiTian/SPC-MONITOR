@@ -1,9 +1,30 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
+from backend.app.core.config import get_conf_path
+
 router = APIRouter(prefix="/alerts", tags=["预警"])
 
 storage = None
+
+
+def _hidden_product_codes() -> set[str]:
+    """品项管理中停用，或取消全部指标勾选的品项编码。"""
+    from backend.app.api.config import _load_json_config
+    hidden: set[str] = set()
+    try:
+        status = _load_json_config(get_conf_path("product_status.json"), {}) or {}
+        for code, st in status.items():
+            if st == "disabled":
+                hidden.add(code)
+        saved = _load_json_config(get_conf_path("product_indicators.json"), {}) or {}
+        for code, inds in saved.items():
+            if isinstance(inds, list) and len(inds) == 0:
+                hidden.add(code)
+    except Exception:
+        return set()
+    return hidden
+
 
 @router.get("")
 def get_alerts(
@@ -28,6 +49,7 @@ def get_alerts(
         date_to=date_to,
         limit=page_size,
         offset=offset,
+        exclude_product_codes=_hidden_product_codes(),
     )
     return {
         "alerts": result["alerts"],
@@ -38,14 +60,14 @@ def get_alerts(
 
 @router.get("/count")
 def get_alert_count():
-    """Return pending alert counts by severity — uncapped."""
-    counts = storage.count_pending_alerts()
+    """Return pending alert counts by severity — uncapped, excluding hidden products."""
+    counts = storage.count_pending_alerts(exclude_product_codes=_hidden_product_codes())
     return counts
 
 @router.get("/products")
 def get_alert_products():
-    """Return distinct product_codes that have alerts."""
-    products = storage.get_distinct_alert_products()
+    """Return distinct product_codes that have alerts (visible products only)."""
+    products = storage.get_distinct_alert_products(exclude_product_codes=_hidden_product_codes())
     return {"products": products}
 
 @router.post("/{alert_id}/resolve")

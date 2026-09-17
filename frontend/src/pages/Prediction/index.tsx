@@ -177,7 +177,7 @@ const MODEL_LABELS: Record<string, string> = {
 export const PredictionPage: React.FC = () => {
   const { products } = useProducts()
   const { indicators } = useIndicators()
-  const { aliases, productStatus, specLimits: hookSpecLimits, getIndicatorName } = useAppMetadata()
+  const { aliases, productStatus, specLimits: hookSpecLimits, getIndicatorName, loading: metaLoading } = useAppMetadata()
   const [initialized, setInitialized] = useState(false)
   const [product, setProduct] = useState('')
   const [indicator, setIndicator] = useState('')
@@ -253,9 +253,20 @@ export const PredictionPage: React.FC = () => {
     return indicators
   }, [indicators, savedIndicators, product])
 
-  // Initialize product/indicator from Dashboard or first enabled
+  // 品项/勾选变化时，纠偏当前指标必须仍在可选列表内
   useEffect(() => {
-    if (initialized || enabledProducts.length === 0) return
+    if (!product || !indicator) return
+    const saved = savedIndicators[product]
+    if (!Array.isArray(saved)) return
+    if (!saved.includes(indicator)) {
+      const fallback = saved[0] || filteredIndicators[0]?.code || ''
+      if (fallback && fallback !== indicator) setIndicator(fallback)
+    }
+  }, [product, indicator, savedIndicators, filteredIndicators])
+
+  // Initialize product/indicator from Dashboard or first enabled（等 metadata 就绪）
+  useEffect(() => {
+    if (initialized || metaLoading || enabledProducts.length === 0) return
     let dashboardProduct: string | null = null
     try { dashboardProduct = localStorage.getItem('dashboard_selected_product') } catch { /* ignore */ }
     const savedProduct = dashboardProduct && enabledProducts.find(p => p.code === dashboardProduct)
@@ -264,12 +275,14 @@ export const PredictionPage: React.FC = () => {
 
     let savedIndicator: string | null = null
     try { savedIndicator = localStorage.getItem('prediction_indicator') } catch { /* ignore */ }
-    const initIndicator = savedIndicator && indicators.find(i => i.code === savedIndicator)
+    const saved = savedIndicators[initProduct]
+    const allowed = Array.isArray(saved) ? indicators.filter(i => saved.includes(i.code)) : indicators
+    const initIndicator = savedIndicator && allowed.find(i => i.code === savedIndicator)
       ? savedIndicator
-      : (indicators.length > 0 ? indicators[0].code : '')
+      : (allowed[0]?.code || '')
     setIndicator(initIndicator)
     setInitialized(true)
-  }, [enabledProducts, productStatus, indicators, initialized])
+  }, [enabledProducts, productStatus, indicators, metaLoading, initialized])
 
   // Persist selected indicator
   useEffect(() => {

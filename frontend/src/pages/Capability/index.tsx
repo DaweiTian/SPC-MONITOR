@@ -158,29 +158,39 @@ export const CapabilityPage: React.FC = () => {
     try { dashboardProduct = localStorage.getItem('dashboard_selected_product') } catch { /* ignore */ }
     const savedProduct = dashboardProduct && capableProducts.find(p => p.code === dashboardProduct)
     const product = savedProduct || capableProducts[0]
-    // Pick first indicator with spec limits for this product
+    // Pick first indicator that has spec limits AND is checked in product management
     const specs = allSpecLimits[product.code] || {}
-    const firstIndicator = indicators.find(i => specs[i.code]?.usl != null || specs[i.code]?.lsl != null)
+    const saved = savedIndicators[product.code]
+    const firstIndicator = indicators.find(i => {
+      if (Array.isArray(saved) && !saved.includes(i.code)) return false
+      return specs[i.code]?.usl != null || specs[i.code]?.lsl != null
+    })
     setFilter(f => ({
       ...f,
       product_code: product.code,
       indicator_code: firstIndicator?.code || f.indicator_code,
     }))
     setInitialized(true)
-  }, [capableProducts, productStatus, allSpecLimits, indicators, initialized])
+  }, [capableProducts, productStatus, allSpecLimits, indicators, savedIndicators, initialized])
 
-  // When product changes, auto-select first capable indicator
+  // When product changes, auto-select first capable indicator that is still checked
   useEffect(() => {
     if (!initialized) return
     const specs = allSpecLimits[filter.product_code] || {}
-    const hasCurrent = specs[filter.indicator_code]?.usl != null || specs[filter.indicator_code]?.lsl != null
+    const saved = savedIndicators[filter.product_code]
+    const hasCurrent =
+      (specs[filter.indicator_code]?.usl != null || specs[filter.indicator_code]?.lsl != null) &&
+      !(Array.isArray(saved) && !saved.includes(filter.indicator_code))
     if (!hasCurrent) {
-      const first = indicators.find(i => specs[i.code]?.usl != null || specs[i.code]?.lsl != null)
+      const first = indicators.find(i => {
+        if (Array.isArray(saved) && !saved.includes(i.code)) return false
+        return specs[i.code]?.usl != null || specs[i.code]?.lsl != null
+      })
       if (first) {
         setFilter(f => ({ ...f, indicator_code: first.code }))
       }
     }
-  }, [filter.product_code, initialized])
+  }, [filter.product_code, filter.indicator_code, initialized, allSpecLimits, indicators, savedIndicators])
 
   // Auto-fetch when filter changes (after initialization)
   const hasDateOrRemarkFilter = filter.date_from || filter.date_to || filter.remark

@@ -1251,7 +1251,15 @@ _default_alias_config = {
 @router.get("/aliases")
 def get_aliases():
     """获取别名配置"""
-    return _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
+    data = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
+    if not isinstance(data, dict):
+        data = {}
+    products = data.get("products")
+    indicators = data.get("indicators")
+    return {
+        "products": products if isinstance(products, dict) else {},
+        "indicators": indicators if isinstance(indicators, dict) else {},
+    }
 
 @router.put("/aliases")
 def update_aliases(config: AliasRequest):
@@ -1263,11 +1271,17 @@ def update_aliases(config: AliasRequest):
 
 @router.put("/aliases/product/{product_code}")
 def update_product_alias(product_code: str, body: dict):
-    product_code = decode_path_code(product_code)
     """更新单个品项别名"""
+    product_code = decode_path_code(product_code)
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
-    
+    if not isinstance(config, dict):
+        config = {}
+    if not isinstance(config.get("products"), dict):
+        config["products"] = {}
+    if not isinstance(config.get("indicators"), dict):
+        config["indicators"] = {}
+
     if alias:
         config["products"][product_code] = alias
     else:
@@ -1284,7 +1298,13 @@ def update_indicator_alias(indicator_code: str, body: dict):
     indicator_code = decode_path_code(indicator_code)
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
-    
+    if not isinstance(config, dict):
+        config = {}
+    if not isinstance(config.get("products"), dict):
+        config["products"] = {}
+    if not isinstance(config.get("indicators"), dict):
+        config["indicators"] = {}
+
     if alias:
         config["indicators"][indicator_code] = alias
     else:
@@ -1413,6 +1433,7 @@ def update_spec_limits(config: dict):
 @router.put("/spec-limits/{indicator_code}")
 def update_single_spec_limit(indicator_code: str, body: dict):
     """更新单个指标的规格限。传 product_code 则保存到该品项下，否则保存为全局默认。"""
+    indicator_code = decode_path_code(indicator_code)
     lsl = body.get("lsl")
     usl = body.get("usl")
     target_val = body.get("target")
@@ -1505,6 +1526,8 @@ def update_alert_rules(config: dict):
 def get_correction_values(product_code: str = Query(None)):
     """获取修正值配置。从 spec_limits 中提取 correction 字段。"""
     raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
+    if not isinstance(raw, dict):
+        return {}
     result = {}
     for p_code, indicators in raw.items():
         if not isinstance(indicators, dict):

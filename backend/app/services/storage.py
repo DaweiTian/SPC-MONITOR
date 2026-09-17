@@ -443,6 +443,7 @@ class OnlineStorage:
         date_to: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        exclude_product_codes: set[str] | None = None,
     ) -> dict[str, Any]:
         with self._connection() as conn:
             conditions: list[str] = []
@@ -469,6 +470,10 @@ class OnlineStorage:
             if date_to is not None:
                 conditions.append("created_at <= ? || ' 23:59:59'")
                 params.append(date_to)
+            if exclude_product_codes:
+                placeholders = ",".join("?" * len(exclude_product_codes))
+                conditions.append(f"(product_code IS NULL OR product_code NOT IN ({placeholders}))")
+                params.extend(list(exclude_product_codes))
 
             where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -549,11 +554,16 @@ class OnlineStorage:
             conn.commit()
             return cursor.rowcount
 
-    def count_pending_alerts(self) -> dict[str, Any]:
+    def count_pending_alerts(self, exclude_product_codes: set[str] | None = None) -> dict[str, Any]:
         with self._connection() as conn:
-            cursor = conn.execute(
-                "SELECT severity, COUNT(*) as cnt FROM alerts WHERE status = 'pending' GROUP BY severity"
-            )
+            sql = "SELECT severity, COUNT(*) as cnt FROM alerts WHERE status = 'pending'"
+            params: list[Any] = []
+            if exclude_product_codes:
+                placeholders = ",".join("?" * len(exclude_product_codes))
+                sql += f" AND (product_code IS NULL OR product_code NOT IN ({placeholders}))"
+                params.extend(list(exclude_product_codes))
+            sql += " GROUP BY severity"
+            cursor = conn.execute(sql, params)
             counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0, "total": 0}
             for row in cursor.fetchall():
                 sev = row["severity"]
@@ -563,11 +573,16 @@ class OnlineStorage:
                 counts["total"] += cnt
             return counts
 
-    def get_distinct_alert_products(self) -> list[str]:
+    def get_distinct_alert_products(self, exclude_product_codes: set[str] | None = None) -> list[str]:
         with self._connection() as conn:
-            cursor = conn.execute(
-                "SELECT DISTINCT product_code FROM alerts WHERE product_code IS NOT NULL AND product_code != '' ORDER BY product_code"
-            )
+            sql = "SELECT DISTINCT product_code FROM alerts WHERE product_code IS NOT NULL AND product_code != ''"
+            params: list[Any] = []
+            if exclude_product_codes:
+                placeholders = ",".join("?" * len(exclude_product_codes))
+                sql += f" AND product_code NOT IN ({placeholders})"
+                params.extend(list(exclude_product_codes))
+            sql += " ORDER BY product_code"
+            cursor = conn.execute(sql, params)
             return [row["product_code"] for row in cursor.fetchall()]
 
     def get_today_stats(self) -> dict[str, Any]:
