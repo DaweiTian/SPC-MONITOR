@@ -234,21 +234,23 @@ export const PredictionPage: React.FC = () => {
     api.getPredictionConfig().then(setPredictionConfig).catch(() => {})
   }, [])
 
-  // Filter out disabled products and products with insufficient data (< 20 points)
+  // Filter out disabled products, products with all indicators unchecked, and products with insufficient data
   const enabledProducts = useMemo(() =>
     products.filter(p =>
       productStatus[p.code] !== 'disabled' &&
+      !(Array.isArray(savedIndicators[p.code]) && savedIndicators[p.code].length === 0) &&
       (dataCounts.products[p.code] ?? 0) >= 20
     ),
-    [products, productStatus, dataCounts]
+    [products, productStatus, dataCounts, savedIndicators]
   )
 
   // Filter indicators: only show those configured for the selected product
   const filteredIndicators = useMemo(() => {
     if (!product) return indicators
     const saved = savedIndicators[product]
-    if (!saved || saved.length === 0) return indicators
-    return indicators.filter(i => saved.includes(i.code))
+    // 显式配置（含空数组=全部取消勾选）时严格按勾选列表；未配置过则展示全部
+    if (Array.isArray(saved)) return indicators.filter(i => saved.includes(i.code))
+    return indicators
   }, [indicators, savedIndicators, product])
 
   // Initialize product/indicator from Dashboard or first enabled

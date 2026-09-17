@@ -2,12 +2,18 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Callable
 from contextlib import contextmanager
 from datetime import datetime
+from urllib.parse import unquote
 import json
 import logging
 import copy
 import os
 import sys
 import threading
+
+
+def decode_path_code(code: Optional[str]) -> str:
+    """Decode product/indicator codes from URL path (supports double-encoded '/')."""
+    return unquote(code) if code else code
 
 from backend.app.core.validation import validate_identifier, validate_mdb_path
 from backend.app.core.config import get_conf_path
@@ -1257,6 +1263,7 @@ def update_aliases(config: AliasRequest):
 
 @router.put("/aliases/product/{product_code}")
 def update_product_alias(product_code: str, body: dict):
+    product_code = decode_path_code(product_code)
     """更新单个品项别名"""
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
@@ -1274,6 +1281,7 @@ def update_product_alias(product_code: str, body: dict):
 @router.put("/aliases/indicator/{indicator_code}")
 def update_indicator_alias(indicator_code: str, body: dict):
     """更新单个指标别名"""
+    indicator_code = decode_path_code(indicator_code)
     alias = body.get("alias", "")
     config = _load_json_config(ALIAS_CONFIG_FILE, _default_alias_config)
     
@@ -1314,6 +1322,7 @@ def update_product_status(config: ProductStatusRequest):
 @router.put("/product-status/{product_code}")
 def update_single_product_status(product_code: str, body: dict):
     """更新单个品项状态"""
+    product_code = decode_path_code(product_code)
     status = body.get("status", "enabled")
     config = _load_json_config(PRODUCT_STATUS_FILE, _default_product_status)
     
@@ -1519,6 +1528,7 @@ def get_correction_values(product_code: str = Query(None)):
 @router.put("/correction-values/{product_code}")
 def update_correction_values(product_code: str, body: dict):
     """更新单个品项的修正值（存储到 spec_limits 中）"""
+    product_code = decode_path_code(product_code)
     corrections = body.get("corrections", {})
     raw = _load_json_config(SPEC_LIMITS_FILE, _default_spec_limits)
 
@@ -1577,6 +1587,7 @@ def get_product_categories():
 @router.put("/product-categories/{product_code}")
 def update_product_category(product_code: str, req: ProductCategoryRequest):
     """更新单个产品的类别"""
+    product_code = decode_path_code(product_code)
     data = _load_json_config(PRODUCT_CATEGORIES_FILE, {})
     if req.category:
         data[product_code] = req.category
@@ -1608,6 +1619,7 @@ def get_prediction_config():
 @router.put("/prediction-config/{product_code}")
 def update_prediction_config(product_code: str, indicators: dict):
     """更新某产品的交叉预测指标配置"""
+    product_code = decode_path_code(product_code)
     data = _load_json_config(PREDICTION_CONFIG_FILE, {})
 
     # 验证并设置默认值

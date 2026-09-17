@@ -108,6 +108,7 @@ export const CapabilityPage: React.FC = () => {
   const [rawValues, setRawValues] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
   const [filter, setFilter] = useState({
     product_code: '',
     indicator_code: 'fat',
@@ -120,25 +121,34 @@ export const CapabilityPage: React.FC = () => {
   // AbortController ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null)
 
-  // Products with spec limits (at least one indicator has USL or LSL)
+  useEffect(() => {
+    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+  }, [])
+
+  // Products with spec limits (at least one indicator has USL or LSL), enabled & has checked indicators
   const capableProducts = useMemo(() => {
-    const base = products.filter(p => productStatus[p.code] !== 'disabled')
+    const base = products.filter(p =>
+      productStatus[p.code] !== 'disabled' &&
+      !(Array.isArray(savedIndicators[p.code]) && savedIndicators[p.code].length === 0)
+    )
     return base.filter(p => {
       const specs = allSpecLimits[p.code] as Record<string, { lsl?: number; usl?: number }> | undefined
       if (!specs) return false
       return Object.values(specs).some(s => s.usl != null || s.lsl != null)
     })
-  }, [products, productStatus, allSpecLimits])
+  }, [products, productStatus, allSpecLimits, savedIndicators])
 
-  // Indicators with spec limits for the selected product
+  // Indicators with spec limits for the selected product (respect product-management checkboxes)
   const capableIndicators = useMemo(() => {
     const specs = allSpecLimits[filter.product_code]
     if (!specs) return []
+    const saved = savedIndicators[filter.product_code]
     return indicators.filter(i => {
+      if (Array.isArray(saved) && !saved.includes(i.code)) return false
       const s = specs[i.code]
       return s && (s.usl != null || s.lsl != null)
     })
-  }, [indicators, allSpecLimits, filter.product_code])
+  }, [indicators, allSpecLimits, filter.product_code, savedIndicators])
 
   // Set initial product and indicator when data loads
   useEffect(() => {

@@ -40,9 +40,14 @@ export const DataPage: React.FC = () => {
   const [fieldEdit, setFieldEdit] = useState<FieldEdit | null>(null)
   const [saving, setSaving] = useState(false)
   const [voidConfirmId, setVoidConfirmId] = useState<number | null>(null)
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
 
   // AbortController ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    api.getSavedIndicators().then(setSavedIndicators).catch(() => {})
+  }, [])
 
   const [filter, setFilter] = useState({
     product_code: '',
@@ -52,8 +57,11 @@ export const DataPage: React.FC = () => {
   })
 
   const enabledProducts = useMemo(
-    () => products.filter(p => productStatus[p.code] !== 'disabled'),
-    [products, productStatus]
+    () => products.filter(p =>
+      productStatus[p.code] !== 'disabled' &&
+      !(Array.isArray(savedIndicators[p.code]) && savedIndicators[p.code].length === 0)
+    ),
+    [products, productStatus, savedIndicators]
   )
 
   const fetchData = useCallback(async () => {

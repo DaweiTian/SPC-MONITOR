@@ -175,13 +175,14 @@ const PieChart = React.memo(function PieChart({ alerts, ruleMap }: { alerts: Ale
 
 export const AlertsPage: React.FC = () => {
   const navigate = useNavigate()
-  const { aliases } = useAppMetadata()
+  const { aliases, productStatus } = useAppMetadata()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [overviewAlerts, setOverviewAlerts] = useState<Alert[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [loading, setLoading] = useState(false)
+  const [savedIndicators, setSavedIndicators] = useState<Record<string, string[]>>({})
 
   // 默认日期范围：最近30天
   const getDefaultDateRange = () => {
@@ -208,16 +209,32 @@ export const AlertsPage: React.FC = () => {
   const [alertProducts, setAlertProducts] = useState<string[]>([])
   const [alertRules, setAlertRules] = useState<AlertRule[]>([])
 
-  // Load alert product list and alert rules
+  const isProductVisible = useCallback((code: string) => {
+    if (!code) return true
+    if (productStatus[code] === 'disabled') return false
+    const saved = savedIndicators[code]
+    if (Array.isArray(saved) && saved.length === 0) return false
+    return true
+  }, [productStatus, savedIndicators])
+
+  // Load alert product list, alert rules, and saved indicators
   useEffect(() => {
     Promise.all([
       api.getAlertProducts(),
       api.getAlertRules().catch(() => ({ rules: [] })),
-    ]).then(([prodData, rulesData]) => {
+      api.getSavedIndicators().catch(() => ({} as Record<string, string[]>)),
+    ]).then(([prodData, rulesData, savedData]) => {
       setAlertRules(rulesData.rules || [])
       setAlertProducts(prodData.products || [])
+      setSavedIndicators(savedData || {})
     }).catch(console.error)
   }, [])
+
+  // 下拉与列表均隐藏已停用/取消全部勾选的品项
+  const visibleAlertProducts = useMemo(
+    () => alertProducts.filter(p => isProductVisible(p)),
+    [alertProducts, isProductVisible]
+  )
 
   // 总览数据：用于统计卡片和图表（受日期筛选影响）
   const fetchOverview = useCallback(async () => {
@@ -227,11 +244,11 @@ export const AlertsPage: React.FC = () => {
         date_from: filter.date_from || undefined,
         date_to: filter.date_to || undefined,
       })
-      setOverviewAlerts(data?.alerts || [])
+      setOverviewAlerts((data?.alerts || []).filter(a => isProductVisible(a.product_code || '')))
     } catch (e) {
       console.error('获取总览数据失败:', e)
     }
-  }, [filter.date_from, filter.date_to])
+  }, [filter.date_from, filter.date_to, isProductVisible])
 
   useEffect(() => { fetchOverview() }, [fetchOverview])
 
@@ -256,14 +273,14 @@ export const AlertsPage: React.FC = () => {
         page,
         page_size: pageSize,
       })
-      setAlerts(data?.alerts || [])
+      setAlerts((data?.alerts || []).filter(a => isProductVisible(a.product_code || '')))
       setTotal(data?.total || 0)
     } catch (e) {
       console.error('获取预警失败:', e)
     } finally {
       setLoading(false)
     }
-  }, [filter.severity, filter.status, filter.product, filter.rule_type, filter.date_from, filter.date_to, debouncedSearch, page, pageSize])
+  }, [filter.severity, filter.status, filter.product, filter.rule_type, filter.date_from, filter.date_to, debouncedSearch, page, pageSize, isProductVisible])
 
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
@@ -431,7 +448,7 @@ export const AlertsPage: React.FC = () => {
         </select>
         <select className={styles.filterSelect} value={filter.product} onChange={(e) => setFilter({ ...filter, product: e.target.value })} aria-label="筛选品项">
           <option value="">全部品项</option>
-          {alertProducts.map(p => <option key={p} value={p}>{getProductName(p)}</option>)}
+          {visibleAlertProducts.map(p => <option key={p} value={p}>{getProductName(p)}</option>)}
         </select>
         <select className={styles.filterSelect} value={filter.rule_type} onChange={(e) => setFilter({ ...filter, rule_type: e.target.value })} aria-label="筛选规则类型">
           <option value="">全部规则类型</option>

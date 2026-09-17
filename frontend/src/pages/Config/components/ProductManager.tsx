@@ -148,14 +148,32 @@ export const ProductManager = React.memo(function ProductManager(props: ProductM
                     <label className={styles.formLabel}>
                       品项编码
                       <span className={styles.formRequired}>*</span>
+                      {editingProduct && (
+                        <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                          （采集键 · 只读）
+                        </span>
+                      )}
                     </label>
                     <input
                       type="text"
-                      className={styles.formInput}
+                      className={`${styles.formInput}${editingProduct ? ` ${styles.formInputReadonly}` : ''}`}
                       value={newProduct.code}
-                      onChange={e => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
-                      placeholder="例: SPC-STD"
+                      onChange={e => {
+                        if (editingProduct) return
+                        setNewProduct(prev => ({ ...prev, code: e.target.value }))
+                      }}
+                      placeholder="须与仪器数据库样品名称一致"
+                      readOnly={!!editingProduct}
+                      disabled={!!editingProduct}
+                      title={editingProduct
+                        ? '编码等于仪器样品名称，不可修改'
+                        : '必须与仪器数据库中的样品名称一致'}
                     />
+                    <div className={styles.formReadonlyHint}>
+                      {editingProduct
+                        ? '编码与仪器样品名称绑定，不可修改。界面显示名请使用「品项别名」。'
+                        : '编码必须与仪器数据库中的样品名称一致，用于数据采集匹配。'}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.formGroup} style={{ marginTop: '12px' }}>

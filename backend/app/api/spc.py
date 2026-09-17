@@ -1,5 +1,6 @@
 from dataclasses import asdict
 from typing import Optional
+from urllib.parse import unquote
 from fastapi import APIRouter, HTTPException, Query
 import numpy as np
 from backend.app.engine.spc.control_charts import IMRControlChart, EWMAControlChart
@@ -18,6 +19,10 @@ collector = None
 
 
 _cache = TTLCache(ttl=300)
+
+
+def _decode_path_code(code: Optional[str]) -> str:
+    return unquote(code) if code else code
 
 
 def _sanitize(obj):
@@ -45,6 +50,8 @@ def get_spc_data(
     chart_type: str = Query("imr", description="图表类型: imr=I-MR图, ewma=EWMA图"),
     lambda_: float = Query(0.2, ge=0.05, le=0.5, description="EWMA平滑系数"),
 ):
+    product_code = _decode_path_code(product_code)
+    indicator_code = _decode_path_code(indicator_code)
     is_stability = mode == "stability"
     has_filter = date_from or date_to or remark
 
@@ -205,6 +212,8 @@ def get_cpk_data(
     date_to: Optional[str] = Query(None),
     remark: Optional[str] = Query(None),
 ):
+    product_code = _decode_path_code(product_code)
+    indicator_code = _decode_path_code(indicator_code)
     cache_key = f"cap:{product_code}:{indicator_code}:{window}:{date_from}:{date_to}:{remark}"
     cached = _cache.get(cache_key)
     if cached:

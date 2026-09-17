@@ -106,10 +106,13 @@ export const Dashboard: React.FC = () => {
   const productTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const indicatorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // 根据品项状态过滤启用的品项
+  // 根据品项状态与指标勾选过滤启用的品项
   const enabledProducts = useMemo(() =>
-    products.filter(p => productStatus[p.code] !== 'disabled'),
-    [products, productStatus]
+    products.filter(p =>
+      productStatus[p.code] !== 'disabled' &&
+      !(Array.isArray(savedIndicators[p.code]) && savedIndicators[p.code].length === 0)
+    ),
+    [products, productStatus, savedIndicators]
   )
 
   /* ── 获取当前品项 ── */
@@ -205,9 +208,9 @@ export const Dashboard: React.FC = () => {
     }
 
     try {
-      // 仅检查在品项管理中勾选的指标
+      // 仅检查在品项管理中勾选的指标（空数组=全部取消勾选，不回退为全部）
       const saved = savedIndicators[currentProduct.code]
-      const candidates = saved && saved.length > 0
+      const candidates = Array.isArray(saved)
         ? indicators.filter(ind => saved.includes(ind.code))
         : indicators
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-09-17
+
+### Fixed
+
+- **品项可见性统一**: 修正值、实时看板、SPC、过程能力、数据管理、指标预测、预警中心均隐藏「品项管理中停用」或「取消全部指标勾选」的品项；修正值编辑/列表只展示仍勾选的监测指标
+- **空勾选语义**: 取消全部指标勾选时后端保留空数组（不再删除 key），避免前端回退为显示全部指标
+- **品项编码含 `/` 导致配置失效**: 前端 API 路径对品项/指标编码做安全编码（`/` 双重编码），后端路径参数统一解码；规格限、修正值、监测指标、预测、类别、别名、SPC 等接口可正常读写含 `/` 的编码
+- **品项编码与仪器一致性**: 品项编码即仪器数据库样品名称（采集键），编辑时置灰只读（disabled），不可随意修改；界面显示名请用「品项别名」；保存失败时通过 Toast 明确提示，不再静默失败
+
 ### Added
 
 - **文件级增量热更新**: 构建时生成文件清单与相对上一版的 `patch-*.zip`；`latest.json` 增加 `platforms.windows-x86_64.patch` 字段；客户端优先下载校验增量包（SHA256），覆盖安装目录后重启，失败自动回退全量 NSIS 安装
@@ -17,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 - **包体清理**: `build.bat` 复制后端后清理嵌套垃圾目录（叶子名 `ft1-backend`/`dist`/`run.dist`，避免误删整个后端）
 - 更新命令 `check_for_update` / `download_update` 返回增加 `isIncremental`、`downloadSize`
+- **配置保存反馈**: 品项管理保存成功/部分失败均弹出 Toast；编码含特殊字符时给出明确错误提示
+- **版本号统一为 1.7.6**: 前端 package.json / package-lock、后端 FastAPI metadata、Tauri/Cargo、启动页 splash、NSIS sidebar、CHANGELOG
 
 ### Security
 

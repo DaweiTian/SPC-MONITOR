@@ -58,8 +58,15 @@ const CorrectionPage: React.FC = () => {
 
         if (productsResult?.products) {
           const all = productsResult.products.map((p: any) => ({ code: p.code, name: p.name }))
-          const statusMap = statusResult || {}
-          setProducts(all.filter(p => statusMap[p.code] !== 'disabled'))
+          const statusMap = (statusResult || {}) as Record<string, string>
+          const saved = (savedIndResult || {}) as Record<string, string[]>
+          // 隐藏：品项停用，或在品项管理中已取消全部指标勾选
+          setProducts(all.filter(p => {
+            if (statusMap[p.code] === 'disabled') return false
+            const codes = saved[p.code]
+            if (Array.isArray(codes) && codes.length === 0) return false
+            return true
+          }))
         }
         if (indicatorsResult?.indicators) {
           setAvailableIndicators(indicatorsResult.indicators)
@@ -82,7 +89,11 @@ const CorrectionPage: React.FC = () => {
     setSaveResult(null)
     const productData = correctionValues[productCode]
     const productCorrections = productData?.values || {}
-    const indicatorCodes = savedIndicators[productCode] || availableIndicators.map(i => i.code)
+    const saved = savedIndicators[productCode]
+    // 仅编辑品项管理中勾选的指标；未配置过时回退全部可用指标
+    const indicatorCodes = Array.isArray(saved)
+      ? saved
+      : availableIndicators.map(i => i.code)
     const items: Record<string, EditItem> = {}
     indicatorCodes.forEach(code => {
       const val = productCorrections[code]
@@ -162,13 +173,22 @@ const CorrectionPage: React.FC = () => {
   }, [])
 
   const getIndicatorCodesForProduct = (productCode: string): string[] => {
-    return savedIndicators[productCode] || availableIndicators.map(i => i.code)
+    const saved = savedIndicators[productCode]
+    return Array.isArray(saved) ? saved : availableIndicators.map(i => i.code)
   }
 
   const formatCorrectionValues = (productCode: string): React.ReactNode => {
     const data = correctionValues[productCode]
     const values = data?.values || {}
-    const entries = Object.entries(values).filter(([_, v]) => v !== 0)
+    // 列表只展示品项管理中仍勾选的指标上的修正值
+    const allowed = getIndicatorCodesForProduct(productCode)
+    const allowedSet = new Set(allowed)
+    const hasSavedConfig = Array.isArray(savedIndicators[productCode])
+    const entries = Object.entries(values).filter(([code, v]) => {
+      if (v === 0) return false
+      if (hasSavedConfig && !allowedSet.has(code)) return false
+      return true
+    })
 
     if (entries.length === 0) {
       return <span className={styles.emptyText}>未配置</span>

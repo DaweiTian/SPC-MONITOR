@@ -538,6 +538,29 @@
   outline: none;
 }
 
+.formInput:disabled,
+.formInput.formInputReadonly {
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+  border-style: dashed;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.formInput:disabled:focus,
+.formInput.formInputReadonly:focus {
+  border-color: var(--border-color);
+  box-shadow: none;
+}
+
+.formReadonlyHint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .formInput:focus,
 .formSelect:focus {
   border-color: var(--accent-cyan);

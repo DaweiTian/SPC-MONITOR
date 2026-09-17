@@ -31,6 +31,15 @@ try {
 }
 http.defaults.headers.common['X-API-Key'] = apiKey
 
+/**
+ * Encode a product/indicator code for use in a URL path segment.
+ * encodeURIComponent handles spaces/Chinese/special chars; '/' is double-encoded
+ * so it survives ASGI's single percent-decode and still matches a one-segment route.
+ */
+function encodePathCode(code: string): string {
+  return encodeURIComponent(code ?? '').replace(/%2F/gi, '%252F')
+}
+
 /** Get the current in-memory API key (used by websocket etc.) */
 export function getApiKey(): string {
   return apiKey
@@ -70,19 +79,19 @@ export const api = {
   getRecentData: (params: { indicator_code: string; product_code: string; limit?: number; date_from?: string; date_to?: string; remark?: string }, options?: { signal?: AbortSignal }) =>
     http.get('/monitor/data/recent', { params, signal: options?.signal }).then(r => r.data),
   getProductIndicatorCount: (productCode: string) =>
-    http.get<{ count: number }>(`/monitor/products/${productCode}/indicator-count`).then(r => r.data),
+    http.get<{ count: number }>(`/monitor/products/${encodePathCode(productCode)}/indicator-count`).then(r => r.data),
   getProductIndicatorCodes: (productCode: string) =>
-    http.get<{ codes: string[] }>(`/monitor/products/${productCode}/indicator-codes`).then(r => r.data),
+    http.get<{ codes: string[] }>(`/monitor/products/${encodePathCode(productCode)}/indicator-codes`).then(r => r.data),
   snapshotProductIndicators: () =>
     http.post<{ success: boolean; count: number; mapping: Record<string, string[]> }>('/monitor/products/snapshot-indicators').then(r => r.data),
   getSavedIndicators: () =>
     http.get<Record<string, string[]>>('/monitor/products/saved-indicators').then(r => r.data),
   updateSavedIndicators: (productCode: string, codes: string[]) =>
-    http.put(`/monitor/products/saved-indicators/${productCode}`, { codes }).then(r => r.data),
+    http.put(`/monitor/products/saved-indicators/${encodePathCode(productCode)}`, { codes }).then(r => r.data),
   getSPCData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }, mode?: string, chartType?: string, lambda_?: number, options?: { signal?: AbortSignal }) =>
-    http.get<SPCData>(`/spc/${productCode}/${indicatorCode}`, { params: { window, ...filters, mode, chart_type: chartType, lambda_ }, signal: options?.signal }).then(r => r.data),
+    http.get<SPCData>(`/spc/${encodePathCode(productCode)}/${encodePathCode(indicatorCode)}`, { params: { window, ...filters, mode, chart_type: chartType, lambda_ }, signal: options?.signal }).then(r => r.data),
   getCapabilityData: (productCode: string, indicatorCode: string, window?: number, filters?: { date_from?: string; date_to?: string; remark?: string }, options?: { signal?: AbortSignal }) =>
-    http.get<CapabilityData>(`/capability/${productCode}/${indicatorCode}`, { params: { window, ...filters }, signal: options?.signal }).then(r => r.data),
+    http.get<CapabilityData>(`/capability/${encodePathCode(productCode)}/${encodePathCode(indicatorCode)}`, { params: { window, ...filters }, signal: options?.signal }).then(r => r.data),
   getAlerts: (params?: { severity?: string; status?: string; product_code?: string; rule_type?: string; search?: string; date_from?: string; date_to?: string; page?: number; page_size?: number }) =>
     http.get<{ alerts: Alert[]; total: number; page: number; page_size: number }>('/alerts', { params }).then(r => r.data),
   getAlertCount: () =>
@@ -169,17 +178,17 @@ export const api = {
   updateAliases: (config: { products: Record<string, string>; indicators: Record<string, string> }) =>
     http.put('/config/aliases', config).then(r => r.data),
   updateProductAlias: (productCode: string, alias: string) =>
-    http.put(`/config/aliases/product/${productCode}`, { alias }).then(r => r.data),
+    http.put(`/config/aliases/product/${encodePathCode(productCode)}`, { alias }).then(r => r.data),
   updateIndicatorAlias: (indicatorCode: string, alias: string) =>
-    http.put(`/config/aliases/indicator/${indicatorCode}`, { alias }).then(r => r.data),
-  
+    http.put(`/config/aliases/indicator/${encodePathCode(indicatorCode)}`, { alias }).then(r => r.data),
+
   // Product status configuration
   getProductStatus: () => http.get<Record<string, string>>('/config/product-status').then(r => r.data),
   getRecentCounts: (days?: number) => http.get<{ products: Record<string, number>; indicators: Record<string, number> }>('/config/recent-counts', { params: { days } }).then(r => r.data),
   updateProductStatus: (config: Record<string, string>) =>
     http.put('/config/product-status', config).then(r => r.data),
   updateSingleProductStatus: (productCode: string, status: string) =>
-    http.put(`/config/product-status/${productCode}`, { status }).then(r => r.data),
+    http.put(`/config/product-status/${encodePathCode(productCode)}`, { status }).then(r => r.data),
 
   // Excluded remarks configuration
   getExcludedRemarks: () => http.get<string[]>('/config/excluded-remarks').then(r => r.data),
@@ -204,13 +213,13 @@ export const api = {
   getCorrectionValues: (productCode?: string) =>
     http.get<Record<string, { values: Record<string, number>; updated_at?: string }>>('/config/correction-values', { params: productCode ? { product_code: productCode } : {} }).then(r => r.data),
   updateCorrectionValues: (productCode: string, corrections: Record<string, number>) =>
-    http.put(`/config/correction-values/${productCode}`, { corrections }).then(r => r.data),
+    http.put(`/config/correction-values/${encodePathCode(productCode)}`, { corrections }).then(r => r.data),
 
   // 产品类别配置
   getProductCategories: () =>
     http.get<Record<string, string>>('/config/product-categories').then(r => r.data),
   updateProductCategory: (productCode: string, category: string) =>
-    http.put(`/config/product-categories/${productCode}`, { category }).then(r => r.data),
+    http.put(`/config/product-categories/${encodePathCode(productCode)}`, { category }).then(r => r.data),
   getPredictionCategories: () =>
     http.get<Record<string, { name: string; k: number }>>('/config/prediction-categories').then(r => r.data),
 
@@ -218,7 +227,7 @@ export const api = {
   getPredictionConfig: () =>
     http.get<Record<string, Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>>>('/config/prediction-config').then(r => r.data),
   updatePredictionConfig: (productCode: string, indicators: Record<string, { source_indicator: string; coefficient: number; enabled: boolean; alert_threshold?: number; alert_enabled?: boolean }>) =>
-    http.put(`/config/prediction-config/${productCode}`, indicators).then(r => r.data),
+    http.put(`/config/prediction-config/${encodePathCode(productCode)}`, indicators).then(r => r.data),
 
   // 交叉预测结果
   getCrossIndicatorPrediction: (product: string, target = 'saturated_fat', limit = 50) =>

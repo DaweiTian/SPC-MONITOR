@@ -635,15 +635,31 @@ export const ConfigPage: React.FC = () => {
       return
     }
 
+    // 编辑已有仪器品项时禁止改编码：采集侧 product_code 固定等于仪器产品名
+    if (editingProduct && newProduct.code !== editingProduct.code) {
+      const fromInstrument = availableIndicators.length > 0
+      if (fromInstrument) {
+        addToast({
+          title: '品项编码不可修改',
+          message: '编码需与仪器连接中的产品名保持一致，否则规格限/修正值/预测等配置会与采集数据失配',
+          severity: 'WARNING',
+        })
+        setNewProduct(prev => ({ ...prev, code: editingProduct.code }))
+        return
+      }
+    }
+
+    const saveErrors: string[] = []
+
     // Update product
     if (editingProduct) {
       // Edit existing product
-      setProducts(prev => prev.map(p => 
-        p.id === editingProduct.id 
-          ? { 
-              ...p, 
-              name: newProduct.name, 
-              code: newProduct.code, 
+      setProducts(prev => prev.map(p =>
+        p.id === editingProduct.id
+          ? {
+              ...p,
+              name: newProduct.name,
+              code: newProduct.code,
               status: newProduct.status,
               indicatorCount: indicatorSpecs.filter(s => s.enabled).length
             }
@@ -663,9 +679,13 @@ export const ConfigPage: React.FC = () => {
 
     // Save product status to backend
     try {
-      await api.updateSingleProductStatus(newProduct.code, newProduct.status)
+      const statusRes = await api.updateSingleProductStatus(newProduct.code, newProduct.status)
+      if (statusRes && statusRes.success === false) {
+        saveErrors.push(`品项状态: ${statusRes.message || '保存失败'}`)
+      }
     } catch (e) {
       console.error('保存品项状态失败:', e)
+      saveErrors.push('品项状态保存失败（请检查品项编码是否含特殊字符）')
     }
 
     // Save product alias
@@ -682,15 +702,20 @@ export const ConfigPage: React.FC = () => {
       })
     } catch (e) {
       console.error('保存品项别名失败:', e)
+      saveErrors.push('品项别名保存失败')
     }
 
-    // Save enabled indicator codes for this product
+    // Save enabled indicator codes for this product（空数组表示全部取消勾选，需保留语义）
     const enabledCodes = indicatorSpecs.filter(s => s.enabled).map(s => s.indicator_code)
     try {
-      await api.updateSavedIndicators(newProduct.code, enabledCodes)
+      const indRes = await api.updateSavedIndicators(newProduct.code, enabledCodes)
+      if (indRes && indRes.success === false) {
+        saveErrors.push(`监测指标: ${indRes.message || '保存失败'}`)
+      }
       setSavedIndicators(prev => ({ ...prev, [newProduct.code]: enabledCodes }))
     } catch (e) {
       console.error('保存品项指标失败:', e)
+      saveErrors.push('监测指标勾选保存失败')
     }
 
     // Persist spec limits to backend
@@ -736,6 +761,7 @@ export const ConfigPage: React.FC = () => {
         }
       } catch (e) {
         console.error(`保存指标 ${spec.indicator_code} 规格限失败:`, e)
+        saveErrors.push(`指标「${spec.indicator || spec.indicator_code}」规格限保存失败`)
       }
     }
     setSavedSpecLimits(prev => ({ ...prev, [newProduct.code]: productLimits }))
@@ -746,6 +772,7 @@ export const ConfigPage: React.FC = () => {
       setProductCategories(prev => ({ ...prev, [newProduct.code]: selectedCategory }))
     } catch (e) {
       console.error('保存产品类别失败:', e)
+      saveErrors.push('样品类别保存失败')
     }
 
     // Save prediction config (source→target with user-configured coefficient)
@@ -771,10 +798,24 @@ export const ConfigPage: React.FC = () => {
       }
     }
     try {
-      await api.updatePredictionConfig(newProduct.code, predIndicators)
+      const predRes = await api.updatePredictionConfig(newProduct.code, predIndicators)
+      if (predRes && predRes.success === false) {
+        saveErrors.push(`预测配置: ${predRes.message || '保存失败'}`)
+      }
       setPredictionConfig(prev => ({ ...prev, [newProduct.code]: predIndicators }))
     } catch (e) {
       console.error('保存预测配置失败:', e)
+      saveErrors.push('预测配置保存失败')
+    }
+
+    if (saveErrors.length > 0) {
+      addToast({
+        title: '部分配置未保存',
+        message: saveErrors.join('；'),
+        severity: 'CRITICAL',
+      })
+    } else {
+      addToast({ title: '保存成功', message: `品项「${newProduct.name}」配置已更新`, severity: 'INFO' })
     }
 
     setShowProductDialog(false)
@@ -1883,15 +1924,33 @@ export const ConfigPage: React.FC = () => {
                     <label className={styles.formLabel}>
                       品项编码
                       <span className={styles.formRequired}>*</span>
+                      {editingProduct && (
+                        <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                          （采集键 · 只读）
+                        </span>
+                      )}
                     </label>
                     <input
                       type="text"
-                      className={styles.formInput}
+                      className={`${styles.formInput}${editingProduct ? ` ${styles.formInputReadonly}` : ''}`}
                       value={newProduct.code}
-                      onChange={e => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
-                      placeholder="例: SPC-STD"
+                      onChange={e => {
+                        if (editingProduct) return
+                        setNewProduct(prev => ({ ...prev, code: e.target.value }))
+                      }}
+                      placeholder="须与仪器数据库样品名称一致"
                       aria-label="品项编码"
+                      readOnly={!!editingProduct}
+                      disabled={!!editingProduct}
+                      title={editingProduct
+                        ? '编码等于仪器样品名称，是数据采集与规格限/修正值/预测的匹配键，不可修改'
+                        : '必须与仪器数据库中的样品名称完全一致，否则无法正确采集与匹配配置'}
                     />
+                    <div className={styles.formReadonlyHint}>
+                      {editingProduct
+                        ? '编码与仪器样品名称绑定，不可修改。界面显示名请使用「品项别名」。'
+                        : '编码必须与仪器数据库中的样品名称一致，用于数据采集匹配，请勿随意自定义。'}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.formGroup} style={{ marginTop: '12px' }}>

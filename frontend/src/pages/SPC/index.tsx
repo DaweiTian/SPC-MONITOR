@@ -56,18 +56,23 @@ export const SPCPage: React.FC = () => {
     }
   }, [filter.product_code, filter.indicator_code, predictionConfig])
 
-  // Filter out disabled products (show all until status loaded)
+  // Filter out disabled products and products with all indicators unchecked
   const enabledProducts = useMemo(() =>
-    productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled'),
-    [products, productStatus]
+    (productStatus === null ? products : products.filter(p => productStatus[p.code] !== 'disabled'))
+      .filter(p => {
+        const saved = savedIndicators[p.code]
+        return !(Array.isArray(saved) && saved.length === 0)
+      }),
+    [products, productStatus, savedIndicators]
   )
 
   // Filter indicators: only show those configured for the selected product
   const filteredIndicators = useMemo(() => {
     if (!filter.product_code) return indicators
     const saved = savedIndicators[filter.product_code]
-    if (!saved || saved.length === 0) return indicators
-    return indicators.filter(i => saved.includes(i.code))
+    // 显式配置（含空数组=全部取消勾选）时严格按勾选列表；未配置过则展示全部
+    if (Array.isArray(saved)) return indicators.filter(i => saved.includes(i.code))
+    return indicators
   }, [indicators, savedIndicators, filter.product_code])
 
   // Set initial product/indicator: URL params > Dashboard saved > first enabled

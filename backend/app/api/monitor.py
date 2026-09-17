@@ -1,8 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
+from urllib.parse import unquote
 import logging
 from backend.app.core.config import get_conf_path
+
+
+def _decode_path_code(code: Optional[str]) -> str:
+    return unquote(code) if code else code
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/monitor", tags=["监控"])
@@ -195,11 +200,13 @@ def get_products():
 
 @router.get("/products/{product_code}/indicator-count")
 def get_product_indicator_count(product_code: str):
+    product_code = _decode_path_code(product_code)
     count = storage.get_product_indicator_count(product_code)
     return {"count": count}
 
 @router.get("/products/{product_code}/indicator-codes")
 def get_product_indicator_codes(product_code: str):
+    product_code = _decode_path_code(product_code)
     codes = storage.get_product_indicator_codes(product_code)
     return {"codes": codes}
 
@@ -219,14 +226,16 @@ def get_saved_indicators():
 
 @router.put("/products/saved-indicators/{product_code}")
 def update_saved_indicators(product_code: str, body: dict):
-    """更新单个品项的指标编码列表"""
+    """更新单个品项的指标编码列表。空列表表示全部取消勾选，需保留 key 以便其他页面隐藏。"""
+    product_code = _decode_path_code(product_code)
     codes = body.get("codes", [])
+    if codes is None:
+        codes = []
+    if not isinstance(codes, list):
+        raise HTTPException(400, "codes 必须是数组")
     from backend.app.api.config import _load_json_config, _save_json_config
     mapping = _load_json_config(get_conf_path("product_indicators.json"), {})
-    if codes:
-        mapping[product_code] = codes
-    else:
-        mapping.pop(product_code, None)
+    mapping[product_code] = codes
     _save_json_config(get_conf_path("product_indicators.json"), mapping)
     return {"success": True}
 
